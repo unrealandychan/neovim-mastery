@@ -1,0 +1,115 @@
+==============================================================================
+🎯 NEOVIM GRAMMAR & MOTIONS INTERACTIVE PRACTICE LAB
+Open this file directly in Neovim: nvim practice_grammar.txt
+==============================================================================
+
+INSTRUCTIONS:
+Work through each task sequentially. Do NOT use arrow keys or backspace!
+Use only Normal Mode commands and Vim grammar.
+
+------------------------------------------------------------------------------
+TASK 1: Change Inside Quotes (ci")
+------------------------------------------------------------------------------
+Goal: Change the string inside the quotes to "Welcome Eddie" using only 4 keystrokes.
+
+Step 1: Put your cursor anywhere on the text between the quotes.
+Step 2: Type: ci"
+Step 3: Type: Welcome Eddie
+Step 4: Press <Esc>
+
+Target line:
+const greeting = "CHANGE_THIS_ENTIRE_STRING_NOW";
+
+
+------------------------------------------------------------------------------
+TASK 2: Change Inside Parentheses (ci()
+------------------------------------------------------------------------------
+Goal: Wipe the parameters inside the parentheses and replace with (id: number).
+
+Step 1: Place cursor on any parameter below.
+Step 2: Type: ci(
+Step 3: Type: id: number
+Step 4: Press <Esc>
+
+Target line:
+function fetchRecord(oldParam1: string, oldParam2: boolean, oldParam3: any)
+
+
+------------------------------------------------------------------------------
+TASK 3: In-Line Seeking With f and t
+------------------------------------------------------------------------------
+Goal: Jump straight to the colon (:) using in-line find, and delete till the semicolon.
+
+Step 1: Place cursor at the start of the line below.
+Step 2: Type: f: (you land on the colon).
+Step 3: Type: l (move one character right).
+Step 4: Type: dt; (delete till semicolon!).
+
+Target line:
+const userEmail = "eddie@example.com"; // Keep this comment intact
+
+
+------------------------------------------------------------------------------
+TASK 4: Multi-Line Visual Block Editing (<C-v>)
+------------------------------------------------------------------------------
+Goal: Add "public " to the beginning of all 4 lines at once.
+
+Step 1: Move cursor to the letter 'i' on the first line below.
+Step 2: Press <C-v> (enters Visual Block mode).
+Step 3: Press 3j (highlighting the first column of all 4 lines).
+Step 4: Press I (Capital I = Insert at start of block).
+Step 5: Type: public 
+Step 6: Press <Esc> and wait half a second. Watch all 4 lines update!
+
+Target lines:
+id: number;
+name: string;
+email: string;
+isActive: boolean;
+
+
+------------------------------------------------------------------------------
+TASK 5: Visual Block Appending ($A)
+------------------------------------------------------------------------------
+Goal: Add a comma (,) to the end of each fruit below, even though they have different lengths.
+
+Step 1: Place cursor on "apple".
+Step 2: Press <C-v>.
+Step 3: Press 3j.
+Step 4: Press $ (extends block to end of lines).
+Step 5: Press A (Capital A = Append at end of block).
+Step 6: Type: ,
+Step 7: Press <Esc>.
+
+Target lines:
+"apple"
+"watermelon"
+"pear"
+"strawberry"
+
+
+------------------------------------------------------------------------------
+TASK 6: Macro Automation (q)
+------------------------------------------------------------------------------
+Goal: Turn these 4 names into capitalized constants using a recorded macro.
+Example output: export const ALICE = "alice";
+
+Step 1: Place cursor on the first letter of 'alice'.
+Step 2: Type: qa (start recording into register a).
+Step 3: Type: 0iexport const <Esc>
+Step 4: Type: wye (yank name)
+Step 5: Type: gUe (uppercase name)
+Step 6: Type: A = "<Esc>pa";<Esc>
+Step 7: Type: j0 (move down to start of next line)
+Step 8: Type: q (stop recording).
+Step 9: Type: 3@a (replays macro on the remaining 3 lines!).
+
+Target lines:
+alice
+bob
+charlie
+david
+
+==============================================================================
+CONGRATULATIONS! You have completed the Grammar Practice Lab!
+==============================================================================
