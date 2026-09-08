@@ -118,3 +118,15 @@ Suppose you need to delete inside three different quotes:
 
 > [!TIP]
 > Whenever you perform an edit with `c`, `d`, or `s`, ask yourself: *"Can I do this once and repeat it with `.`?"* This is how Neovim masters edit code 5x faster than anyone else.
+
+---
+
+## 🚀 Modern Evolution: Supercharged Nouns with `mini.ai`
+
+Standard Vim only knows text objects like words, quotes, and paragraphs. Your LazyVim setup extends this grammar with **`mini.ai`**, giving you code-aware nouns:
+- **`daa`**: Delete **a**n argument (including its comma!).
+- **`daf`**: Delete **a** **f**unction.
+- **`dac`**: Delete **a** **c**lass.
+
+Learn all modern text objects in **[Chapter 6.6: Micro-Productivity & Modern Editing Plugins](../06-plugin-mastery-and-ecosystem/06-micro-productivity-and-editing-plugins.md)**!
+

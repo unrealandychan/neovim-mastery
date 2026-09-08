@@ -17,24 +17,24 @@
 
 ---
 
-### Week 2: Navigation & Project Structure (Target: Never touch the mouse)
-* **Day 8**: Open 3 files. Practice switching between them with `<Shift>l` and `<Shift>h`, and closing with `<leader>bd`.
+### Week 2: Navigation, Plugins & Project Structure (Target: Teleportation & Zero Mouse)
+* **Day 8**: Open 3 files. Practice switching between them with `<Shift>l` and `<Shift>h`, and closing safely with `<leader>bd` (Snacks bufdelete).
 * **Day 9**: Split windows vertically (`<leader>|`) and horizontally (`<leader>-`). Move between them using `<C-h>`, `<C-j>`, `<C-k>`, `<C-l>`.
-* **Day 10**: Fuzzy finding: search files with `<leader><space>` and open in splits using `<C-v>`.
-* **Day 11**: Project-wide search: use `<leader>/` to grep text, and `<leader>sw` to find the word under the cursor.
-* **Day 12**: Neo-Tree file manager (`<leader>e`): Practice adding files (`a`), deleting (`d`), and renaming (`r`).
-* **Day 13**: Treesitter navigation: Jump through functions using `]m` and `[m`. Delete entire function bodies with `cif`.
-* **Day 14**: Git mastery: Jump through changes with `]h`, preview diffs with `<leader>ghp`, and launch LazyGit with `<leader>gg`.
+* **Day 10**: Fuzzy finding: search files with `<leader><space>`, recent files with `<leader>fr`, and open in splits using `<C-v>`.
+* **Day 11**: Project-wide search: use `<leader>/` to grep text, and hopping word references with `]]` and `[[`.
+* **Day 12**: Flash.nvim Teleportation: Practice jumping anywhere on screen with `s`, Treesitter selection with `S`, and remote yanks with `yr`.
+* **Day 13**: Neo-Tree file manager (`<leader>e`): Practice adding files (`a`), deleting (`d`), and renaming (`r`).
+* **Day 14**: Git & Terminals: Jump through changes with `]h`, preview diffs with `<leader>ghp`, toggle floating terminal with `<C-/>`, and launch LazyGit with `<leader>gg`.
 
 ---
 
-### Week 3: Modern IDE Power Tools (Target: Effortless Code Intelligence)
-* **Day 15**: Explore Mason (`<leader>cm`). Verify all installed language servers and formatters.
+### Week 3: Modern IDE Power Tools & Micro-Plugins (Target: Effortless Intelligence)
+* **Day 15**: Explore Mason (`<leader>cm`). Verify all installed language servers, formatters, and linters.
 * **Day 16**: LSP navigation: Jump to definitions with `gd`, view docs with `K`, and inspect references with `gr`. Return using `<C-o>`.
-* **Day 17**: Refactoring: Practice project-wide rename with `<leader>cr` and file rename with `<leader>cR`.
-* **Day 18**: Code actions: Trigger quick fixes and auto-imports with `<leader>ca`.
-* **Day 19**: Autocompletion: Navigate Blink.cmp popup suggestions with `<C-n>` and `<C-p>`, accept with `<Tab>`.
-* **Day 20**: Snippets: Expand loops and components with `<Tab>`, and jump between tabstops.
+* **Day 17**: Refactoring & Global Search-and-Replace: Rename symbol with `<leader>cr`, and perform project-wide find/replace with Grug-Far (`<leader>sr`).
+* **Day 18**: Code actions & Scratchpad: Trigger quick fixes with `<leader>ca`. Open persistent notes with `<leader>.`.
+* **Day 19**: Autocompletion: Navigate Blink.cmp popup suggestions with `<C-space>`, `<Tab>`, `<S-Tab>`, and `<CR>`.
+* **Day 20**: Micro-editing with `mini.ai`: Delete parameters cleanly with `daa`, change function bodies with `cif`, and jump between TODOs with `]t` and `[t`.
 * **Day 21**: Formatting & Diagnostics: Format code with `<leader>cf`. Jump between compiler errors with `]d` and inspect Trouble with `<leader>xx`.
 
 ---
@@ -50,9 +50,9 @@
 
 ---
 
-### Capstone: Days 29–30 (The Speed Benchmark)
-* **Day 29**: Review customization in [options.lua](../nvim/lua/config/options.lua) and [keymaps.lua](../nvim/lua/config/keymaps.lua). Explore `:LazyExtras`.
-* **Day 30**: Take the **Graduation Speed Test** in `practice/practice_grammar.txt`!
+### Capstone: Days 29–30 (Plugin Mastery & Speed Benchmark)
+* **Day 29**: Plugin Mastery: Review `06-plugin-mastery-and-ecosystem/`. Practice adding a community plugin, checking `:Lazy` and `:checkhealth`, and restoring sessions with `<leader>qs`.
+* **Day 30**: Complete the hands-on labs in `practice/practice_plugins_lab.md` and take the **Graduation Speed Test** in `practice/practice_grammar.txt`!
 
 ---
 
@@ -63,7 +63,11 @@ You are officially a Neovim Master when you can check off all of the following:
 - [ ] I edit code for an entire day without once touching my mouse or trackpad.
 - [ ] I instinctively press `<Esc>` the moment I finish typing a line of code.
 - [ ] When I want to change a word, I press `ciw` instead of holding Backspace.
-- [ ] When I want to find a file, I press `<Space><Space>` and find it in < 1 second.
+- [ ] When I want to teleport to a line or variable, I use `s` (Flash) instead of repeated `j` / `k` strokes.
+- [ ] When I want to find a file, I press `<leader><space>` and find it in < 1 second.
+- [ ] When I need to replace text across multiple files, I use `<leader>sr` (Grug-Far) with live diff preview.
+- [ ] When I need a shell command, I toggle the floating terminal with `<C-/>` instead of leaving Neovim.
 - [ ] When I want to inspect a function, I press `K` or `gd`, and return with `<C-o>`.
-- [ ] When I want to stage and commit code, I press `<Space>gg` and commit in LazyGit.
-- [ ] My editor opens in less than 50 milliseconds.
+- [ ] When I want to stage and commit code, I press `<leader>gg` and commit in LazyGit.
+- [ ] I know how to install, configure, and maintain any Neovim plugin in `lua/plugins/`.
+- [ ] My editor opens in less than 40 milliseconds.

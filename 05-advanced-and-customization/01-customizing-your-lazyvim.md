@@ -85,3 +85,10 @@ Next time you open Neovim, Lazy.nvim automatically downloads and compiles it!
 
 - **Check & Update**: Press `<leader>l` to open Lazy, then press `U` to update all plugins to their latest commits.
 - **Rollback**: If an upstream plugin ever pushes a bug, your [lazy-lock.json](../nvim/lazy-lock.json) locks exact Git commits. You can simply run `git checkout lazy-lock.json` and `:Lazy restore` to roll back instantly!
+
+---
+
+## 🚀 6. Next Level: Deep Plugin Mastery
+
+Ready to master every plugin in your environment? Continue to **[Module 6: Modern Neovim Plugins & Ecosystem Deep Dive](../06-plugin-mastery-and-ecosystem/01-understanding-neovim-plugins-and-lazy.md)** for detailed guides on `flash.nvim`, `snacks.nvim`, `grug-far.nvim`, `mini.ai`, `todo-comments`, and the complete plugin cheatsheet!
+

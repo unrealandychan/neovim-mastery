@@ -99,3 +99,9 @@ Open any code file:
 4. Jump forward to the next comma with `f,`. Press `;` twice to jump to the next commas.
 5. Press `$` to jump to the end of the line. Press `0` to jump back to column 0.
 6. Press `<C-d>` twice to scroll down, then `<C-u>` to scroll up.
+
+---
+
+> [!TIP]
+> **Modern Neovim Superpower**: In addition to standard Vim motions, your setup includes **`flash.nvim`**. Press **`s`**, type 2 letters of any word on your screen, and teleport there in 1 keystroke! See **[Chapter 6.3: Flash.nvim Teleportation Motions](../06-plugin-mastery-and-ecosystem/03-flash-nvim-teleportation-motions.md)**.
+

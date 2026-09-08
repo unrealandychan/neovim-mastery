@@ -1,0 +1,67 @@
+-- ============================================================================
+-- 💡 EXAMPLE CUSTOM PLUGIN TEMPLATE FOR LAZYVIM
+-- ============================================================================
+-- To use this file:
+-- 1. Remove the `.example` extension (rename to `example_custom_plugin.lua`).
+-- 2. Modify or add plugin tables to customize your personal setup.
+-- 3. Restart Neovim or run `:Lazy` to automatically install and load!
+-- ============================================================================
+
+return {
+  -- --------------------------------------------------------------------------
+  -- Example 1: Installing a new community plugin from GitHub
+  -- (e.g. kylechui/nvim-surround for ys/ds/cs surround commands)
+  -- --------------------------------------------------------------------------
+  {
+    "kylechui/nvim-surround",
+    version = "*", -- Pin to release tags, or omit to follow main branch
+    event = "VeryLazy", -- Load after UI startup for maximum speed
+    opts = {
+      -- Pass configuration options to nvim-surround here.
+      -- Leaving this as an empty table {} uses all standard defaults:
+      --   ysiw" -> surround word with quotes
+      --   cs"'  -> change surrounding " to '
+      --   ds"   -> delete surrounding quotes
+    },
+  },
+
+  -- --------------------------------------------------------------------------
+  -- Example 2: Overriding options of a built-in LazyVim plugin
+  -- (e.g. customizing Neo-tree to always show hidden files)
+  -- --------------------------------------------------------------------------
+  -- {
+  --   "nvim-neo-tree/neo-tree.nvim",
+  --   opts = {
+  --     filesystem = {
+  --       filtered_items = {
+  --         visible = true, -- Show hidden files (.env, .gitignore)
+  --         hide_dotfiles = false,
+  --       },
+  --     },
+  --   },
+  -- },
+
+  -- --------------------------------------------------------------------------
+  -- Example 3: Adding or remapping keys for an existing plugin
+  -- --------------------------------------------------------------------------
+  -- {
+  --   "folke/flash.nvim",
+  --   opts = {
+  --     search = {
+  --       multi_window = true, -- Search across all split windows
+  --     },
+  --   },
+  --   keys = {
+  --     -- Remap or add custom shortcut
+  --     { "<leader>J", mode = { "n", "x", "o" }, function() require("flash").jump() end, desc = "Flash Jump" },
+  --   },
+  -- },
+
+  -- --------------------------------------------------------------------------
+  -- Example 4: Completely disabling a plugin you don't need
+  -- --------------------------------------------------------------------------
+  -- {
+  --   "akinsho/bufferline.nvim",
+  --   enabled = false, -- Completely disables the top bufferline tab bar
+  -- },
+}

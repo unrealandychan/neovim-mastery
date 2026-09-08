@@ -34,7 +34,9 @@ When you type `nvim` into your terminal, you are greeted by your Tokyo Night env
 ## 🌟 The 5 Key Interface Elements
 
 ### 1. The Welcome Dashboard (Snacks Dashboard)
+
 When you run `nvim` without specifying a file, you see the startup dashboard:
+
 - Fast shortcuts to:
   - Find file (`f`)
   - New file (`n`)
@@ -45,6 +47,7 @@ When you run `nvim` without specifying a file, you see the startup dashboard:
 - Tip: Press any of the underlined shortcut letters to immediately jump into that action.
 
 ### 2. The Bufferline (Top Bar)
+
 - Shows all currently open files (buffers) like tabs in Chrome or VS Code.
 - Notice numbers next to them (`1`, `2`, `3`).
 - **To switch buffers**:
@@ -53,7 +56,9 @@ When you run `nvim` without specifying a file, you see the startup dashboard:
   - `<leader>bd` : Close (delete) the current buffer
 
 ### 3. The Statusline (Lualine, Bottom Bar)
+
 Provides real-time feedback:
+
 - **Current Mode**: `NORMAL` (blue/purple), `INSERT` (green), `VISUAL` (orange), `COMMAND` (yellow).
 - **Git Branch & Status**: Shows current git branch and uncommitted additions (`+`), modifications (`~`), and removals (`-`).
 - **LSP Diagnostics**: Counters for Errors (), Warnings (), and Hints ().
@@ -61,7 +66,9 @@ Provides real-time feedback:
 - **Cursor Position**: Line and column number.
 
 ### 4. Which-Key: Your Built-In Interactive Cheatsheet
+
 Never worry about forgetting a keymap. In Normal Mode:
+
 - Press **`<Space>`** (the Leader key) and **pause for 300ms**.
 - A slick popup menu will instantly appear at the bottom showing every single available category:
   - `b` → Buffers
@@ -76,5 +83,13 @@ Never worry about forgetting a keymap. In Normal Mode:
 - **Which-Key ensures you can never get lost.**
 
 ### 5. Floating Windows & Notifications (Noice.nvim)
+
 - System messages, search feedback, and LSP documentation pop up in clean floating boxes with rounded borders, without messing up your buffer layout.
 - Dismiss any popup with `<Esc>` or `:noh`.
+- View notification history anytime with `<leader>snh` or `:Noice`.
+
+---
+
+> [!TIP]
+> To learn how to customize Which-Key labels, configure Noice alerts, and troubleshoot plugins, see **[Chapter 6.7: UI Overhaul, Notifications & Plugin Maintenance](../06-plugin-mastery-and-ecosystem/07-ui-notifications-and-plugin-maintenance.md)**.
+

@@ -77,3 +77,9 @@ Have you ever wondered: *"Where else is this variable or function used across th
 4. Navigate through results with `<C-j>` and `<C-k>`, observing the live preview pane.
 5. Press `<C-v>` on a result to open it in a vertical split.
 6. Press `<leader>fr` to see your recently opened files list.
+
+---
+
+> [!TIP]
+> For a complete deep dive into Snacks.nvim beyond pickers (including the floating terminal `<C-/>`, scratchpad `<leader>.`, and git browser `<leader>gB`), see **[Chapter 6.5: Snacks.nvim — The Modern Swiss Army Knife](../06-plugin-mastery-and-ecosystem/05-snacks-nvim-the-modern-swiss-army-knife.md)**.
+

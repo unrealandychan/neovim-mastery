@@ -20,10 +20,10 @@ Once this language becomes muscle memory:
 
 This repository contains both the complete 30-Day tutorial curriculum **and** Eddie's pre-configured, production-ready Neovim setup located in [`nvim/`](nvim/).
 
-### Features Included:
 - 🎨 **Aesthetics**: Tokyo Night (`tokyonight-night`) theme with Catppuccin, Gruvbox, and OneDark pre-installed.
 - ⚡ **Multi-Language IDE**: Pre-configured LSP, Treesitter, formatting, and linting for TypeScript/JavaScript, Python, Go, Rust, and Flutter/Dart.
 - 🛠️ **Modern Tooling**: Snacks.nvim picker & grep, Neo-Tree file explorer, LazyGit floating terminal, Blink.cmp autocomplete, Conform format-on-save, and Trouble diagnostic panel.
+- 🧩 **Plugin Powerhouse & Extensibility**: Deep mastery of lazy.nvim, Flash.nvim teleportation, Grug-Far project find-and-replace, Mini.ai text objects, Todo-comments, and complete plugin maintenance.
 - 🍎 **macOS Integration**: System clipboard sync (`unnamedplus`), ergonomic buffer & window navigation keymaps.
 
 ### 🚀 Quick Start / Setup
@@ -60,16 +60,18 @@ This course is engineered as a **4-Week Progressive Curriculum** (plus Capstones
   ├── Day 5–6: Movement Mastery & In-line Seeking
   └── Day 7:   Visual Block & Register Secrets (macOS Clipboard & Macros)
 
-  Week 2: Navigation, Buffers, Windows & Git
+  Week 2: Navigation, Buffers, Windows, Git & Plugins
   ├── Day 8–9:   Buffers vs Windows vs Tabs
   ├── Day 10–11: Fuzzy Finding & Grep with Snacks Picker
-  ├── Day 12–13: File Tree (Neo-Tree) & Treesitter Code Hopping
-  └── Day 14:    Git Flow with Gitsigns & Floating LazyGit
+  ├── Day 12:    Flash.nvim 2-Keystroke Teleportation & Remote Actions
+  ├── Day 13:    File Tree (Neo-Tree) & Treesitter Code Hopping
+  └── Day 14:    Git Flow with Gitsigns, Terminals & Floating LazyGit
 
-  Week 3: Modern IDE Power Tools
+  Week 3: Modern IDE Power Tools & Micro-Plugins
   ├── Day 15–16: LSP Architecture & Code Intelligence (gd, gr, K)
-  ├── Day 17–18: Refactoring, Renaming & Code Actions (<leader>ca, <leader>cr)
-  ├── Day 19–20: Autocompletion & Snippets with Blink.cmp
+  ├── Day 17:    Refactoring & Global Search-and-Replace (Grug-Far <leader>sr)
+  ├── Day 18:    Code Actions & Scratchpad (<leader>ca, <leader>.)
+  ├── Day 19–20: Autocompletion (Blink.cmp) & Micro-Editing (mini.ai, todo-comments)
   └── Day 21:    Format on Save (Conform) & Diagnostic Center (Trouble)
 
   Week 4: Language-Specific Playbooks
@@ -79,9 +81,9 @@ This course is engineered as a **4-Week Progressive Curriculum** (plus Capstones
   ├── Day 26:    Rust Craftsmanship (Rustaceanvim, Crates.nvim, CodeLLDB)
   └── Day 27–28: Flutter & Dart Mobile Powerhouse (Hot Reload, Widget Outlines)
 
-  Capstones: Customization & Lifelong Mastery
-  ├── Day 29:    Customizing Plugins, Options, Keymaps & LazyExtras
-  └── Day 30:    Daily Muscle Memory Drills & Graduation
+  Capstones: Customization, Plugin Mastery & Lifelong Fluency
+  ├── Day 29:    Plugin Mastery (Architecture, Installing, Overriding, Catalog)
+  └── Day 30:    Hands-On Labs, Daily Muscle Memory Drills & Graduation
 ```
 
 ---
@@ -126,7 +128,18 @@ All chapters and labs are organized in this repository:
 | ├─ [`02-lazy-extras-and-ai-assistants.md`](05-advanced-and-customization/02-lazy-extras-and-ai-assistants.md) | Using `:LazyExtras` to toggle Copilot, Avante, Codeium, or extra languages. | AI & Extras |
 | ├─ [`03-debugging-with-dap.md`](05-advanced-and-customization/03-debugging-with-dap.md) | Setting breakpoints `<leader>db`, step over `<leader>do`, variable inspection. | Debugging |
 | └─ [`04-30-day-practice-drills.md`](05-advanced-and-customization/04-30-day-practice-drills.md) | Daily 15-minute speed drills, flashcards, and speed challenges. | Muscle Memory |
-| **[`practice/`](practice/)** | Hands-on code files to edit directly inside Neovim with built-in exercises. | Practice Lab |
+| **[`06-plugin-mastery-and-ecosystem/`](06-plugin-mastery-and-ecosystem/)** | | |
+| ├─ [`01-understanding-neovim-plugins-and-lazy.md`](06-plugin-mastery-and-ecosystem/01-understanding-neovim-plugins-and-lazy.md) | Lua plugin ecosystem vs Vimscript, `lazy.nvim` architecture, plugin spec tables, lifecycle. | Architecture |
+| ├─ [`02-how-to-install-configure-and-override-plugins.md`](06-plugin-mastery-and-ecosystem/02-how-to-install-configure-and-override-plugins.md) | Step-by-step: adding GitHub plugins, overriding LazyVim defaults, disabling plugins. | Configuration |
+| ├─ [`03-flash-nvim-teleportation-motions.md`](06-plugin-mastery-and-ecosystem/03-flash-nvim-teleportation-motions.md) | 2-keystroke screen jumps with `s`, Treesitter Flash `S`, remote actions `yr`/`dr`. | Teleportation |
+| ├─ [`04-grug-far-project-search-and-replace.md`](06-plugin-mastery-and-ecosystem/04-grug-far-project-search-and-replace.md) | Interactive global search and replace in an editable buffer with live diffs (`<leader>sr`). | Search & Replace |
+| ├─ [`05-snacks-nvim-the-modern-swiss-army-knife.md`](06-plugin-mastery-and-ecosystem/05-snacks-nvim-the-modern-swiss-army-knife.md) | Floating terminal `<C-/>`, scratchpad `<leader>.`, word hopping `]]`/`[[`, git browser `<leader>gB`. | Productivity Suite |
+| ├─ [`06-micro-productivity-and-editing-plugins.md`](06-plugin-mastery-and-ecosystem/06-micro-productivity-and-editing-plugins.md) | `mini.ai` semantic text objects (`daf`, `daa`), `mini.pairs`, `todo-comments` (`]t`), `persistence`. | Micro-Plugins |
+| ├─ [`07-ui-notifications-and-plugin-maintenance.md`](06-plugin-mastery-and-ecosystem/07-ui-notifications-and-plugin-maintenance.md) | `noice.nvim` floating cmdline, `which-key`, lockfile `lazy-lock.json`, updates `:Lazy`, health checks. | Maintenance & UI |
+| └─ [`08-master-plugin-catalog-and-cheatsheet.md`](06-plugin-mastery-and-ecosystem/08-master-plugin-catalog-and-cheatsheet.md) | Definitive catalog of all 40+ plugins installed: repo links, purpose, keybindings, and tips. | Master Reference |
+| **[`practice/`](practice/)** | | |
+| ├─ [`practice_grammar.txt`](practice/practice_grammar.txt) | Hands-on code files to edit directly inside Neovim with built-in exercises. | Grammar Lab |
+| └─ [`practice_plugins_lab.md`](practice/practice_plugins_lab.md) | Hands-on drills for Flash teleportation, Grug-Far search/replace, Snacks tools, and Mini.ai. | Plugin Lab |
 
 ---
 
