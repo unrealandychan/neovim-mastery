@@ -1,5 +1,7 @@
 import { normalizeKey, getCharType } from './key-parser.js';
 import { OperatorHandler } from './operators.js';
+import { CommandModeHandler } from './command-mode.js';
+import { FlashModeHandler } from './flash-mode.js';
 
 export class VimEngine {
   /**
@@ -8,6 +10,8 @@ export class VimEngine {
   constructor(buffer) {
     this.buffer = buffer;
     this.operatorHandler = new OperatorHandler(this, buffer);
+    this.commandHandler = new CommandModeHandler(this, buffer);
+    this.flashHandler = new FlashModeHandler(this, buffer);
     this.mode = 'NORMAL';
     this.pendingKeys = '';
     this.countPrefix = '';
@@ -677,50 +681,7 @@ export class VimEngine {
   }
 
   executeCommand(cmd) {
-    // Quick save/quit
-    if (cmd === ':w' || cmd === ':write') {
-      return { handled: true, feedback: 'Buffer saved successfully.' };
-    }
-    if (cmd === ':q' || cmd === ':quit' || cmd === ':q!') {
-      return { handled: true, feedback: 'Quit requested.' };
-    }
-    if (cmd === ':noh') {
-      this.searchMatches = [];
-      return { handled: true, feedback: 'Highlight cleared.' };
-    }
-
-    // Global substitution: :%s/find/replace/g
-    const globalSub = cmd.match(/^:%s\/(.*?)\/(.*?)\/?([gI]*)$/);
-    if (globalSub) {
-      this.saveSnapshot();
-      const [, pattern, replacement, flags] = globalSub;
-      const regex = new RegExp(pattern, flags.includes('g') ? 'g' : '');
-      const newText = this.buffer.getText().replace(regex, replacement);
-      this.buffer.setText(newText);
-      return { handled: true, feedback: `Replaced ${pattern} with ${replacement}` };
-    }
-
-    // Current line substitution: :s/find/replace/g
-    const lineSub = cmd.match(/^:s\/(.*?)\/(.*?)\/?([gI]*)$/);
-    if (lineSub) {
-      this.saveSnapshot();
-      const [, pattern, replacement, flags] = lineSub;
-      const cur = this.buffer.getCursor();
-      const line = this.buffer.getLine(cur.row);
-      const regex = new RegExp(pattern, flags.includes('g') ? 'g' : '');
-      this.buffer.setLine(cur.row, line.replace(regex, replacement));
-      return { handled: true, feedback: `Line replaced ${pattern}` };
-    }
-
-    // In-buffer search: /pattern
-    if (cmd.startsWith('/')) {
-      const query = cmd.slice(1);
-      this.searchQuery = query;
-      this.executeSearch(query);
-      return { handled: true, feedback: `Search: ${query}` };
-    }
-
-    return { handled: false, feedback: `Unknown command: ${cmd}` };
+    return this.commandHandler.execute(cmd);
   }
 
   handleFlashKey(key) {
@@ -730,45 +691,28 @@ export class VimEngine {
       this.setMode('NORMAL');
       return { handled: true };
     }
-    this.pendingKeys += key;
-    if (this.pendingKeys.length === 2) {
-      // Find matches in buffer
-      const searchTarget = this.pendingKeys;
-      this.pendingKeys = '';
-      this.generateFlashTargets(searchTarget);
-      return { handled: true, feedback: 'Select flash label' };
-    }
     if (this.flashTargets.length > 0) {
-      // User typed a label to jump
-      const match = this.flashTargets.find(t => t.label === key);
-      if (match) {
-        this.buffer.setCursor(match.row, match.col);
-      }
+      const jumped = this.flashHandler.jumpToLabel(key, this.flashTargets);
       this.flashTargets = [];
       this.setMode('NORMAL');
-      return { handled: true };
+      return { handled: jumped };
+    }
+
+    this.pendingKeys += key;
+    if (this.pendingKeys.length === 2) {
+      this.flashTargets = this.flashHandler.findTargets(this.pendingKeys);
+      this.pendingKeys = '';
+      if (this.flashTargets.length === 0) {
+        this.setMode('NORMAL');
+        return { handled: true, feedback: 'No flash targets found' };
+      }
+      return { handled: true, feedback: 'Select flash label' };
     }
     return { handled: true };
   }
 
   generateFlashTargets(twoChars) {
-    const labels = 'abcdefghijklmnopqrstuvwxyz';
-    let labelIdx = 0;
-    this.flashTargets = [];
-    const lines = this.buffer.getLines();
-    for (let r = 0; r < lines.length; r++) {
-      let idx = 0;
-      while ((idx = lines[r].toLowerCase().indexOf(twoChars.toLowerCase(), idx)) !== -1) {
-        if (labelIdx < labels.length) {
-          this.flashTargets.push({
-            row: r,
-            col: idx,
-            label: labels[labelIdx++],
-          });
-        }
-        idx += 2;
-      }
-    }
+    this.flashTargets = this.flashHandler.findTargets(twoChars);
     if (this.flashTargets.length === 0) {
       this.setMode('NORMAL');
     }
