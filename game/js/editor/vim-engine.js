@@ -1,4 +1,5 @@
 import { normalizeKey, getCharType } from './key-parser.js';
+import { OperatorHandler } from './operators.js';
 
 export class VimEngine {
   /**
@@ -6,6 +7,7 @@ export class VimEngine {
    */
   constructor(buffer) {
     this.buffer = buffer;
+    this.operatorHandler = new OperatorHandler(this, buffer);
     this.mode = 'NORMAL';
     this.pendingKeys = '';
     this.countPrefix = '';
@@ -500,25 +502,9 @@ export class VimEngine {
   handleOperatorPending(seq, count) {
     const op = this.activeOperator;
 
-    // Line doubling: dd, cc, yy
+    // Line doubling: dd, cc, yy, >>, <<
     if (seq === op + op) {
-      this.saveSnapshot();
-      const cur = this.buffer.getCursor();
-      const lines = [];
-      for (let i = 0; i < count; i++) {
-        if (cur.row < this.buffer.getLines().length) {
-          lines.push(this.buffer.deleteLine(cur.row));
-        }
-      }
-      this.registers[this.activeRegister] = {
-        text: lines.join('\n') + '\n',
-        linewise: true,
-      };
-      if (op === 'c') {
-        this.buffer.insertLine(cur.row, '');
-        this.buffer.setCursor(cur.row, 0);
-        this.setMode('INSERT');
-      }
+      this.operatorHandler.executeLineOp(op, count);
       this.activeOperator = null;
       this.pendingKeys = '';
       return { handled: true };
@@ -528,8 +514,7 @@ export class VimEngine {
     const textObjMatch = seq.match(/^[dcy](i|a)(["'()\[\]{}wbptaf])$/);
     if (textObjMatch) {
       const [, inner, type] = textObjMatch;
-      this.saveSnapshot();
-      this.executeTextObject(op, inner === 'i', type);
+      this.operatorHandler.executeTextObjectOp(op, inner === 'i', type);
       this.activeOperator = null;
       this.pendingKeys = '';
       return { handled: true };
@@ -578,8 +563,44 @@ export class VimEngine {
       return { handled: true };
     }
 
+    // Indent in visual mode: > or <
+    if (key === '>') {
+      this.operatorHandler.indentVisual(true);
+      return { handled: true };
+    }
+    if (key === '<') {
+      this.operatorHandler.indentVisual(false);
+      return { handled: true };
+    }
+
+    // Yank in Visual mode
+    if (key === 'y') {
+      const cur = this.buffer.getCursor();
+      const start = this.visualStart || cur;
+      let yanked = '';
+      if (this.mode === 'VISUAL_LINE') {
+        const minRow = Math.min(start.row, cur.row);
+        const maxRow = Math.max(start.row, cur.row);
+        const lines = [];
+        for (let r = minRow; r <= maxRow; r++) {
+          lines.push(this.buffer.getLine(r));
+        }
+        yanked = lines.join('\n') + '\n';
+        this.registers[this.activeRegister] = { text: yanked, linewise: true };
+      } else {
+        const minPos = start.row < cur.row || (start.row === cur.row && start.col <= cur.col) ? start : cur;
+        const maxPos = minPos === start ? cur : start;
+        const line = this.buffer.getLine(minPos.row);
+        yanked = line.slice(minPos.col, maxPos.col + 1);
+        this.registers[this.activeRegister] = { text: yanked, linewise: false };
+      }
+      this.visualStart = null;
+      this.setMode('NORMAL');
+      return { handled: true };
+    }
+
     // Delete or Change in Visual mode
-    if (key === 'd' || key === 'x' || key === 'c' || key === 'y') {
+    if (key === 'd' || key === 'x' || key === 'c') {
       this.saveSnapshot();
       const cur = this.buffer.getCursor();
       const start = this.visualStart || cur;
