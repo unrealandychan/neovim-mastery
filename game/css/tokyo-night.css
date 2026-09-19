@@ -1,0 +1,35 @@
+:root {
+  /* Tokyo Night Palette (style: "night") */
+  --tn-bg: #1a1b26;
+  --tn-bg-dark: #16161e;
+  --tn-bg-highlight: #292e42;
+  --tn-terminal-black: #414868;
+  --tn-fg: #c0caf5;
+  --tn-fg-dark: #a9b1d6;
+  --tn-fg-gutter: #3b4261;
+  --tn-dark3: #545c7e;
+  --tn-comment: #565f89;
+  --tn-cyan: #7dcfff;
+  --tn-blue: #7aa2f7;
+  --tn-blue0: #3d59a1;
+  --tn-purple: #bb9af7;
+  --tn-magenta: #c0caf5;
+  --tn-magenta2: #ff007f;
+  --tn-orange: #ff9e64;
+  --tn-yellow: #e0af68;
+  --tn-green: #9ece6a;
+  --tn-green1: #73daca;
+  --tn-teal: #1abc9c;
+  --tn-red: #f7768e;
+  --tn-red1: #db4b4b;
+
+  /* Mode Accent Colors */
+  --mode-normal: #7aa2f7;
+  --mode-insert: #9ece6a;
+  --mode-visual: #bb9af7;
+  --mode-command: #ff9e64;
+  --mode-flash: #ff007f;
+
+  /* Font */
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Menlo, Monaco, Consolas, monospace;
+}
