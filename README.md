@@ -16,7 +16,48 @@ Once this language becomes muscle memory:
 
 ---
 
-## 📦 Bundled Neovim Configuration (`nvim/`)
+## 🎮 Play the Interactive Web Game: The 30-Day Dojo
+
+Master Vim by playing! This repository includes a complete browser-based, interactive modal game styled in **Tokyo Night** with simulated **Lualine**, **Flash.nvim teleportation**, **Which-Key popups**, and **Vim Golf Par scoring**.
+
+[![Play the Dojo](https://img.shields.io/badge/Play-Neovim%20Mastery%20Dojo-7aa2f7?style=for-the-badge&logo=neovim&logoColor=white)](./game/index.html)
+[![30 Stages](https://img.shields.io/badge/Stages-30%20Days%20Complete-9ece6a?style=for-the-badge)](./game/index.html)
+[![Zero Dependency](https://img.shields.io/badge/Offline%20Ready-Zero%20Build%20Step-bb9af7?style=for-the-badge)](./game/index.html)
+
+```
+       ┌────────────────────────────────────────────────────────┐
+       │ 🥋 NEOVIM MASTERY: THE 30-DAY DOJO [Tokyo Night]       │
+       ├──────────────────────────────┬─────────────────────────┤
+       │ 1  const status = "FIX_ME";  │ 🎯 TARGET GOAL (DIFF)   │
+       │ 2                            │ ✓ const status =        │
+       │ 3  function run() {          │ + "READY";              │
+       │ 4    return status;          │                         │
+       │ 5  }                         │ STROKES: 4 / PAR: 9 🌟🌟│
+       ├──────────────────────────────┴─────────────────────────┤
+       │ NORMAL  practice.ts   main  1:17 [Top]   utf-8     │
+       └────────────────────────────────────────────────────────┘
+```
+
+### 🚀 Quick Launch
+
+- **One-Command CLI Launch:**
+  ```bash
+  ./play-game.sh
+  ```
+- **Direct in Browser:** Simply open `index.html` or `game/index.html` in any modern web browser.
+- **GitHub Pages:** Compatible out of the box with zero build step!
+
+### 🌟 Game Highlights
+
+- **30 Progressive Daily Stages**: Directly maps to each chapter of this 1-month blueprint (Survival, Grammar, Text Objects, Flash Teleportation, Macros, Treesitter AST, Language Playbooks, and Grandmaster Boss Gauntlets).
+- **Vim Golf Par Rating**: Earn 1, 2, or 3 Gold Stars based on your keystroke efficiency.
+- **Mechanical Sound Synthesizer**: Pure Web Audio API mechanical switch clicks, error boops, and victory fanfares (100% offline, toggleable mute).
+- **Live Real-Time Diff**: Side-by-side comparison showing matching code in green and differences in red.
+- **Which-Key Helper**: Instant popup cheat sheet on demand.
+- **Free-Play Sandbox**: Switch to Sandbox Mode at any time to freely experiment with motions, text objects, and substitutions.
+- **Persistent Progress**: Your unlocked days and star ratings are saved automatically in your browser's `localStorage`.
+
+---
 
 This repository contains both the complete 30-Day tutorial curriculum **and** Eddie's pre-configured, production-ready Neovim setup located in [`nvim/`](nvim/).
 
@@ -137,6 +178,9 @@ All chapters and labs are organized in this repository:
 | ├─ [`06-micro-productivity-and-editing-plugins.md`](06-plugin-mastery-and-ecosystem/06-micro-productivity-and-editing-plugins.md) | `mini.ai` semantic text objects (`daf`, `daa`), `mini.pairs`, `todo-comments` (`]t`), `persistence`. | Micro-Plugins |
 | ├─ [`07-ui-notifications-and-plugin-maintenance.md`](06-plugin-mastery-and-ecosystem/07-ui-notifications-and-plugin-maintenance.md) | `noice.nvim` floating cmdline, `which-key`, lockfile `lazy-lock.json`, updates `:Lazy`, health checks. | Maintenance & UI |
 | └─ [`08-master-plugin-catalog-and-cheatsheet.md`](06-plugin-mastery-and-ecosystem/08-master-plugin-catalog-and-cheatsheet.md) | Definitive catalog of all 40+ plugins installed: repo links, purpose, keybindings, and tips. | Master Reference |
+| **[`game/`](game/)** | | |
+| ├─ [`index.html`](game/index.html) | Playable browser-based Vim dojo with 30 progressive daily stages and Tokyo Night UI. | Interactive Game |
+| └─ [`js/stages/curriculum.js`](game/js/stages/curriculum.js) | Full 30-Day curriculum definitions with Vim Golf Par scoring, hints, and checks. | Game Curriculum |
 | **[`practice/`](practice/)** | | |
 | ├─ [`practice_grammar.txt`](practice/practice_grammar.txt) | Hands-on code files to edit directly inside Neovim with built-in exercises. | Grammar Lab |
 | └─ [`practice_plugins_lab.md`](practice/practice_plugins_lab.md) | Hands-on drills for Flash teleportation, Grug-Far search/replace, Snacks tools, and Mini.ai. | Plugin Lab |

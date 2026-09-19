@@ -515,7 +515,7 @@ export class VimEngine {
     }
 
     // Text objects: iw, aw, i", a", i(, a(, i{, a{, etc.
-    const textObjMatch = seq.match(/^[dcy](i|a)(["'()\[\]{}wbptaf])$/);
+    const textObjMatch = seq.match(/^[dcy](i|a)(["'`()\[\]{}wbptaf])$/);
     if (textObjMatch) {
       const [, inner, type] = textObjMatch;
       this.operatorHandler.executeTextObjectOp(op, inner === 'i', type);
@@ -543,6 +543,11 @@ export class VimEngine {
       else if (motionChar === '0') this.move0();
       else if (motionChar === '^') this.moveHat();
       const end = this.buffer.getCursor();
+      if (motionChar === '$') {
+        end.col = this.buffer.getLine(end.row).length;
+      } else if (motionChar === 'e') {
+        end.col = end.col + 1;
+      }
 
       const deleted = this.buffer.deleteRange(start, end);
       this.registers[this.activeRegister] = { text: deleted, linewise: false };
@@ -563,9 +568,23 @@ export class VimEngine {
   handleVisualKey(key) {
     if (key === 'Escape' || key === 'v' || key === 'V') {
       this.visualStart = null;
+      this.countPrefix = '';
       this.setMode('NORMAL');
       return { handled: true };
     }
+
+    // Number prefixes for visual counts (e.g. 2j)
+    if (/^[1-9]$/.test(key) && this.countPrefix === '') {
+      this.countPrefix = key;
+      return { handled: true };
+    }
+    if (/^[0-9]$/.test(key) && this.countPrefix !== '') {
+      this.countPrefix += key;
+      return { handled: true };
+    }
+
+    const count = this.countPrefix ? parseInt(this.countPrefix, 10) : 1;
+    this.countPrefix = '';
 
     // Indent in visual mode: > or <
     if (key === '>') {
@@ -614,14 +633,20 @@ export class VimEngine {
         const minRow = Math.min(start.row, cur.row);
         const maxRow = Math.max(start.row, cur.row);
         const lines = [];
+        const wasAllLines = minRow === 0 && maxRow >= this.buffer.getLines().length - 1;
+
         for (let r = maxRow; r >= minRow; r--) {
           lines.unshift(this.buffer.deleteLine(r));
         }
         deleted = lines.join('\n') + '\n';
         this.registers[this.activeRegister] = { text: deleted, linewise: true };
         this.buffer.setCursor(minRow, 0);
+
         if (key === 'c') {
-          this.buffer.insertLine(minRow, '');
+          if (!wasAllLines) {
+            this.buffer.insertLine(minRow, '');
+          }
+          this.buffer.setCursor(minRow, 0);
           this.setMode('INSERT');
         } else {
           this.setMode('NORMAL');
@@ -643,12 +668,12 @@ export class VimEngine {
     }
 
     // Navigation while in visual mode
-    if (key === 'h') this.moveLeft(1);
-    if (key === 'l') this.moveRight(1);
-    if (key === 'j') this.moveDown(1);
-    if (key === 'k') this.moveUp(1);
-    if (key === 'w') this.moveW(1);
-    if (key === 'b') this.moveB(1);
+    if (key === 'h') this.moveLeft(count);
+    if (key === 'l') this.moveRight(count);
+    if (key === 'j') this.moveDown(count);
+    if (key === 'k') this.moveUp(count);
+    if (key === 'w') this.moveW(count);
+    if (key === 'b') this.moveB(count);
     if (key === '$') this.moveDollar();
     if (key === '0') this.move0();
     return { handled: true };

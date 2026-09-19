@@ -89,7 +89,7 @@ export const STAGES = [
     initialText: 'function fetchUser(old_a, old_b, old_c) {',
     cursorStart: { row: 0, col: 0 },
     targetText: 'function fetchUser(id: string) {',
-    parKeystrokes: 15,
+    parKeystrokes: 16,
     optimalKeys: ['f', '(', 'c', 'i', '(', 'i', 'd', ':', ' ', 's', 't', 'r', 'i', 'n', 'g', 'Escape'],
     hints: [
       'Type "f(" to seek directly to the opening parenthesis.',
@@ -189,7 +189,7 @@ export const STAGES = [
       'Press "J" to join line 1 and line 2 with a clean space.'
     ],
     setup(engine) {
-      engine.buffer.setText('const welcome = \n"Hello World";');
+      engine.buffer.setText('const welcome =\n"Hello World";');
       engine.saveSnapshot();
       engine.buffer.deleteLine(1);
     }
@@ -221,7 +221,7 @@ export const STAGES = [
     initialText: '// Buffer 1: Ready to save\nconst appConfig = { port: 3000 };',
     cursorStart: { row: 0, col: 0 },
     targetText: '// Buffer 1: Ready to save\nconst appConfig = { port: 3000 };',
-    parKeystrokes: 9,
+    parKeystrokes: 10,
     optimalKeys: [':', 'w', 'Enter', ':', 'b', 'n', 'e', 'x', 't', 'Enter'],
     hints: [
       'Type ":w" <Enter> to write buffer.',
@@ -237,7 +237,7 @@ export const STAGES = [
     mission: 'Teleport across the screen with Flash! Press "s", type "re", then press the label ("a") and delete word with "dw".',
     initialText: 'const alpha = 1;\nconst beta = 2;\nconst removeMe = 3;',
     cursorStart: { row: 0, col: 0 },
-    targetText: 'const alpha = 1;\nconst beta = 2;\nconst  = 3;',
+    targetText: 'const alpha = 1;\nconst beta = 2;\nconst = 3;',
     parKeystrokes: 6,
     optimalKeys: ['s', 'r', 'e', 'a', 'd', 'w'],
     hints: [
@@ -277,7 +277,7 @@ export const STAGES = [
     mission: 'Jump to the next function definition using "]m", then wipe its contents with "ci{".',
     initialText: 'function first() {\n  return 1;\n}\n\nfunction target() {\n  OBSOLETE_BODY\n}',
     cursorStart: { row: 0, col: 0 },
-    targetText: 'function first() {\n  return 1;\n}\n\nfunction target() {\n}',
+    targetText: 'function first() {\n  return 1;\n}\n\nfunction target() {}',
     parKeystrokes: 6,
     optimalKeys: [']', 'm', 'c', 'i', '{', 'Escape'],
     hints: [
@@ -296,7 +296,7 @@ export const STAGES = [
     initialText: 'let user = "Eddie";\n// ... miles away ...\nconsole.log(user);',
     cursorStart: { row: 2, col: 13 },
     targetText: 'let adminUser = "Eddie";\n// ... miles away ...\nconsole.log(user);',
-    parKeystrokes: 15,
+    parKeystrokes: 16,
     optimalKeys: ['g', 'g', 'w', 'c', 'i', 'w', 'a', 'd', 'm', 'i', 'n', 'U', 's', 'e', 'r', 'Escape'],
     hints: [
       'Jump to the top definition using "ggw" (or "gd").',
@@ -466,12 +466,14 @@ export const STAGES = [
     chapterRef: '04-language-specific-playbooks/05-flutter-and-dart-mobile.md',
     mission: 'Change widget child inside parens with "ci(" -> "Text(\'Hello Eddie\')".',
     initialText: 'Center(\n  child: Container(),\n)',
-    cursorStart: { row: 1, col: 12 },
+    cursorStart: { row: 1, col: 19 },
     targetText: 'Center(\n  child: Container(Text(\'Hello Eddie\')),\n)',
-    parKeystrokes: 23,
-    optimalKeys: ['c', 'i', '(', 'T', 'e', 'x', 't', '(', '\'', 'H', 'e', 'l', 'l', 'o', ' ', 'E', 'd', 'd', 'i', 'e', '\'', ')', 'Escape'],
+    parKeystrokes: 21,
+    optimalKeys: ['i', 'T', 'e', 'x', 't', '(', '\'', 'H', 'e', 'l', 'l', 'o', ' ', 'E', 'd', 'd', 'i', 'e', '\'', ')', 'Escape'],
     hints: [
-      'Put cursor on Container() and type "ci(" -> "Text(\'Hello Eddie\')" -> <Esc>.'
+      'Cursor starts between the parens of Container().',
+      'Press "i" to enter Insert mode.',
+      'Type Text(\'Hello Eddie\') and exit with <Esc>.'
     ],
   },
   {
@@ -485,9 +487,9 @@ export const STAGES = [
     cursorStart: { row: 0, col: 0 },
     targetText: '- [x] Complete 30-Day Neovim Mastery',
     parKeystrokes: 4,
-    optimalKeys: ['f', ' ', 'r', 'x'],
+    optimalKeys: ['t', ']', 'r', 'x'],
     hints: [
-      'Press "f " to seek to the space between the brackets.',
+      'Press "t]" to seek till right before the closing bracket (the space).',
       'Type "rx" to replace the space with "x".'
     ],
   },

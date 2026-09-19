@@ -63,12 +63,12 @@ export function findTextObjectRange(buffer, cursor, isInner, type) {
 
   if (pairMap[type]) {
     const { open, close } = pairMap[type];
-    // Find matching bracket enclosing cursor
+    const lines = buffer.getLines();
     let depth = 0;
     let openPos = null;
     let closePos = null;
 
-    // Scan backwards from cursor for open
+    // Scan backwards from cursor on current line for open
     for (let c = cursor.col; c >= 0; c--) {
       if (line[c] === close) depth++;
       else if (line[c] === open) {
@@ -79,7 +79,24 @@ export function findTextObjectRange(buffer, cursor, isInner, type) {
         depth--;
       }
     }
-    // If not found on current line, search forward for next pair on line
+    // If not found, scan backwards on previous lines
+    if (!openPos) {
+      for (let r = row - 1; r >= 0; r--) {
+        const prevL = lines[r];
+        for (let c = prevL.length - 1; c >= 0; c--) {
+          if (prevL[c] === close) depth++;
+          else if (prevL[c] === open) {
+            if (depth === 0) {
+              openPos = { row: r, col: c };
+              break;
+            }
+            depth--;
+          }
+        }
+        if (openPos) break;
+      }
+    }
+    // If still not found, search forward on current line
     if (!openPos) {
       const idx = line.indexOf(open, cursor.col);
       if (idx !== -1) {
@@ -89,28 +106,40 @@ export function findTextObjectRange(buffer, cursor, isInner, type) {
 
     if (openPos) {
       depth = 0;
-      for (let c = openPos.col; c < line.length; c++) {
-        if (line[c] === open) depth++;
-        else if (line[c] === close) {
-          depth--;
-          if (depth === 0) {
-            closePos = { row, col: c };
-            break;
+      for (let r = openPos.row; r < lines.length; r++) {
+        const l = lines[r];
+        const startC = r === openPos.row ? openPos.col : 0;
+        for (let c = startC; c < l.length; c++) {
+          if (l[c] === open) depth++;
+          else if (l[c] === close) {
+            depth--;
+            if (depth === 0) {
+              closePos = { row: r, col: c };
+              break;
+            }
           }
         }
+        if (closePos) break;
       }
     }
 
     if (openPos && closePos) {
       if (isInner) {
-        return {
-          start: { row, col: openPos.col + 1 },
-          end: { row, col: closePos.col },
-        };
+        if (openPos.row === closePos.row) {
+          return {
+            start: { row: openPos.row, col: openPos.col + 1 },
+            end: { row: closePos.row, col: closePos.col },
+          };
+        } else {
+          return {
+            start: { row: openPos.row, col: openPos.col + 1 },
+            end: { row: closePos.row, col: 0 },
+          };
+        }
       } else {
         return {
-          start: { row, col: openPos.col },
-          end: { row, col: closePos.col + 1 },
+          start: { row: openPos.row, col: openPos.col },
+          end: { row: closePos.row, col: closePos.col + 1 },
         };
       }
     }
