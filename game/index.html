@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🥋 Neovim Mastery: The 30-Day Dojo</title>
+  <link rel="stylesheet" href="./css/tokyo-night.css">
+  <link rel="stylesheet" href="./css/game.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div id="app">
+    <!-- Top Navigation -->
+    <header class="top-nav">
+      <div style="display: flex; align-items: center; gap: 16px;">
+        <div class="window-dots">
+          <span class="dot dot-red"></span>
+          <span class="dot dot-yellow"></span>
+          <span class="dot dot-green"></span>
+        </div>
+        <div class="nav-title">
+          <span>🥋 Neovim Mastery Dojo</span>
+          <span class="badge">LazyVim • Tokyo Night</span>
+        </div>
+      </div>
+      <div class="nav-actions">
+        <button class="btn" id="btn-map">🗺️ 30-Day Map</button>
+        <button class="btn" id="btn-hint">💡 Hint</button>
+        <button class="btn" id="btn-reset">🔄 Reset</button>
+        <button class="btn" id="btn-which-key">⌨️ Which-Key</button>
+        <button class="btn" id="btn-audio">🔊 Sound: ON</button>
+        <button class="btn" id="btn-sandbox">📦 Sandbox</button>
+      </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="main-workspace">
+      <!-- Editor Pane -->
+      <section class="editor-pane">
+        <div class="buffer-tabs">
+          <div class="tab active">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+              <path fill-rule="evenodd" d="M3.75 1.5a.25.25 0 00-.25.25v12.5c0 .138.112.25.25.25h8.5a.25.25 0 00.25-.25V6H9.75A1.75 1.75 0 018 4.25V1.5H3.75zm5.75.56v2.19c0 .138.112.25.25.25h2.19L9.5 2.06zM2 1.75C2 .784 2.784 0 3.75 0h5.586a1.75 1.75 0 011.237.513l3.914 3.914c.328.328.513.774.513 1.237v8.586A1.75 1.75 0 0113.25 16H3.75A1.75 1.75 0 012 14.25V1.75z"/>
+            </svg>
+            <span id="tab-filename">practice_session.ts</span>
+          </div>
+        </div>
+
+        <div class="editor-viewport" id="editor-viewport" tabindex="0">
+          <!-- Terminal lines generated dynamically -->
+        </div>
+
+        <!-- Which-Key Pop-up Drawer -->
+        <div class="which-key-drawer" id="which-key-drawer"></div>
+
+        <!-- Keystroke HUD -->
+        <div class="keystroke-hud" id="keystroke-hud"></div>
+      </section>
+
+      <!-- Sidepane: Mission Briefing & Diff -->
+      <aside class="sidepane">
+        <div class="mission-panel">
+          <div class="stage-badge" id="mission-badge">Day 1 • Week 1</div>
+          <h2 class="mission-title" id="mission-title">Mental Model & Survival</h2>
+          <div class="mission-concept" id="mission-concept">🎯 Normal Mode vs Insert Mode & Saving</div>
+          <p class="mission-desc" id="mission-desc">
+            Enter Insert mode with "i", type "Welcome Eddie", return to Normal mode with &lt;Esc&gt;, and save with ":w".
+          </p>
+          <div class="stats-card">
+            <div>
+              <div class="stat-val" id="stat-par">18</div>
+              <div class="stat-lbl">Golf Par</div>
+            </div>
+            <div>
+              <div class="stat-val" id="stat-strokes">0</div>
+              <div class="stat-lbl">Strokes</div>
+            </div>
+            <div>
+              <div class="stat-val" id="stat-stars">☆☆☆</div>
+              <div class="stat-lbl">Rating</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Target Diff View -->
+        <div class="diff-container">
+          <div class="diff-header">
+            <span>🎯 TARGET GOAL (LIVE DIFF)</span>
+            <span style="font-size: 10px; color: var(--tn-comment);">Match buffer to complete</span>
+          </div>
+          <div class="diff-box" id="diff-box"></div>
+        </div>
+      </aside>
+    </main>
+
+    <!-- Bottom Statusline (Lualine style) -->
+    <footer class="statusline" id="statusline"></footer>
+
+    <!-- Modal Dialogs -->
+    <div class="modal-overlay" id="modal-overlay"></div>
+  </div>
+
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>
