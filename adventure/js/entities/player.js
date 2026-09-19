@@ -19,6 +19,9 @@ export class Player {
       silverKey: 0,
       goldKey: 0,
       skullKey: 0,
+      rubyKey: 0,
+      emeraldKey: 0,
+      diamondKey: 0,
       gems: 0,
     };
 
@@ -45,6 +48,24 @@ export class Player {
       this.unlockedAbilities.add('T');
       this.unlockedAbilities.add(';');
       this.unlockedAbilities.add(',');
+    }
+    if (key === 't') {
+      this.unlockedAbilities.add('T');
+      this.unlockedAbilities.add(';');
+      this.unlockedAbilities.add(',');
+    }
+    if (key === 'F') {
+      this.unlockedAbilities.add(';');
+      this.unlockedAbilities.add(',');
+    }
+    if (key === 'gg') {
+      this.unlockedAbilities.add('G');
+    }
+    if (key === 'G') {
+      this.unlockedAbilities.add('gg');
+    }
+    if (key === '{') {
+      this.unlockedAbilities.add('}');
     }
   }
 

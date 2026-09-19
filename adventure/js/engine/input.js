@@ -81,6 +81,7 @@ export class InputHandler {
     if (e.key === 'Escape') {
       this.resetBuffer();
       this.game.hud.closeHelp();
+      this.game.hud.closeHints();
       this.game.hud.closeVictory();
       return;
     }
@@ -98,6 +99,11 @@ export class InputHandler {
 
     if (e.key === '?') {
       this.game.hud.openHelp();
+      return;
+    }
+
+    if (e.key === 'H' && !this.pendingPrefix) {
+      this.game.openHintsModal();
       return;
     }
 
@@ -134,6 +140,8 @@ export class InputHandler {
       if (prefix === 'g') {
         if (key === 'e') {
           this.executeMotion('ge');
+        } else if (key === 'g') {
+          this.executeMotion('gg');
         } else {
           this.game.audio.playError();
         }
@@ -200,6 +208,36 @@ export class InputHandler {
     }
 
     // 6. Handling Single-Key Motions & Operators
+    if (key === 'G') {
+      this.executeMotion('G');
+      this.resetBuffer();
+      return;
+    }
+
+    if (key === '{' || key === '}') {
+      this.executeMotion(key);
+      this.resetBuffer();
+      return;
+    }
+
+    if (key === '~') {
+      this.game.handleToggleCase();
+      this.resetBuffer();
+      return;
+    }
+
+    if (key === '*') {
+      this.game.handleStarSearch();
+      this.resetBuffer();
+      return;
+    }
+
+    if (key === 'D') {
+      this.game.handleDeleteLineEnd();
+      this.resetBuffer();
+      return;
+    }
+
     this.executeMotion(key);
     this.resetBuffer();
   }
@@ -210,8 +248,9 @@ export class InputHandler {
   }
 
   executeMotion(motionKey) {
+    const hasCount = this.countBuffer.length > 0;
     const count = this.getCount();
-    this.game.handleMotion(motionKey, count);
+    this.game.handleMotion(motionKey, count, hasCount);
   }
 
   executeFind(type, targetChar) {

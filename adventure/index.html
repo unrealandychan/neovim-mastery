@@ -21,6 +21,7 @@
     <div class="nav-controls">
       <select id="level-select" class="btn-retro" title="Select Chapter"></select>
       <button id="btn-restart" class="btn-retro" title="Restart Level (R)">🔄 Restart (R)</button>
+      <button id="btn-hints" class="btn-retro" style="color:var(--tn-yellow); border-color:var(--tn-yellow);" title="Level Hints & Guide (H)">💡 Hints (H)</button>
       <button id="btn-audio" class="btn-retro" title="Toggle Sound (M)">🔊 Sound (M)</button>
       <button id="btn-help" class="btn-retro" title="Vim Cheatsheet (?)">❓ Help (?)</button>
       <a href="../game/" class="btn-retro" style="text-decoration:none; color:var(--tn-purple);" title="Switch to 30-Day Dojo">🎮 Switch to Dojo</a>
@@ -52,7 +53,10 @@
         <span class="inv-item" title="Silver Keys">🥈 <span id="silver-keys-count">0</span></span>
         <span class="inv-item" title="Gold Keys">🥇 <span id="gold-keys-count">0</span></span>
         <span class="inv-item" title="Skull Keys">💀 <span id="skull-keys-count">0</span></span>
-        <span class="inv-item" title="Gems">💎 <span id="gems-count">0</span></span>
+        <span class="inv-item" title="Ruby Keys">♦️ <span id="ruby-keys-count">0</span></span>
+        <span class="inv-item" title="Emerald Keys">❇️ <span id="emerald-keys-count">0</span></span>
+        <span class="inv-item" title="Diamond Keys">💎 <span id="diamond-keys-count">0</span></span>
+        <span class="inv-item" title="Gems">✨ <span id="gems-count">0</span></span>
       </div>
     </div>
 
@@ -69,10 +73,20 @@
       <div class="ability-key" data-key="0" data-action="key:0" title="Start of Line (0)">0</div>
       <div class="ability-key" data-key="$" data-action="key:$" title="End of Line ($)">$</div>
       <div class="ability-key" data-key="^" data-action="key:^" title="First Non-Blank (^)">^</div>
-      <div class="ability-key" data-key="f" data-action="key:f" title="Find Char (f{char})">f</div>
+      <div class="ability-key" data-key="f" data-action="key:f" title="Find Char Forward (f{char})">f</div>
+      <div class="ability-key" data-key="F" data-action="key:F" title="Find Char Backward (F{char})">F</div>
+      <div class="ability-key" data-key="t" data-action="key:t" title="Till Char Forward (t{char})">t</div>
+      <div class="ability-key" data-key="T" data-action="key:T" title="Till Char Backward (T{char})">T</div>
+      <div class="ability-key" data-key="gg" data-action="key:gg" title="Top of Buffer (gg)">gg</div>
+      <div class="ability-key" data-key="G" data-action="key:G" title="Bottom of Buffer / Line Goto (G)">G</div>
+      <div class="ability-key" data-key="{" data-action="key:{" title="Paragraph Up ({)">{</div>
+      <div class="ability-key" data-key="}" data-action="key:}" title="Paragraph Down (})">}</div>
       <div class="ability-key" data-key="%" data-action="key:%" title="Matching Bracket (%)">%</div>
       <div class="ability-key" data-key="x" data-action="key:x" title="Cut Obstacle (x)">x</div>
       <div class="ability-key" data-key="r" data-action="key:r" title="Replace Char (r{char})">r</div>
+      <div class="ability-key" data-key="~" data-action="key:~" title="Toggle Case (~)">~</div>
+      <div class="ability-key" data-key="*" data-action="key:*" title="Search Token (*)">*</div>
+      <div class="ability-key" data-key="D" data-action="key:D" title="Delete Line End (D)">D</div>
     </div>
 
     <!-- Retro RPG Dialogue Box -->
@@ -85,6 +99,25 @@
       </div>
     </div>
   </main>
+
+  <!-- Level Hints & Walkthrough Modal -->
+  <div id="modal-hints" class="modal-overlay">
+    <div class="modal-card" style="max-width: 600px;">
+      <div class="modal-header">
+        <h3 style="color:var(--tn-yellow); display:flex; align-items:center; gap:8px;">
+          <span>💡</span> <span id="hint-modal-title">Chapter Hints & Guidance</span>
+        </h3>
+        <button id="btn-close-hints" class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body" id="hint-modal-body" style="max-height: 65vh; overflow-y: auto;">
+        <!-- Dynamically rendered hints content -->
+      </div>
+      <div class="modal-footer" style="justify-content:space-between; align-items:center;">
+        <span style="font-size:11px; color:var(--fg-dark);">Tip: Press <kbd style="color:var(--tn-yellow); background:var(--bg-highlight); padding:2px 5px; border-radius:3px;">H</kbd> anytime to toggle hints</span>
+        <button id="btn-dismiss-hints" class="btn-retro" style="background:var(--tn-yellow); color:var(--bg-dark); font-weight:700;">Got it!</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Help / Cheatsheet Modal -->
   <div id="modal-help" class="modal-overlay">
@@ -100,31 +133,35 @@
         </div>
         <div class="control-row">
           <span>Word Leaps</span>
-          <span><kbd>w</kbd> Next word &bull; <kbd>b</kbd> Prev word &bull; <kbd>e</kbd> Word end</span>
+          <span><kbd>w</kbd> Next word &bull; <kbd>b</kbd> Prev word &bull; <kbd>e</kbd> Word end &bull; <kbd>ge</kbd> Prev end</span>
         </div>
         <div class="control-row">
-          <span>Line Jumpers</span>
-          <span><kbd>0</kbd> Line start &bull; <kbd>$</kbd> Line end &bull; <kbd>^</kbd> First non-blank</span>
+          <span>Line & Buffer Bounds</span>
+          <span><kbd>0</kbd> Start &bull; <kbd>$</kbd> End &bull; <kbd>^</kbd> Non-blank &bull; <kbd>gg</kbd> Top &bull; <kbd>G</kbd> Bottom</span>
+        </div>
+        <div class="control-row">
+          <span>Paragraph Leaps</span>
+          <span><kbd>{</kbd> Leap backward glade &bull; <kbd>}</kbd> Leap forward glade</span>
         </div>
         <div class="control-row">
           <span>Inline Search</span>
-          <span><kbd>f{char}</kbd> Find forward &bull; <kbd>t{char}</kbd> Till &bull; <kbd>;</kbd> Repeat</span>
+          <span><kbd>f{char}</kbd> Forward &bull; <kbd>F{char}</kbd> Backward &bull; <kbd>t{char}</kbd> Till &bull; <kbd>;</kbd> Repeat</span>
         </div>
         <div class="control-row">
-          <span>Bracket Warp</span>
-          <span><kbd>%</kbd> Warp to matching ( ), [ ], { }</span>
+          <span>Bracket Warp & Beacons</span>
+          <span><kbd>%</kbd> Warp matching pair &bull; <kbd>*</kbd> Search token under cursor</span>
         </div>
         <div class="control-row">
           <span>World Manipulation</span>
-          <span><kbd>x</kbd> Cut weeds &bull; <kbd>r{char}</kbd> Repair bridge</span>
+          <span><kbd>x</kbd> Cut weed &bull; <kbd>D</kbd> Demolish line &bull; <kbd>r{char}</kbd> Repair tile &bull; <kbd>~</kbd> Toggle switch</span>
         </div>
         <div class="control-row">
           <span>Counts</span>
-          <span><kbd>3w</kbd> Jump 3 words &bull; <kbd>4j</kbd> Move 4 down</span>
+          <span><kbd>3w</kbd> Jump 3 words &bull; <kbd>4j</kbd> Move 4 down &bull; <kbd>8G</kbd> Jump line 8</span>
         </div>
         <div class="control-row">
           <span>Game Shortcuts</span>
-          <span><kbd>u</kbd> Undo move &bull; <kbd>R</kbd> Restart room &bull; <kbd>M</kbd> Mute</span>
+          <span><kbd>u</kbd> Undo move &bull; <kbd>R</kbd> Restart room &bull; <kbd>M</kbd> Mute audio</span>
         </div>
       </div>
       <div class="modal-footer">

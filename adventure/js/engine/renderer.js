@@ -139,6 +139,11 @@ export class Renderer {
       this.renderNPCs(ctx, entities.npcs);
     }
 
+    // Render Level Exit / Staircase Portal
+    if (entities.exit) {
+      this.renderExit(ctx, entities.exit);
+    }
+
     // Render Particles
     if (particles) {
       particles.render(ctx, ts);
@@ -273,6 +278,66 @@ export class Renderer {
     }
   }
 
+  renderExit(ctx, exit) {
+    if (!exit) return;
+    const ts = this.tileSize;
+    const px = exit.x * ts;
+    const py = exit.y * ts;
+    const centerX = px + ts / 2;
+    const centerY = py + ts / 2;
+
+    const pulse = (Math.sin(this.time * 4) + 1) / 2; // 0 to 1
+
+    ctx.save();
+
+    // 1. Glowing mystic ring under portal
+    const radius = ts * 0.42 + pulse * 3;
+    const grad = ctx.createRadialGradient(centerX, centerY, 4, centerX, centerY, radius + 8);
+    grad.addColorStop(0, exit.isVictory ? 'rgba(255, 215, 0, 0.8)' : 'rgba(125, 207, 255, 0.8)');
+    grad.addColorStop(0.5, exit.isVictory ? 'rgba(255, 158, 100, 0.4)' : 'rgba(187, 154, 247, 0.4)');
+    grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius + 8, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 2. Rotating energy ring
+    ctx.strokeStyle = exit.isVictory ? '#ffd700' : '#7dcfff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // 3. Center portal icon / stairs
+    ctx.font = '22px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(exit.isVictory ? '🏆' : '🪜', centerX, centerY);
+
+    // 4. Floating badge above portal
+    const badgeText = exit.isVictory ? 'VICTORY' : `CH ${exit.targetLevel} ➜`;
+    ctx.font = 'bold 10px monospace';
+    const textWidth = ctx.measureText(badgeText).width;
+    const badgeW = textWidth + 12;
+    const badgeH = 16;
+    const badgeX = centerX - badgeW / 2;
+    const badgeY = py - 12 - pulse * 3;
+
+    ctx.fillStyle = 'rgba(26, 27, 38, 0.9)';
+    ctx.strokeStyle = exit.isVictory ? '#ff9e64' : '#7aa2f7';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 4);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = exit.isVictory ? '#ffd700' : '#7dcfff';
+    ctx.fillText(badgeText, centerX, badgeY + badgeH / 2 + 1);
+
+    ctx.restore();
+  }
+
   renderObstacles(ctx, obstacles) {
     const ts = this.tileSize;
     for (const obs of obstacles) {
@@ -361,14 +426,25 @@ export class Renderer {
 
   renderKeys(ctx, keys) {
     const ts = this.tileSize;
+    const keyStyles = {
+      bronzeKey: { icon: '🗝️', color: 'rgba(224, 175, 104, 0.5)' },
+      silverKey: { icon: '🥈', color: 'rgba(192, 202, 245, 0.5)' },
+      goldKey: { icon: '🥇', color: 'rgba(255, 215, 0, 0.6)' },
+      skullKey: { icon: '💀', color: 'rgba(187, 154, 247, 0.6)' },
+      rubyKey: { icon: '♦️', color: 'rgba(247, 118, 142, 0.6)' },
+      emeraldKey: { icon: '❇️', color: 'rgba(115, 218, 202, 0.6)' },
+      diamondKey: { icon: '💎', color: 'rgba(125, 207, 255, 0.7)' },
+    };
+
     for (const k of keys) {
       if (k.isCollected) continue;
       const px = k.x * ts;
       const py = k.y * ts + Math.sin(k.bobTimer) * 4;
+      const style = keyStyles[k.keyType] || { icon: '🗝️', color: 'rgba(255, 199, 119, 0.4)' };
 
       ctx.save();
       // Glow aura
-      ctx.fillStyle = 'rgba(255, 199, 119, 0.4)';
+      ctx.fillStyle = style.color;
       ctx.beginPath();
       ctx.arc(px + ts / 2, py + ts / 2, 16, 0, Math.PI * 2);
       ctx.fill();
@@ -376,7 +452,7 @@ export class Renderer {
       ctx.font = '22px monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('🗝️', px + ts / 2, py + ts / 2);
+      ctx.fillText(style.icon, px + ts / 2, py + ts / 2);
       ctx.restore();
     }
   }

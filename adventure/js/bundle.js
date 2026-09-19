@@ -626,6 +626,209 @@ class Tilemap {
     }
     return { found: false, x: startX, y: startY };
   }
+
+  /**
+   * Check if a row has any walkable tiles
+   */
+  hasWalkableTile(y) {
+    if (y < 0 || y >= this.height) return false;
+    for (let x = 0; x < this.width; x++) {
+      if (this.isWalkable(x, y)) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Check if a row has primary path tiles ('=')
+   */
+  hasPathTile(y) {
+    if (y < 0 || y >= this.height) return false;
+    for (let x = 0; x < this.width; x++) {
+      if (this.grid[y][x] === '=') return true;
+    }
+    return false;
+  }
+
+  /**
+   * Top walkable row (for 'gg' default)
+   */
+  getTopWalkableRow() {
+    let firstWalkable = -1;
+    for (let y = 0; y < this.height; y++) {
+      if (this.hasWalkableTile(y)) {
+        if (firstWalkable === -1) firstWalkable = y;
+        if (this.hasPathTile(y)) {
+          return y;
+        }
+      } else if (firstWalkable !== -1) {
+        return firstWalkable;
+      }
+    }
+    return firstWalkable !== -1 ? firstWalkable : 0;
+  }
+
+  /**
+   * Bottom walkable row (for 'G' default)
+   */
+  getBottomWalkableRow() {
+    let lastWalkable = -1;
+    for (let y = this.height - 1; y >= 0; y--) {
+      if (this.hasWalkableTile(y)) {
+        if (lastWalkable === -1) lastWalkable = y;
+        if (this.hasPathTile(y)) {
+          return y;
+        }
+      } else if (lastWalkable !== -1) {
+        return lastWalkable;
+      }
+    }
+    return lastWalkable !== -1 ? lastWalkable : this.height - 1;
+  }
+
+  /**
+   * Find nearest row with walkable tiles
+   */
+  findNearestWalkableRow(startY) {
+    if (startY <= 0) return this.getTopWalkableRow();
+    if (startY >= this.height - 1) return this.getBottomWalkableRow();
+
+    for (let d = 1; d < this.height; d++) {
+      const up = startY - d;
+      const down = startY + d;
+      if (down < this.height && this.hasWalkableTile(down)) return down;
+      if (up >= 0 && this.hasWalkableTile(up)) return up;
+    }
+    return Math.max(0, Math.min(this.height - 1, startY));
+  }
+
+  /**
+   * Vim 'gg' and 'G': Jump to line number
+   */
+  jumpToLine(targetY, preferredX = 0, defaultDirection = 'top') {
+    let y;
+    if (targetY === null || targetY === undefined) {
+      y = defaultDirection === 'top' ? this.getTopWalkableRow() : this.getBottomWalkableRow();
+    } else {
+      let candidate = Math.max(0, Math.min(this.height - 1, targetY));
+      if (!this.hasWalkableTile(candidate)) {
+        candidate = candidate <= 0
+          ? this.getTopWalkableRow()
+          : (candidate >= this.height - 1 ? this.getBottomWalkableRow() : this.findNearestWalkableRow(candidate));
+      }
+      y = candidate;
+    }
+
+    if (this.isWalkable(preferredX, y)) {
+      return { x: preferredX, y };
+    }
+    for (let offset = 1; offset < this.width; offset++) {
+      if (preferredX + offset < this.width && this.isWalkable(preferredX + offset, y)) {
+        return { x: preferredX + offset, y };
+      }
+      if (preferredX - offset >= 0 && this.isWalkable(preferredX - offset, y)) {
+        return { x: preferredX - offset, y };
+      }
+    }
+    for (let x = 0; x < this.width; x++) {
+      if (this.isWalkable(x, y)) return { x, y };
+    }
+    return { x: preferredX, y };
+  }
+
+  /**
+   * Vim '{' and '}': Paragraph leaps across empty/separator rows
+   */
+  findParagraphJump(startX, startY, forward = true) {
+    const hasCode = (r) => {
+      if (r < 0 || r >= this.height) return false;
+      return this.grid[r].some((ch, c) => this.isWalkable(c, r) && /[a-zA-Z0-9_=]/.test(ch));
+    };
+
+    let y = startY;
+    const step = forward ? 1 : -1;
+    let sawSeparator = false;
+
+    while (y + step >= 0 && y + step < this.height) {
+      y += step;
+      const codeRow = hasCode(y);
+      if (!codeRow) {
+        sawSeparator = true;
+      } else if (sawSeparator && codeRow) {
+        // Landed on next block!
+        return this.jumpToLine(y, startX);
+      }
+    }
+
+    // Hit map boundary
+    return this.jumpToLine(y, startX);
+  }
+
+  /**
+   * Get word token at (x, y)
+   */
+  getWordAt(x, y) {
+    if (!this.inBounds(x, y) || !this.isWordChar(x, y)) return '';
+    let sx = x;
+    while (sx > 0 && this.isWordChar(sx - 1, y)) sx--;
+    let ex = x;
+    while (ex + 1 < this.width && this.isWordChar(ex + 1, y)) ex++;
+    let word = '';
+    for (let i = sx; i <= ex; i++) word += this.grid[y][i];
+    return word;
+  }
+
+  /**
+   * Vim '*': Search forward for next occurrence of word under cursor
+   */
+  findMatchingToken(startX, startY) {
+    let token = this.getWordAt(startX, startY);
+    let tokenOriginX = startX;
+    if (!token) {
+      // Check adjacent tiles for token
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const t = this.getWordAt(startX + dx, startY + dy);
+        if (t && t.length >= 2) {
+          token = t;
+          tokenOriginX = startX + dx;
+          break;
+        }
+      }
+    }
+
+    if (!token || token.length < 2) {
+      return { found: false, x: startX, y: startY, token: null };
+    }
+
+    // Scan forward from after current token
+    let y = startY;
+    let x = startX + 1;
+
+    for (let loop = 0; loop < 2; loop++) {
+      while (y < this.height) {
+        const rowStr = this.grid[y].join('');
+        let searchIndex = x;
+        while (searchIndex < this.width) {
+          const matchIdx = rowStr.indexOf(token, searchIndex);
+          if (matchIdx === -1) break;
+
+          // Found match! Check if it's a distinct location
+          if (y !== startY || matchIdx !== tokenOriginX) {
+            if (this.isWalkable(matchIdx, y)) {
+              return { found: true, x: matchIdx, y, token };
+            }
+          }
+          searchIndex = matchIdx + token.length;
+        }
+        y++;
+        x = 0;
+      }
+      // Wrap to start of grid
+      y = 0;
+      x = 0;
+    }
+
+    return { found: false, x: startX, y: startY, token };
+  }
 }
 
   try { exports.TileType = TileType; } catch(e) {}
@@ -655,6 +858,9 @@ class Player {
       silverKey: 0,
       goldKey: 0,
       skullKey: 0,
+      rubyKey: 0,
+      emeraldKey: 0,
+      diamondKey: 0,
       gems: 0,
     };
 
@@ -681,6 +887,24 @@ class Player {
       this.unlockedAbilities.add('T');
       this.unlockedAbilities.add(';');
       this.unlockedAbilities.add(',');
+    }
+    if (key === 't') {
+      this.unlockedAbilities.add('T');
+      this.unlockedAbilities.add(';');
+      this.unlockedAbilities.add(',');
+    }
+    if (key === 'F') {
+      this.unlockedAbilities.add(';');
+      this.unlockedAbilities.add(',');
+    }
+    if (key === 'gg') {
+      this.unlockedAbilities.add('G');
+    }
+    if (key === 'G') {
+      this.unlockedAbilities.add('gg');
+    }
+    if (key === '{') {
+      this.unlockedAbilities.add('}');
     }
   }
 
@@ -730,13 +954,14 @@ defineModule('entities/world-objects.js', function(exports, require, module) {
  */
 
 class NPC {
-  constructor({ id, name, x, y, sprite = 'sage', dialogue = [], avatar = '🧙‍♂️', quest = null }) {
+  constructor({ id, name, x, y, sprite = 'sage', dialogue = [], avatar = '🧙‍♂️', quest = null, dialogueFn = null }) {
     this.id = id;
     this.name = name;
     this.x = x;
     this.y = y;
     this.sprite = sprite; // 'sage', 'sailor', 'monk', 'master'
     this.dialogue = dialogue; // Array of strings
+    this.dialogueFn = dialogueFn;
     this.avatar = avatar;
     this.quest = quest;
     this.hasTalked = false;
@@ -753,6 +978,10 @@ class NPC {
   }
 
   getDialogue(gameState) {
+    if (typeof this.dialogueFn === 'function') {
+      const res = this.dialogueFn(gameState);
+      if (res) return res;
+    }
     if (this.quest && this.quest.check(gameState)) {
       return this.quest.completedDialogue;
     }
@@ -965,18 +1194,19 @@ class ParticleSystem {
 defineModule('levels/level-data.js', function(exports, require, module) {
 /**
  * Vim Adventures Level Definitions & Curriculum
- * 5 Rich Handcrafted Chapters with Word Paths, NPCs, Keys, Doors, and Chests.
+ * 15 Grand Handcrafted Chapters mapped to the 30-Day Dojo Curriculum.
+ * Users play both the 2D Adventure RPG and the 30-Day Buffer Dojo to achieve complete Neovim mastery!
  */
 
 const LEVELS = [
   // =========================================================================
-  // CHAPTER 1: The Shoreline of Motion
+  // CHAPTER 1: Shoreline of Motion [Dojo Days 1-2]
   // Mechanics: h, j, k, l orthogonal navigation on character paths
   // =========================================================================
   {
     id: 1,
     name: "Chapter 1: Shoreline of Motion",
-    subtitle: "Master the Sacred Cardinal Motions: h, j, k, l",
+    subtitle: "Master the Sacred Cardinal Motions: h, j, k, l [Dojo Days 1-2]",
     width: 28,
     height: 16,
     playerStart: { x: 3, y: 3 },
@@ -1054,13 +1284,13 @@ const LEVELS = [
   },
 
   // =========================================================================
-  // CHAPTER 2: The Word Archipelago
+  // CHAPTER 2: The Word Archipelago [Dojo Day 3]
   // Mechanics: w, b, e, ge jumping across water between word islands
   // =========================================================================
   {
     id: 2,
     name: "Chapter 2: The Word Archipelago",
-    subtitle: "Leap Across Chasms with w, b, e, ge",
+    subtitle: "Leap Across Chasms with w, b, e, ge [Dojo Day 3]",
     width: 32,
     height: 18,
     playerStart: { x: 2, y: 2 },
@@ -1131,7 +1361,7 @@ const LEVELS = [
         y: 8,
         rewardType: 'ability',
         rewardValue: 'b',
-        label: "Unlocked 'b' (Backward Word Jump)!"
+        label: "Unlocked 'b' & 'ge' (Backward Word Jumps)!"
       }
     ],
     gems: [
@@ -1148,13 +1378,13 @@ const LEVELS = [
   },
 
   // =========================================================================
-  // CHAPTER 3: The Line Canyon & The Temple of Find
-  // Mechanics: 0, $, ^ and f, F, t, T, ; (inline find search)
+  // CHAPTER 3: The Line Canyon & Temple of Find [Dojo Days 3 & 5]
+  // Mechanics: 0, $, ^ and f, ; (inline find search)
   // =========================================================================
   {
     id: 3,
     name: "Chapter 3: The Temple of Find",
-    subtitle: "Command the Line with 0, $, and inline search f/t",
+    subtitle: "Command the Line with 0, $, and inline search f [Dojo Days 3 & 5]",
     width: 36,
     height: 18,
     playerStart: { x: 2, y: 2 },
@@ -1231,17 +1461,298 @@ const LEVELS = [
   },
 
   // =========================================================================
-  // CHAPTER 4: The Crypt of Matching Brackets
-  // Mechanics: % bracket matching jumps between (, ), [, ], {, }
+  // CHAPTER 4: The Caverns of Till & Reverse Seek [Dojo Day 5]
+  // Mechanics: t, T, F, and repeat , (safe precision inline seek)
   // =========================================================================
   {
     id: 4,
-    name: "Chapter 4: Crypt of Matching Brackets",
-    subtitle: "Warp Between Code Chasms with %",
+    name: "Chapter 4: Caverns of Till & Reverse Seek",
+    subtitle: "Precision Till t/T and Backward F [Dojo Day 5]",
+    width: 34,
+    height: 18,
+    playerStart: { x: 2, y: 2 },
+    initialAbilities: ['h', 'j', 'k', 'l', 'w', 'b', 'e', 'ge', '0', '$', '^', 'f', ';'],
+    map: [
+      "##################################",
+      "#................................#",
+      "# path:..safe_walkway~~magma_pit.#",
+      "#................................#",
+      "# danger:..ice_bridge~~spikes_X..#",
+      "#................................#",
+      "# seek_back:..return_home_with_F.#",
+      "#................................#",
+      "# stop_till_safe:..till_with_t~~.#",
+      "#................................#",
+      "# repeat_reverse_with_comma_key..#",
+      "#................................#",
+      "# bronze_key_shines_in_chamber...#",
+      "#................................#",
+      "# cavern_gate_locks_exit_door....#",
+      "#................................#",
+      "# venture_into_spire_above.......#",
+      "##################################"
+    ],
+    npcs: [
+      {
+        id: 'hermit',
+        name: 'Cavern Hermit',
+        x: 10,
+        y: 2,
+        avatar: '🧔',
+        dialogue: [
+          "Beware the magma and spikes! If you use 'f~', you will land right IN the lava!",
+          "Use 't~' (Till) instead: it lands you ONE tile BEFORE the target, keeping you safe!",
+          "Use 'F<char>' to seek backwards to safety, and ',' to reverse your repeat search."
+        ]
+      }
+    ],
+    keys: [
+      { id: 'k4_bronze', x: 25, y: 12, keyType: 'bronzeKey', name: 'Bronze Key' }
+    ],
+    doors: [
+      { id: 'd4_cavern', x: 22, y: 14, keyRequired: 'bronzeKey', orientation: 'vertical', label: 'Cavern Gate' }
+    ],
+    chests: [
+      {
+        id: 'c4_till',
+        x: 28,
+        y: 8,
+        rewardType: 'ability',
+        rewardValue: 't',
+        label: "Unlocked 't' & 'T' (Till Inline Seek)!"
+      },
+      {
+        id: 'c4_rev',
+        x: 29,
+        y: 6,
+        rewardType: 'ability',
+        rewardValue: 'F',
+        label: "Unlocked 'F' & ',' (Reverse Inline Find)!"
+      }
+    ],
+    gems: [
+      { id: 'g4_1', x: 12, y: 4, value: 30 },
+      { id: 'g4_2', x: 19, y: 6, value: 30 },
+      { id: 'g4_3', x: 14, y: 10, value: 30 }
+    ],
+    portals: [],
+    obstacles: [],
+    exit: { x: 30, y: 16, targetLevel: 5 },
+    objective: "Use 't' to stop safely before magma, grab the Bronze Key, and advance to Chapter 5!"
+  },
+
+  // =========================================================================
+  // CHAPTER 5: The Tower of Vertical Ascents [Dojo Day 6]
+  // Mechanics: gg (top of buffer), G (bottom of buffer), and line counts
+  // =========================================================================
+  {
+    id: 5,
+    name: "Chapter 5: Tower of Vertical Ascents",
+    subtitle: "Command Buffer Boundaries with gg, G, and Line Jumps [Dojo Day 6]",
+    width: 32,
+    height: 20,
+    playerStart: { x: 3, y: 17 },
+    initialAbilities: ['h', 'j', 'k', 'l', 'w', 'b', 'e', 'ge', '0', '$', '^', 'f', 'F', 't', 'T', ';', ','],
+    map: [
+      "################################",
+      "# Spire Battlement Top Floor   #",
+      "# ============================ #",
+      "#..............................#",
+      "# Balcony 4: Air currents blow #",
+      "# ============================ #",
+      "#..............................#",
+      "# Balcony 3: High observatory  #",
+      "# ============================ #",
+      "#..............................#",
+      "# Balcony 2: Library archives  #",
+      "# ============================ #",
+      "#..............................#",
+      "# Balcony 1: Armory chambers   #",
+      "# ============================ #",
+      "#..............................#",
+      "# Dungeon Vault: Ground Floor  #",
+      "# ============================ #",
+      "# Golden Key lies in dungeon   #",
+      "################################"
+    ],
+    npcs: [
+      {
+        id: 'abbot',
+        name: 'High Abbot',
+        x: 5,
+        y: 17,
+        avatar: '🧙‍♂️',
+        dialogue: [
+          "Welcome to the Tower of Vertical Ascents! 🗼",
+          "Climbing twenty flights of stairs one by one is for mortals.",
+          "Vim monks press 'gg' to fly directly to the top spire in a single instant! And 'G' plunges you back to the dungeon floor.",
+          "PATH TO NEXT STAGE (CHAPTER 6):",
+          "1. Open the ability chest ahead at (15, 17) to unlock 'gg' and 'G'.",
+          "2. Retrieve the Tower Gold Key at the far right of this dungeon floor (26, 17).",
+          "3. Type 'gg' to fly directly up to the Spire Battlement at the top of the tower!",
+          "4. Unlock the Spire Gate at (24, 2) with your Gold Key to reach the Chapter 6 exit stairs at (28, 2)!",
+          "Tip: You can also use line counts like '8G' to land on balconies and claim bonus gems!"
+        ],
+        dialogueFn(state) {
+          const hasGG = state.player?.hasAbility('gg');
+          const hasKey = (state.inventory?.goldKey || 0) > 0;
+          const door = state.entities?.doors?.find(d => d.id === 'd5_spire');
+          const isDoorOpen = door?.isOpen;
+
+          if (isDoorOpen) {
+            return [
+              "The Spire Gate is unlocked! 🌟",
+              "Walk right to (28, 2) and step through the glowing staircase portal to enter Chapter 6!"
+            ];
+          }
+          if (hasKey && hasGG) {
+            return [
+              "You have both 'gg' and the Tower Gold Key! 🗝️",
+              "Press 'gg' now to fly straight up to the Spire Battlement (row 2).",
+              "Then walk right to unlock the Spire Gate at (24, 2) and exit to Chapter 6!"
+            ];
+          }
+          if (hasGG && !hasKey) {
+            return [
+              "You have unlocked 'gg' and 'G'!",
+              "Next step: Head to the far right of this dungeon floor to grab the Tower Gold Key at (26, 17)!",
+              "Once you have the key, press 'gg' to soar to the Spire Battlement."
+            ];
+          }
+          if (!hasGG && hasKey) {
+            return [
+              "You found the Tower Gold Key! 🗝️",
+              "Now open the chest at (15, 17) to unlock 'gg' & 'G' so you can fly up to the top spire!"
+            ];
+          }
+          return [
+            "Welcome to the Tower of Vertical Ascents! 🗼",
+            "Climbing twenty flights of stairs one by one is for mortals.",
+            "Vim monks press 'gg' to fly directly to the top spire in a single instant! And 'G' plunges you back to the dungeon floor.",
+            "PATH TO NEXT STAGE (CHAPTER 6):",
+            "1. Open the ability chest ahead at (15, 17) to unlock 'gg' and 'G'.",
+            "2. Retrieve the Tower Gold Key at the far right of this dungeon floor (26, 17).",
+            "3. Type 'gg' to fly directly up to the Spire Battlement at the top of the tower!",
+            "4. Unlock the Spire Gate at (24, 2) with your Gold Key to reach the Chapter 6 exit stairs at (28, 2)!",
+            "Tip: You can also use line counts like '8G' to land on balconies and claim bonus gems!"
+          ];
+        }
+      }
+    ],
+    keys: [
+      { id: 'k5_gold', x: 26, y: 17, keyType: 'goldKey', name: 'Tower Gold Key' }
+    ],
+    doors: [
+      { id: 'd5_spire', x: 24, y: 2, keyRequired: 'goldKey', orientation: 'vertical', label: 'Spire Gate' }
+    ],
+    chests: [
+      {
+        id: 'c5_vert',
+        x: 15,
+        y: 17,
+        rewardType: 'ability',
+        rewardValue: 'gg',
+        label: "Unlocked 'gg' & 'G' (Vertical Buffer Jumps)!"
+      }
+    ],
+    gems: [
+      { id: 'g5_1', x: 20, y: 5, value: 40 },
+      { id: 'g5_2', x: 20, y: 8, value: 40 },
+      { id: 'g5_3', x: 20, y: 11, value: 40 }
+    ],
+    portals: [],
+    obstacles: [],
+    exit: { x: 28, y: 2, targetLevel: 6 },
+    objective: "1. Open chest (15, 17) for 'gg'/'G' ➜ 2. Grab Gold Key (26, 17) ➜ 3. Press 'gg' to fly to Spire Gate (24, 2) for Chapter 6 exit!"
+  },
+
+  // =========================================================================
+  // CHAPTER 6: The Forest of Empty Paragraphs [Dojo Day 6]
+  // Mechanics: { and } jumping across empty lines / forest clearings
+  // =========================================================================
+  {
+    id: 6,
+    name: "Chapter 6: Forest of Empty Paragraphs",
+    subtitle: "Leap Across Forest Glades with { and } [Dojo Day 6]",
+    width: 34,
+    height: 20,
+    playerStart: { x: 2, y: 2 },
+    initialAbilities: ['h', 'j', 'k', 'l', 'w', 'b', 'e', 'ge', '0', '$', '^', 'f', 'F', 't', 'T', ';', ',', 'gg', 'G'],
+    map: [
+      "##################################",
+      "# Glade 1: Sunlit canopy glade   #",
+      "# ============================== #",
+      "#                                #",
+      "#                                #",
+      "# Glade 2: Ancient oak grove     #",
+      "# ============================== #",
+      "#                                #",
+      "#                                #",
+      "# Glade 3: Whispering pines      #",
+      "# ============================== #",
+      "#                                #",
+      "#                                #",
+      "# Glade 4: Silver Key shrine     #",
+      "# ============================== #",
+      "#                                #",
+      "#                                #",
+      "# Glade 5: Sacred forest exit    #",
+      "# ============================== #",
+      "##################################"
+    ],
+    npcs: [
+      {
+        id: 'robin',
+        name: 'Ranger Robin',
+        x: 10,
+        y: 2,
+        avatar: '🏹',
+        dialogue: [
+          "The undergrowth between glades is too thick for normal walking.",
+          "In Vim, code functions are separated by empty blank lines.",
+          "Press '}' to leap downward across the clearing to the next glade, and '{' to leap back!"
+        ]
+      }
+    ],
+    keys: [
+      { id: 'k6_silver', x: 28, y: 13, keyType: 'silverKey', name: 'Silver Key' }
+    ],
+    doors: [
+      { id: 'd6_forest', x: 22, y: 18, keyRequired: 'silverKey', orientation: 'vertical', label: 'Forest Gate' }
+    ],
+    chests: [
+      {
+        id: 'c6_para',
+        x: 25,
+        y: 2,
+        rewardType: 'ability',
+        rewardValue: '{',
+        label: "Unlocked '{' & '}' (Paragraph Leaps)!"
+      }
+    ],
+    gems: [
+      { id: 'g6_1', x: 16, y: 5, value: 40 },
+      { id: 'g6_2', x: 16, y: 9, value: 40 },
+      { id: 'g6_3', x: 16, y: 13, value: 40 }
+    ],
+    portals: [],
+    obstacles: [],
+    exit: { x: 28, y: 18, targetLevel: 7 },
+    objective: "Unlock '{' and '}', leap down to Glade 4 for the Silver Key, then unlock the Forest Gate!"
+  },
+
+  // =========================================================================
+  // CHAPTER 7: Crypt of Matching Brackets [Dojo Day 10]
+  // Mechanics: % bracket matching jumps between (, ), [, ], {, }
+  // =========================================================================
+  {
+    id: 7,
+    name: "Chapter 7: Crypt of Matching Brackets",
+    subtitle: "Warp Between Code Chasms with % [Dojo Day 10]",
     width: 32,
     height: 18,
     playerStart: { x: 3, y: 3 },
-    initialAbilities: ['h', 'j', 'k', 'l', 'w', 'b', 'e', 'ge', '0', '$', '^', 'f', 'F', 't', 'T', ';', '%'],
+    initialAbilities: ['h', 'j', 'k', 'l', 'w', 'b', 'e', 'ge', '0', '$', '^', 'f', 'F', 't', 'T', ';', ',', 'gg', 'G', '{', '}'],
     map: [
       "################################",
       "# ( Chamber Alpha ) ~~~~~~~~~~ #",
@@ -1277,116 +1788,644 @@ const LEVELS = [
       }
     ],
     keys: [
-      { id: 'k4', x: 16, y: 15, keyType: 'skullKey', name: 'Skull Key' }
+      { id: 'k7_skull', x: 16, y: 15, keyType: 'skullKey', name: 'Skull Key' }
     ],
     doors: [
-      { id: 'd4', x: 24, y: 15, keyRequired: 'skullKey', orientation: 'vertical', label: 'Crypt Seal' }
+      { id: 'd7_crypt', x: 24, y: 15, keyRequired: 'skullKey', orientation: 'vertical', label: 'Crypt Seal' }
     ],
     chests: [
       {
-        id: 'c6',
-        x: 17,
-        y: 8,
-        rewardType: 'gem',
-        rewardValue: 100,
-        label: "Crypt Treasury: 100 Gems!"
+        id: 'c7_bracket',
+        x: 14,
+        y: 12,
+        rewardType: 'ability',
+        rewardValue: '%',
+        label: "Unlocked '%' (Matching Bracket Warp)!"
       }
     ],
     gems: [
-      { id: 'g13', x: 6, y: 1, value: 50 },
-      { id: 'g14', x: 15, y: 1, value: 50 },
-      { id: 'g15', x: 10, y: 7, value: 50 }
+      { id: 'g7_1', x: 5, y: 7, value: 50 },
+      { id: 'g7_2', x: 14, y: 7, value: 50 },
+      { id: 'g7_3', x: 5, y: 12, value: 50 }
     ],
     portals: [
-      // Bracket teleporters: step on one, press %, warp to the other!
-      { id: 'bp1', x: 2, y: 3, char: '(', targetX: 18, targetY: 3, pairId: 'p1' },
-      { id: 'bp2', x: 18, y: 3, char: ')', targetX: 2, targetY: 3, pairId: 'p1' },
-      { id: 'bp3', x: 2, y: 8, char: '[', targetX: 18, targetY: 8, pairId: 'p2' },
-      { id: 'bp4', x: 18, y: 8, char: ']', targetX: 2, targetY: 8, pairId: 'p2' },
-      { id: 'bp5', x: 2, y: 13, char: '{', targetX: 18, targetY: 13, pairId: 'p3' },
-      { id: 'bp6', x: 18, y: 13, char: '}', targetX: 2, targetY: 13, pairId: 'p3' },
+      { id: 'p1', x: 2, y: 3, targetX: 18, targetY: 3, char: '(' },
+      { id: 'p2', x: 18, y: 3, targetX: 2, targetY: 3, char: ')' },
+      { id: 'p3', x: 2, y: 8, targetX: 18, targetY: 8, char: '[' },
+      { id: 'p4', x: 18, y: 8, targetX: 2, targetY: 8, char: ']' },
+      { id: 'p5', x: 2, y: 13, targetX: 18, targetY: 13, char: '{' },
+      { id: 'p6', x: 18, y: 13, targetX: 2, targetY: 13, char: '}' }
     ],
     obstacles: [],
-    exit: { x: 29, y: 15, targetLevel: 5 },
-    objective: "Navigate the nested chambers using '%' bracket matching to retrieve the Skull Key!"
+    exit: { x: 28, y: 15, targetLevel: 8 },
+    objective: "Use '%' to warp across brackets, retrieve the Skull Key, and unlock the Crypt Seal!"
   },
 
   // =========================================================================
-  // CHAPTER 5: The Grand Citadel of the Vim Master
-  // Mechanics: x (delete bug/weed), r (replace character), counts (3w, 2j)
+  // CHAPTER 8: The Labyrinth of Precision Counts [Dojo Day 2]
+  // Mechanics: Count grammar (3w, 4j, 6l, 2f,) over crumbling tiles
   // =========================================================================
   {
-    id: 5,
-    name: "Chapter 5: Citadel of Enlightenment",
-    subtitle: "Manipulate the World with x, r, Counts, and Claim the Trophy!",
-    width: 32,
+    id: 8,
+    name: "Chapter 8: Labyrinth of Precision Counts",
+    subtitle: "Precision Leaps with Counts: 3w, 4j, 6l [Dojo Day 2]",
+    width: 34,
     height: 18,
-    playerStart: { x: 3, y: 3 },
-    initialAbilities: ['h', 'j', 'k', 'l', 'w', 'b', 'e', 'ge', '0', '$', '^', 'f', 'F', 't', 'T', ';', '%', 'x', 'r'],
+    playerStart: { x: 2, y: 2 },
+    initialAbilities: ['h', 'j', 'k', 'l', 'w', 'b', 'e', 'ge', '0', '$', '^', 'f', 'F', 't', 'T', ';', ',', 'gg', 'G', '{', '}', '%'],
     map: [
-      "################################",
-      "# Sanctuary of Neovim Mastery  #",
-      "# ............................ #",
-      "# Clear weeds with x keystroke #",
-      "# ............................ #",
-      "# Path: ==x==x==x==x==x==.==== #",
-      "# ............................ #",
-      "# = ~~~ Repair gap with r= ~~~ #",
-      "# ====================~======= #",
-      "# ~~~~~~~~~~~~~~~~~~~~~~~~~~ = #",
-      "# ............................ #",
-      "# ............................ #",
-      "# Dais of Bram Moolenaar Ahead #",
-      "# ............................ #",
-      "# ............................ #",
-      "################################",
-      "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",
-      "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+      "##################################",
+      "# START~~~~~~~~~~~~~~~~~~~~~~~~~~#",
+      "# step:..~~~jump~~~safe~~~zone...#",
+      "# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #",
+      "# ~~~~~~....~~~~~~....~~~~~~.... #",
+      "# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #",
+      "# count_3w_across_ocean_islands. #",
+      "# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #",
+      "# leap_4j_downward_to_platforms. #",
+      "# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #",
+      "# hit_6l_right_into_sanctuary... #",
+      "# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #",
+      "# bronze_key_rests_on_pillar.... #",
+      "# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #",
+      "# unlock_labyrinth_gate_ahead... #",
+      "# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #",
+      "# enter_pruning_grounds_now..... #",
+      "##################################"
     ],
     npcs: [
       {
-        id: 'zen_master',
-        name: 'Grandmaster Bram',
-        x: 14,
-        y: 13,
-        avatar: '🏆',
+        id: 'mathius',
+        name: 'Count Mathius',
+        x: 8,
+        y: 2,
+        avatar: '🧮',
         dialogue: [
-          "Congratulations, disciple of the modal arts!",
-          "You have traversed the Shorelines of motion, leapt the Word Archipelago,",
-          "commanded the Lines with '0' and '$', danced across Brackets with '%',",
-          "and reshaped reality with 'x' and 'r'!",
-          "You are now a true Vim Grandmaster! The Golden Cup of Mastery is yours!"
+          "In Vim, numbers give commands their true multiplied power!",
+          "Instead of pressing 'w' three times, type '3w'.",
+          "Try '4j' or '6l' to jump long distances without wearing down your keys!",
+          "Combine counts with motions to cross this treacherous chasm."
         ]
       }
     ],
-    keys: [],
-    doors: [],
+    keys: [
+      { id: 'k8_bronze', x: 28, y: 12, keyType: 'bronzeKey', name: 'Bronze Key' }
+    ],
+    doors: [
+      { id: 'd8_gate', x: 24, y: 14, keyRequired: 'bronzeKey', orientation: 'vertical', label: 'Labyrinth Gate' }
+    ],
     chests: [
       {
-        id: 'c7',
-        x: 27,
-        y: 8,
-        rewardType: 'gem',
-        rewardValue: 250,
-        label: "Master's Bounty: 250 Gems!"
+        id: 'c8_gems',
+        x: 28,
+        y: 6,
+        rewardType: 'gems',
+        rewardValue: 100,
+        label: "Found 100 Bonus Gems for Precision!"
       }
     ],
     gems: [
-      { id: 'g16', x: 5, y: 5, value: 50 },
-      { id: 'g17', x: 10, y: 5, value: 50 },
-      { id: 'g18', x: 15, y: 5, value: 50 },
-      { id: 'g19', x: 20, y: 5, value: 50 }
+      { id: 'g8_1', x: 12, y: 4, value: 50 },
+      { id: 'g8_2', x: 20, y: 4, value: 50 },
+      { id: 'g8_3', x: 28, y: 4, value: 50 }
+    ],
+    portals: [],
+    obstacles: [],
+    exit: { x: 30, y: 16, targetLevel: 9 },
+    objective: "Use counts like '3w', '4j', '6l' to leap islands, grab the Bronze Key, and advance!"
+  },
+
+  // =========================================================================
+  // CHAPTER 9: The Pruning Grounds of 'x' [Dojo Days 2 & 4]
+  // Mechanics: Character deletion / weed clearing with x
+  // =========================================================================
+  {
+    id: 9,
+    name: "Chapter 9: The Pruning Grounds of 'x'",
+    subtitle: "Slice Glitches, Bugs, and Weeds with x [Dojo Days 2 & 4]",
+    width: 32,
+    height: 18,
+    playerStart: { x: 2, y: 2 },
+    initialAbilities: ['h', 'j', 'k', 'l', 'w', 'b', 'e', 'ge', '0', '$', '^', 'f', 'F', 't', 'T', ';', ',', 'gg', 'G', '{', '}', '%'],
+    map: [
+      "################################",
+      "# Gardener Overgrown Sanctuary #",
+      "# ============================ #",
+      "# ............................ #",
+      "# xxxxxxxxxxxxxxxxxxxxxxxx.... #",
+      "# ............................ #",
+      "# ....xxxxxxxxxxxxxxxxxxxx.... #",
+      "# ............................ #",
+      "# xxxxxxxxxxxxxxxxxxxxxxxx.... #",
+      "# ............................ #",
+      "# Ruby Key glows in overgrown. #",
+      "# ............................ #",
+      "# Pruning Gate seals garden .. #",
+      "# ============================ #",
+      "# ............................ #",
+      "# Enter the Mason's workshop . #",
+      "# ============================ #",
+      "################################"
+    ],
+    npcs: [
+      {
+        id: 'pete',
+        name: 'Gardener Pete',
+        x: 8,
+        y: 3,
+        avatar: '🧑‍🌾',
+        dialogue: [
+          "Glitch weeds 'x' have choked my entire garden path!",
+          "Stand facing them and press 'x' to prune them away, turning them into stone paths.",
+          "Clear the weeds, retrieve my Ruby Key, and open the garden gate!"
+        ]
+      }
+    ],
+    keys: [
+      { id: 'k9_ruby', x: 5, y: 10, keyType: 'rubyKey', name: 'Ruby Key' }
+    ],
+    doors: [
+      { id: 'd9_gate', x: 22, y: 12, keyRequired: 'rubyKey', orientation: 'vertical', label: 'Pruning Gate' }
+    ],
+    chests: [
+      {
+        id: 'c9_x',
+        x: 26,
+        y: 3,
+        rewardType: 'ability',
+        rewardValue: 'x',
+        label: "Unlocked 'x' (Cut Character / Obstacle)!"
+      }
+    ],
+    gems: [
+      { id: 'g9_1', x: 15, y: 5, value: 50 },
+      { id: 'g9_2', x: 15, y: 7, value: 50 },
+      { id: 'g9_3', x: 15, y: 9, value: 50 }
     ],
     portals: [],
     obstacles: [
-      { id: 'obs1', x: 10, y: 5, char: 'x', type: 'weed', hint: 'Cut with x' },
-      { id: 'obs2', x: 13, y: 5, char: 'x', type: 'weed', hint: 'Cut with x' },
-      { id: 'obs3', x: 16, y: 5, char: 'x', type: 'weed', hint: 'Cut with x' },
-      { id: 'obs4', x: 19, y: 5, char: 'x', type: 'weed', hint: 'Cut with x' },
-      { id: 'obs5', x: 22, y: 5, char: 'x', type: 'weed', hint: 'Cut with x' }
+      { id: 'obs9_1', x: 2, y: 4, char: 'x', type: 'weed' },
+      { id: 'obs9_2', x: 10, y: 6, char: 'x', type: 'weed' },
+      { id: 'obs9_3', x: 2, y: 8, char: 'x', type: 'weed' }
     ],
-    exit: { x: 14, y: 13, isVictory: true },
-    objective: "Clear the obstacles with 'x', repair the bridge with 'r=', reach Grandmaster Bram and win!"
+    exit: { x: 28, y: 15, targetLevel: 10 },
+    objective: "Unlock 'x', slice through the glitch weeds, grab the Ruby Key, and unlock the gate!"
+  },
+
+  // =========================================================================
+  // CHAPTER 10: The Masons of Replacement ('r') [Dojo Days 4 & 14]
+  // Mechanics: Character replacement with r{char} to repair bridge tiles
+  // =========================================================================
+  {
+    id: 10,
+    name: "Chapter 10: Masons of Replacement ('r')",
+    subtitle: "Restore Broken Bridges with r= [Dojo Days 4 & 14]",
+    width: 34,
+    height: 18,
+    playerStart: { x: 2, y: 2 },
+    initialAbilities: ['h', 'j', 'k', 'l', 'w', 'b', 'e', 'ge', '0', '$', '^', 'f', 'F', 't', 'T', ';', ',', 'gg', 'G', '{', '}', '%', 'x'],
+    map: [
+      "##################################",
+      "# Mason's Aqueduct Construction  #",
+      "# ============================== #",
+      "# .............................. #",
+      "# Bridge 1:..====~====~====..... #",
+      "# .............................. #",
+      "# Bridge 2:..====~====~====..... #",
+      "# .............................. #",
+      "# Bridge 3:..====~====~====..... #",
+      "# .............................. #",
+      "# Emerald Key in tool shed...... #",
+      "# .............................. #",
+      "# Mason Gate locks exit path.... #",
+      "# ============================== #",
+      "# .............................. #",
+      "# Halls of Time await beyond.... #",
+      "# ============================== #",
+      "##################################"
+    ],
+    npcs: [
+      {
+        id: 'bob',
+        name: 'Mason Bob',
+        x: 8,
+        y: 2,
+        avatar: '👷',
+        dialogue: [
+          "Our water aqueducts have gaps '~' where stones collapsed into the river!",
+          "Facing a gap, press 'r' followed by '=' to replace the water with solid path.",
+          "Repair the bridge spans to collect the Emerald Key and cross to safety!"
+        ]
+      }
+    ],
+    keys: [
+      { id: 'k10_emerald', x: 28, y: 10, keyType: 'emeraldKey', name: 'Emerald Key' }
+    ],
+    doors: [
+      { id: 'd10_mason', x: 24, y: 12, keyRequired: 'emeraldKey', orientation: 'vertical', label: 'Mason Gate' }
+    ],
+    chests: [
+      {
+        id: 'c10_r',
+        x: 26,
+        y: 2,
+        rewardType: 'ability',
+        rewardValue: 'r',
+        label: "Unlocked 'r' (Replace Character)!"
+      }
+    ],
+    gems: [
+      { id: 'g10_1', x: 17, y: 4, value: 60 },
+      { id: 'g10_2', x: 17, y: 6, value: 60 },
+      { id: 'g10_3', x: 17, y: 8, value: 60 }
+    ],
+    portals: [],
+    obstacles: [],
+    exit: { x: 28, y: 15, targetLevel: 11 },
+    objective: "Unlock 'r', use 'r=' to repair bridge gaps, grab the Emerald Key, and open the gate!"
+  },
+
+  // =========================================================================
+  // CHAPTER 11: The Halls of Undo & Reversal ('u') [Dojo Day 12]
+  // Mechanics: Undo tree, rewinding moves and state with 'u'
+  // =========================================================================
+  {
+    id: 11,
+    name: "Chapter 11: Halls of Undo & Reversal",
+    subtitle: "Manipulate Time and Reverse Traps with u [Dojo Day 12]",
+    width: 32,
+    height: 18,
+    playerStart: { x: 2, y: 2 },
+    initialAbilities: ['h', 'j', 'k', 'l', 'w', 'b', 'e', 'ge', '0', '$', '^', 'f', 'F', 't', 'T', ';', ',', 'gg', 'G', '{', '}', '%', 'x', 'r'],
+    map: [
+      "################################",
+      "# Chrono Chamber of Time Loops #",
+      "# ============================ #",
+      "# ............................ #",
+      "# Dead-End Vault with Key: ... #",
+      "# ............................ #",
+      "# ############################ #",
+      "# ............................ #",
+      "# Labyrinth Corridors Ahead .. #",
+      "# ............................ #",
+      "# Silver Key unlocks door .... #",
+      "# ............................ #",
+      "# Chrono Gate guards exit .... #",
+      "# ============================ #",
+      "# ............................ #",
+      "# Step into Polarity Chamber.. #",
+      "# ============================ #",
+      "################################"
+    ],
+    npcs: [
+      {
+        id: 'chronos',
+        name: 'Chronos the Sage',
+        x: 8,
+        y: 2,
+        avatar: '⏳',
+        dialogue: [
+          "Never fear making a wrong turn or getting stuck in a trap corridor.",
+          "In Vim, the 'u' key is your eternal undo spell!",
+          "Make a misstep? Cut the wrong tile? Press 'u' to rewind time and state instantly."
+        ]
+      }
+    ],
+    keys: [
+      { id: 'k11_silver', x: 27, y: 4, keyType: 'silverKey', name: 'Silver Key' }
+    ],
+    doors: [
+      { id: 'd11_chrono', x: 20, y: 12, keyRequired: 'silverKey', orientation: 'vertical', label: 'Chrono Gate' }
+    ],
+    chests: [
+      {
+        id: 'c11_gems',
+        x: 27,
+        y: 9,
+        rewardType: 'gems',
+        rewardValue: 120,
+        label: "Discovered 120 Timeless Gems!"
+      }
+    ],
+    gems: [
+      { id: 'g11_1', x: 12, y: 4, value: 60 },
+      { id: 'g11_2', x: 20, y: 4, value: 60 },
+      { id: 'g11_3', x: 12, y: 9, value: 60 }
+    ],
+    portals: [],
+    obstacles: [],
+    exit: { x: 26, y: 15, targetLevel: 12 },
+    objective: "Navigate the corridors, collect the Silver Key, use 'u' if trapped, and unlock the gate!"
+  },
+
+  // =========================================================================
+  // CHAPTER 12: Chamber of Case Inversion ('~') [Dojo Days 13 & 27]
+  // Mechanics: Toggle switch polarity with ~ (invert lower to UPPER)
+  // =========================================================================
+  {
+    id: 12,
+    name: "Chapter 12: Chamber of Case Inversion ('~')",
+    subtitle: "Toggle Binary Switches and Gates with ~ [Dojo Days 13 & 27]",
+    width: 34,
+    height: 18,
+    playerStart: { x: 2, y: 2 },
+    initialAbilities: ['h', 'j', 'k', 'l', 'w', 'b', 'e', 'ge', '0', '$', '^', 'f', 'F', 't', 'T', ';', ',', 'gg', 'G', '{', '}', '%', 'x', 'r'],
+    map: [
+      "##################################",
+      "# Sanctuary of Polarity Crystals #",
+      "# ============================== #",
+      "# .............................. #",
+      "# Switch Alpha: [o] closed gate. #",
+      "# .............................. #",
+      "# Switch Beta:  [s] drawbridge.. #",
+      "# .............................. #",
+      "# Gold Key shines in locked room #",
+      "# .............................. #",
+      "# Polarity Gate seals passage... #",
+      "# ============================== #",
+      "# .............................. #",
+      "# Enter the Valley of Beacons... #",
+      "# ============================== #",
+      "# .............................. #",
+      "# Exit portal ready ahead....... #",
+      "##################################"
+    ],
+    npcs: [
+      {
+        id: 'switcher',
+        name: 'Mystic Switcher',
+        x: 8,
+        y: 2,
+        avatar: '🔮',
+        dialogue: [
+          "Behold the ancient runes! Lowercase letters like 'o' are dormant and closed.",
+          "Stand facing the switch and press '~' (tilde) to invert its case to uppercase 'O'!",
+          "Inverting the switch triggers magical mechanisms that open gates throughout the room."
+        ]
+      }
+    ],
+    keys: [
+      { id: 'k12_gold', x: 28, y: 8, keyType: 'goldKey', name: 'Gold Key' }
+    ],
+    doors: [
+      { id: 'd12_switch', x: 22, y: 4, keyRequired: 'switch', orientation: 'vertical', label: 'Switch Gate' },
+      { id: 'd12_polarity', x: 24, y: 10, keyRequired: 'goldKey', orientation: 'vertical', label: 'Polarity Gate' }
+    ],
+    chests: [
+      {
+        id: 'c12_tilde',
+        x: 26,
+        y: 2,
+        rewardType: 'ability',
+        rewardValue: '~',
+        label: "Unlocked '~' (Toggle Case)!"
+      }
+    ],
+    gems: [
+      { id: 'g12_1', x: 12, y: 6, value: 70 },
+      { id: 'g12_2', x: 20, y: 6, value: 70 },
+      { id: 'g12_3', x: 12, y: 12, value: 70 }
+    ],
+    portals: [],
+    obstacles: [],
+    exit: { x: 28, y: 15, targetLevel: 13 },
+    objective: "Unlock '~', flip switch 'o' to 'O' to open the inner room, grab the Gold Key, and exit!"
+  },
+
+  // =========================================================================
+  // CHAPTER 13: Valley of Golden Beacons ('*') [Dojo Days 18 & 23]
+  // Mechanics: Search word under cursor with * to warp across beacons
+  // =========================================================================
+  {
+    id: 13,
+    name: "Chapter 13: Valley of Golden Beacons ('*')",
+    subtitle: "Search and Warp to Matching Tokens with * [Dojo Days 18 & 23]",
+    width: 36,
+    height: 20,
+    playerStart: { x: 2, y: 2 },
+    initialAbilities: ['h', 'j', 'k', 'l', 'w', 'b', 'e', 'ge', '0', '$', '^', 'f', 'F', 't', 'T', ';', ',', 'gg', 'G', '{', '}', '%', 'x', 'r', '~'],
+    map: [
+      "####################################",
+      "# Cliff 1: BEACON ~~~~~~~~~~~~~~~~ #",
+      "# ================================ #",
+      "# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #",
+      "# Cliff 2: ~~~~~~~~ BEACON ~~~~~~~ #",
+      "# ================================ #",
+      "# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #",
+      "# Cliff 3: ~~~~~~~~~~~~~~ RUNE ~~~ #",
+      "# ================================ #",
+      "# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #",
+      "# Cliff 4: RUNE ~~~~~~~~~~~~~~~~~~ #",
+      "# ================================ #",
+      "# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #",
+      "# Cliff 5: ~~~~~~~~~~~~~~ NOVA ~~~ #",
+      "# Ruby Key rests on remote peak .. #",
+      "# Cliff 6: NOVA ~~~~~~~~~~~~~~~~~~ #",
+      "# Starlight Gate awaits traveler . #",
+      "# ================================ #",
+      "# Passage to Demolition Vaults ... #",
+      "####################################"
+    ],
+    npcs: [
+      {
+        id: 'stella',
+        name: 'Stargazer Stella',
+        x: 10,
+        y: 2,
+        avatar: '🔭',
+        dialogue: [
+          "The cliffs are separated by miles of bottomless air.",
+          "Stand on any beacon word like 'BEACON' or 'RUNE' and press '*'!",
+          "In Vim, '*' searches forward for the word under the cursor, warping you straight to the next matching beacon!"
+        ]
+      }
+    ],
+    keys: [
+      { id: 'k13_ruby', x: 28, y: 14, keyType: 'rubyKey', name: 'Ruby Key' }
+    ],
+    doors: [
+      { id: 'd13_star', x: 24, y: 16, keyRequired: 'rubyKey', orientation: 'vertical', label: 'Starlight Gate' }
+    ],
+    chests: [
+      {
+        id: 'c13_star',
+        x: 26,
+        y: 2,
+        rewardType: 'ability',
+        rewardValue: '*',
+        label: "Unlocked '*' (Search Word Under Cursor)!"
+      }
+    ],
+    gems: [
+      { id: 'g13_1', x: 19, y: 4, value: 75 },
+      { id: 'g13_2', x: 25, y: 7, value: 75 },
+      { id: 'g13_3', x: 10, y: 10, value: 75 }
+    ],
+    portals: [],
+    obstacles: [],
+    exit: { x: 30, y: 18, targetLevel: 14 },
+    objective: "Unlock '*', warp across cliffs with matching tokens, retrieve the Ruby Key, and proceed!"
+  },
+
+  // =========================================================================
+  // CHAPTER 14: The Line Demolition Vaults ('D') [Dojo Day 4]
+  // Mechanics: Delete to line end (D / d$) clearing barrier rows
+  // =========================================================================
+  {
+    id: 14,
+    name: "Chapter 14: Line Demolition Vaults ('D')",
+    subtitle: "Obliterate Barriers to Line End with D [Dojo Day 4]",
+    width: 34,
+    height: 18,
+    playerStart: { x: 2, y: 2 },
+    initialAbilities: ['h', 'j', 'k', 'l', 'w', 'b', 'e', 'ge', '0', '$', '^', 'f', 'F', 't', 'T', ';', ',', 'gg', 'G', '{', '}', '%', 'x', 'r', '~', '*'],
+    map: [
+      "##################################",
+      "# Demolition Training Arena      #",
+      "# ============================== #",
+      "# .............................. #",
+      "# Corridor 1:..xxxxxxxxx barriers#",
+      "# .............................. #",
+      "# Corridor 2:..xxxxxxxxx tripwire#",
+      "# .............................. #",
+      "# Corridor 3:..xxxxxxxxx lasers..#",
+      "# .............................. #",
+      "# Diamond Key locked in chamber. #",
+      "# .............................. #",
+      "# Vault Gate guards Grand Citadel#",
+      "# ============================== #",
+      "# .............................. #",
+      "# Ascend to Citadel of Bram..... #",
+      "# ============================== #",
+      "##################################"
+    ],
+    npcs: [
+      {
+        id: 'dan',
+        name: 'Demolition Dan',
+        x: 8,
+        y: 2,
+        avatar: '💣',
+        dialogue: [
+          "Single 'x' cuts one tile at a time. Too slow for a master!",
+          "In Vim, 'D' (d$) deletes from your cursor all the way to the END of the line!",
+          "Stand before a row of barrier traps and hit 'D' to blast the entire path open in one strike!"
+        ]
+      }
+    ],
+    keys: [
+      { id: 'k14_diamond', x: 28, y: 10, keyType: 'diamondKey', name: 'Diamond Key' }
+    ],
+    doors: [
+      { id: 'd14_vault', x: 24, y: 12, keyRequired: 'diamondKey', orientation: 'vertical', label: 'Vault Gate' }
+    ],
+    chests: [
+      {
+        id: 'c14_d',
+        x: 26,
+        y: 2,
+        rewardType: 'ability',
+        rewardValue: 'D',
+        label: "Unlocked 'D' (Delete to Line End)!"
+      }
+    ],
+    gems: [
+      { id: 'g14_1', x: 14, y: 4, value: 80 },
+      { id: 'g14_2', x: 14, y: 6, value: 80 },
+      { id: 'g14_3', x: 14, y: 8, value: 80 }
+    ],
+    portals: [],
+    obstacles: [
+      { id: 'obs14_1', x: 15, y: 4, char: 'x', type: 'barrier' },
+      { id: 'obs14_2', x: 15, y: 6, char: 'x', type: 'barrier' },
+      { id: 'obs14_3', x: 15, y: 8, char: 'x', type: 'barrier' }
+    ],
+    exit: { x: 28, y: 15, targetLevel: 15 },
+    objective: "Unlock 'D', vaporize barrier rows, claim the Diamond Key, and enter the Grand Citadel!"
+  },
+
+  // =========================================================================
+  // CHAPTER 15: Grand Citadel of the Neovim Grandmaster [Dojo Days 29-30]
+  // Mechanics: Climax synthesizing ALL motions, objects, operators, and Bram
+  // =========================================================================
+  {
+    id: 15,
+    name: "Chapter 15: Grand Citadel of the Neovim Grandmaster",
+    subtitle: "The Ultimate Modal Trial - Bram Moolenaar's Blessing [Dojo Days 29-30]",
+    width: 36,
+    height: 22,
+    playerStart: { x: 3, y: 19 },
+    initialAbilities: ['h', 'j', 'k', 'l', 'w', 'b', 'e', 'ge', '0', '$', '^', 'f', 'F', 't', 'T', ';', ',', 'gg', 'G', '{', '}', '%', 'x', 'r', '~', '*', 'D'],
+    map: [
+      "####################################",
+      "# Golden Citadel of Modal Masters  #",
+      "# ================================ #",
+      "# ( Crown Chamber ) ~~~~~~~~~~~~~~ #",
+      "# ( ..............) ~~~~~~~~~~~~~~ #",
+      "# Switch: [o] ~~~~~ RUNE ~~~~~~~~~ #",
+      "# ================================ #",
+      "#                                  #",
+      "# Barrier Row: xxxxxxxxxxxxxxxxxx. #",
+      "#                                  #",
+      "# Broken Bridge: =====~=====~===== #",
+      "#                                  #",
+      "# RUNE ~~~~~~~~~~~~~~~~~~~~~~~~~~~ #",
+      "# ================================ #",
+      "#                                  #",
+      "# Golden Key on Altar of Mastery . #",
+      "# ================================ #",
+      "# Grandmaster Gate to the Throne . #",
+      "# ................................ #",
+      "# Traveler Entrance: Begin Trial . #",
+      "# ================================ #",
+      "####################################"
+    ],
+    npcs: [
+      {
+        id: 'grandmaster',
+        name: 'Grandmaster Bram',
+        x: 18,
+        y: 3,
+        avatar: '👑',
+        dialogue: [
+          "Welcome to the pinnacle of the Modal Arts, Hero!",
+          "You have walked the Shoreline, leaped the Archipelago, navigated the Lines,",
+          "ascended the Towers, paired the Brackets, and mastered Deletion and Replacement.",
+          "Combine all your arts in this final hall, reach my throne, and receive the Grandmaster Crown!"
+        ]
+      }
+    ],
+    keys: [
+      { id: 'k15_gold', x: 28, y: 15, keyType: 'goldKey', name: 'Grandmaster Gold Key' }
+    ],
+    doors: [
+      { id: 'd15_switch', x: 18, y: 5, keyRequired: 'switch', orientation: 'vertical', label: 'Citadel Switch Gate' },
+      { id: 'd15_master', x: 18, y: 17, keyRequired: 'goldKey', orientation: 'vertical', label: 'Grandmaster Gate' }
+    ],
+    chests: [
+      {
+        id: 'c15_trophy',
+        x: 15,
+        y: 3,
+        rewardType: 'gems',
+        rewardValue: 500,
+        label: "Crowned with the 500 Gem Grandmaster Treasure!"
+      }
+    ],
+    gems: [
+      { id: 'g15_1', x: 8, y: 3, value: 100 },
+      { id: 'g15_2', x: 26, y: 3, value: 100 },
+      { id: 'g15_3', x: 8, y: 15, value: 100 }
+    ],
+    portals: [
+      { id: 'p15_1', x: 2, y: 3, targetX: 18, targetY: 4, char: '(' },
+      { id: 'p15_2', x: 18, y: 4, targetX: 2, targetY: 3, char: ')' }
+    ],
+    obstacles: [
+      { id: 'obs15_1', x: 15, y: 8, char: 'x', type: 'barrier' }
+    ],
+    exit: { x: 18, y: 2, isVictory: true },
+    objective: "Synthesize all modal powers, unlock the Grandmaster Gate, and reach Bram's Golden Throne!"
   }
 ];
 
@@ -1522,6 +2561,9 @@ class HUD {
     this.silverKeysCountEl = document.getElementById('silver-keys-count');
     this.skullKeysCountEl = document.getElementById('skull-keys-count');
     this.bronzeKeysCountEl = document.getElementById('bronze-keys-count');
+    this.rubyKeysCountEl = document.getElementById('ruby-keys-count');
+    this.emeraldKeysCountEl = document.getElementById('emerald-keys-count');
+    this.diamondKeysCountEl = document.getElementById('diamond-keys-count');
 
     this.abilityElements = {};
     document.querySelectorAll('.ability-key').forEach(el => {
@@ -1532,6 +2574,9 @@ class HUD {
     });
 
     this.helpModal = document.getElementById('modal-help');
+    this.hintsModal = document.getElementById('modal-hints');
+    this.hintModalTitle = document.getElementById('hint-modal-title');
+    this.hintModalBody = document.getElementById('hint-modal-body');
     this.victoryModal = document.getElementById('modal-victory');
   }
 
@@ -1552,13 +2597,23 @@ class HUD {
     if (this.silverKeysCountEl) this.silverKeysCountEl.textContent = inventory.silverKey || 0;
     if (this.skullKeysCountEl) this.skullKeysCountEl.textContent = inventory.skullKey || 0;
     if (this.bronzeKeysCountEl) this.bronzeKeysCountEl.textContent = inventory.bronzeKey || 0;
+    if (this.rubyKeysCountEl) this.rubyKeysCountEl.textContent = inventory.rubyKey || 0;
+    if (this.emeraldKeysCountEl) this.emeraldKeysCountEl.textContent = inventory.emeraldKey || 0;
+    if (this.diamondKeysCountEl) this.diamondKeysCountEl.textContent = inventory.diamondKey || 0;
   }
 
   updateAbilities(unlockedAbilities, newUnlock = null) {
+    const pulseKeys = new Set(newUnlock ? [newUnlock] : []);
+    if (newUnlock === 'gg') pulseKeys.add('G');
+    if (newUnlock === 'G') pulseKeys.add('gg');
+    if (newUnlock === 'b') pulseKeys.add('ge');
+    if (newUnlock === '$') { pulseKeys.add('0'); pulseKeys.add('^'); }
+    if (newUnlock === '{') pulseKeys.add('}');
+
     for (const [key, el] of Object.entries(this.abilityElements)) {
       if (unlockedAbilities.has(key)) {
         el.classList.add('unlocked');
-        if (newUnlock === key) {
+        if (pulseKeys.has(key)) {
           el.classList.add('pulse');
           setTimeout(() => el.classList.remove('pulse'), 700);
         }
@@ -1577,6 +2632,93 @@ class HUD {
   closeHelp() {
     if (this.helpModal) {
       this.helpModal.classList.remove('open');
+    }
+  }
+
+  openHints(data = {}) {
+    if (!this.hintsModal) return;
+
+    if (this.hintModalTitle && data.title) {
+      this.hintModalTitle.textContent = `${data.title} - Guide & Hints`;
+    }
+
+    if (this.hintModalBody) {
+      let html = '';
+
+      // Section 1: Immediate Action / Right Now
+      if (data.immediateHint) {
+        html += `
+          <div class="hint-section">
+            <div class="hint-section-title">📍 Immediate Action / What To Do Now</div>
+            <div class="hint-callout">
+              <strong>${data.immediateHint}</strong>
+            </div>
+          </div>
+        `;
+      }
+
+      // Section 2: Step-by-Step Path to Next Stage
+      if (data.walkthrough && data.walkthrough.length > 0) {
+        html += `
+          <div class="hint-section">
+            <div class="hint-section-title">🗺️ Path to Next Stage</div>
+            <ul class="hint-step-list">
+              ${data.walkthrough.map((step, idx) => `
+                <li class="hint-step-item">
+                  <span class="hint-step-num">${idx + 1}</span>
+                  <span>${step}</span>
+                </li>
+              `).join('')}
+            </ul>
+          </div>
+        `;
+      }
+
+      // Section 3: Essential Vim Keys for This Room
+      if (data.commands && data.commands.length > 0) {
+        html += `
+          <div class="hint-section">
+            <div class="hint-section-title">⌨️ Essential Vim Keys for This Room</div>
+            <table class="hint-key-table">
+              ${data.commands.map(cmd => `
+                <tr>
+                  <td><kbd>${cmd.key}</kbd></td>
+                  <td style="color:var(--fg-dark);">${cmd.desc}</td>
+                </tr>
+              `).join('')}
+            </table>
+          </div>
+        `;
+      }
+
+      // Section 4: Pro Tip
+      if (data.tip) {
+        html += `
+          <div class="hint-section" style="margin-top:12px;">
+            <div style="font-size:12px; color:var(--tn-cyan); background:rgba(122, 162, 247, 0.08); border-left:3px solid var(--tn-cyan); padding:8px 12px; border-radius:4px;">
+              💡 <strong>Pro Tip:</strong> ${data.tip}
+            </div>
+          </div>
+        `;
+      }
+
+      this.hintModalBody.innerHTML = html;
+    }
+
+    this.hintsModal.classList.add('open');
+  }
+
+  closeHints() {
+    if (this.hintsModal) {
+      this.hintsModal.classList.remove('open');
+    }
+  }
+
+  toggleHints(data = {}) {
+    if (this.hintsModal && this.hintsModal.classList.contains('open')) {
+      this.closeHints();
+    } else {
+      this.openHints(data);
     }
   }
 
@@ -1747,6 +2889,11 @@ class Renderer {
       this.renderNPCs(ctx, entities.npcs);
     }
 
+    // Render Level Exit / Staircase Portal
+    if (entities.exit) {
+      this.renderExit(ctx, entities.exit);
+    }
+
     // Render Particles
     if (particles) {
       particles.render(ctx, ts);
@@ -1881,6 +3028,66 @@ class Renderer {
     }
   }
 
+  renderExit(ctx, exit) {
+    if (!exit) return;
+    const ts = this.tileSize;
+    const px = exit.x * ts;
+    const py = exit.y * ts;
+    const centerX = px + ts / 2;
+    const centerY = py + ts / 2;
+
+    const pulse = (Math.sin(this.time * 4) + 1) / 2; // 0 to 1
+
+    ctx.save();
+
+    // 1. Glowing mystic ring under portal
+    const radius = ts * 0.42 + pulse * 3;
+    const grad = ctx.createRadialGradient(centerX, centerY, 4, centerX, centerY, radius + 8);
+    grad.addColorStop(0, exit.isVictory ? 'rgba(255, 215, 0, 0.8)' : 'rgba(125, 207, 255, 0.8)');
+    grad.addColorStop(0.5, exit.isVictory ? 'rgba(255, 158, 100, 0.4)' : 'rgba(187, 154, 247, 0.4)');
+    grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius + 8, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 2. Rotating energy ring
+    ctx.strokeStyle = exit.isVictory ? '#ffd700' : '#7dcfff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // 3. Center portal icon / stairs
+    ctx.font = '22px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(exit.isVictory ? '🏆' : '🪜', centerX, centerY);
+
+    // 4. Floating badge above portal
+    const badgeText = exit.isVictory ? 'VICTORY' : `CH ${exit.targetLevel} ➜`;
+    ctx.font = 'bold 10px monospace';
+    const textWidth = ctx.measureText(badgeText).width;
+    const badgeW = textWidth + 12;
+    const badgeH = 16;
+    const badgeX = centerX - badgeW / 2;
+    const badgeY = py - 12 - pulse * 3;
+
+    ctx.fillStyle = 'rgba(26, 27, 38, 0.9)';
+    ctx.strokeStyle = exit.isVictory ? '#ff9e64' : '#7aa2f7';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 4);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = exit.isVictory ? '#ffd700' : '#7dcfff';
+    ctx.fillText(badgeText, centerX, badgeY + badgeH / 2 + 1);
+
+    ctx.restore();
+  }
+
   renderObstacles(ctx, obstacles) {
     const ts = this.tileSize;
     for (const obs of obstacles) {
@@ -1969,14 +3176,25 @@ class Renderer {
 
   renderKeys(ctx, keys) {
     const ts = this.tileSize;
+    const keyStyles = {
+      bronzeKey: { icon: '🗝️', color: 'rgba(224, 175, 104, 0.5)' },
+      silverKey: { icon: '🥈', color: 'rgba(192, 202, 245, 0.5)' },
+      goldKey: { icon: '🥇', color: 'rgba(255, 215, 0, 0.6)' },
+      skullKey: { icon: '💀', color: 'rgba(187, 154, 247, 0.6)' },
+      rubyKey: { icon: '♦️', color: 'rgba(247, 118, 142, 0.6)' },
+      emeraldKey: { icon: '❇️', color: 'rgba(115, 218, 202, 0.6)' },
+      diamondKey: { icon: '💎', color: 'rgba(125, 207, 255, 0.7)' },
+    };
+
     for (const k of keys) {
       if (k.isCollected) continue;
       const px = k.x * ts;
       const py = k.y * ts + Math.sin(k.bobTimer) * 4;
+      const style = keyStyles[k.keyType] || { icon: '🗝️', color: 'rgba(255, 199, 119, 0.4)' };
 
       ctx.save();
       // Glow aura
-      ctx.fillStyle = 'rgba(255, 199, 119, 0.4)';
+      ctx.fillStyle = style.color;
       ctx.beginPath();
       ctx.arc(px + ts / 2, py + ts / 2, 16, 0, Math.PI * 2);
       ctx.fill();
@@ -1984,7 +3202,7 @@ class Renderer {
       ctx.font = '22px monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('🗝️', px + ts / 2, py + ts / 2);
+      ctx.fillText(style.icon, px + ts / 2, py + ts / 2);
       ctx.restore();
     }
   }
@@ -2178,6 +3396,7 @@ class InputHandler {
     if (e.key === 'Escape') {
       this.resetBuffer();
       this.game.hud.closeHelp();
+      this.game.hud.closeHints();
       this.game.hud.closeVictory();
       return;
     }
@@ -2195,6 +3414,11 @@ class InputHandler {
 
     if (e.key === '?') {
       this.game.hud.openHelp();
+      return;
+    }
+
+    if (e.key === 'H' && !this.pendingPrefix) {
+      this.game.openHintsModal();
       return;
     }
 
@@ -2231,6 +3455,8 @@ class InputHandler {
       if (prefix === 'g') {
         if (key === 'e') {
           this.executeMotion('ge');
+        } else if (key === 'g') {
+          this.executeMotion('gg');
         } else {
           this.game.audio.playError();
         }
@@ -2297,6 +3523,36 @@ class InputHandler {
     }
 
     // 6. Handling Single-Key Motions & Operators
+    if (key === 'G') {
+      this.executeMotion('G');
+      this.resetBuffer();
+      return;
+    }
+
+    if (key === '{' || key === '}') {
+      this.executeMotion(key);
+      this.resetBuffer();
+      return;
+    }
+
+    if (key === '~') {
+      this.game.handleToggleCase();
+      this.resetBuffer();
+      return;
+    }
+
+    if (key === '*') {
+      this.game.handleStarSearch();
+      this.resetBuffer();
+      return;
+    }
+
+    if (key === 'D') {
+      this.game.handleDeleteLineEnd();
+      this.resetBuffer();
+      return;
+    }
+
     this.executeMotion(key);
     this.resetBuffer();
   }
@@ -2307,8 +3563,9 @@ class InputHandler {
   }
 
   executeMotion(motionKey) {
+    const hasCount = this.countBuffer.length > 0;
     const count = this.getCount();
-    this.game.handleMotion(motionKey, count);
+    this.game.handleMotion(motionKey, count, hasCount);
   }
 
   executeFind(type, targetChar) {
@@ -2413,6 +3670,21 @@ class Game {
       btnCloseHelp.addEventListener('click', () => this.hud.closeHelp());
     }
 
+    const btnHints = document.getElementById('btn-hints');
+    if (btnHints) {
+      btnHints.addEventListener('click', () => this.openHintsModal());
+    }
+
+    const btnCloseHints = document.getElementById('btn-close-hints');
+    if (btnCloseHints) {
+      btnCloseHints.addEventListener('click', () => this.hud.closeHints());
+    }
+
+    const btnDismissHints = document.getElementById('btn-dismiss-hints');
+    if (btnDismissHints) {
+      btnDismissHints.addEventListener('click', () => this.hud.closeHints());
+    }
+
     const btnCloseVictory = document.getElementById('btn-close-victory');
     if (btnCloseVictory) {
       btnCloseVictory.addEventListener('click', () => {
@@ -2463,6 +3735,7 @@ class Game {
     this.entities.gems = (data.gems || []).map(d => new Gem(d));
     this.entities.portals = (data.portals || []).map(d => new BracketPortal(d));
     this.entities.obstacles = (data.obstacles || []).map(d => new Obstacle(d));
+    this.entities.exit = data.exit || null;
 
     this.historyStack = [];
 
@@ -2502,7 +3775,12 @@ class Game {
 
   triggerNPC(npc) {
     npc.hasTalked = true;
-    const lines = npc.getDialogue({ inventory: this.player.inventory });
+    const lines = npc.getDialogue({
+      inventory: this.player.inventory,
+      player: this.player,
+      level: this.currentLevel,
+      entities: this.entities
+    });
     this.dialogue.start(npc.name, npc.avatar, lines);
   }
 
@@ -2548,7 +3826,7 @@ class Game {
     this.renderer.addFloatingText('Undo (u)', this.player.x, this.player.y, '#e0af68');
   }
 
-  handleMotion(motionKey, count = 1) {
+  handleMotion(motionKey, count = 1, hasExplicitCount = false) {
     // Check if hero has ability unlocked
     if (!this.player.hasAbility(motionKey)) {
       this.audio.playError();
@@ -2559,7 +3837,10 @@ class Game {
 
     this.recordHistory();
 
-    for (let c = 0; c < count; c++) {
+    const isJumpMotion = motionKey === 'gg' || motionKey === 'G';
+    const iterations = isJumpMotion ? 1 : count;
+
+    for (let c = 0; c < iterations; c++) {
       let destX = this.player.x;
       let destY = this.player.y;
       let motionSound = 'step';
@@ -2617,6 +3898,36 @@ class Game {
           destX = this.tilemap.getLineEnd(this.player.y);
           motionSound = 'jump';
           break;
+        case 'gg': {
+          const target = hasExplicitCount ? count : null;
+          const pt = this.tilemap.jumpToLine(target, this.player.x, 'top');
+          destX = pt.x;
+          destY = pt.y;
+          motionSound = 'jump';
+          break;
+        }
+        case 'G': {
+          const target = hasExplicitCount ? count : null;
+          const pt = this.tilemap.jumpToLine(target, this.player.x, 'bottom');
+          destX = pt.x;
+          destY = pt.y;
+          motionSound = 'jump';
+          break;
+        }
+        case '{': {
+          const pt = this.tilemap.findParagraphJump(this.player.x, this.player.y, false);
+          destX = pt.x;
+          destY = pt.y;
+          motionSound = 'jump';
+          break;
+        }
+        case '}': {
+          const pt = this.tilemap.findParagraphJump(this.player.x, this.player.y, true);
+          destX = pt.x;
+          destY = pt.y;
+          motionSound = 'jump';
+          break;
+        }
         case '%':
           this.handleBracketJump();
           return;
@@ -2795,6 +4106,117 @@ class Game {
     this.renderer.addFloatingText(`Replaced with '${char}'!`, targetX, targetY, '#7dcfff');
   }
 
+  handleToggleCase() {
+    if (!this.player.hasAbility('~')) {
+      this.audio.playError();
+      this.renderer.addFloatingText("Key '~' is locked!", this.player.x, this.player.y, '#f7768e');
+      return;
+    }
+
+    let targetX = this.player.x;
+    let targetY = this.player.y;
+
+    // Check if facing a letter tile in front
+    let frontX = targetX;
+    let frontY = targetY;
+    if (this.player.direction === 'right') frontX++;
+    else if (this.player.direction === 'left') frontX--;
+    else if (this.player.direction === 'down') frontY++;
+    else if (this.player.direction === 'up') frontY--;
+
+    const frontTile = this.tilemap.getTile(frontX, frontY);
+    if (/[a-zA-Z]/.test(frontTile) && frontTile !== '#') {
+      targetX = frontX;
+      targetY = frontY;
+    }
+
+    const curTile = this.tilemap.getTile(targetX, targetY);
+    if (/[a-zA-Z]/.test(curTile) && curTile !== '#') {
+      this.recordHistory();
+      const flipped = curTile === curTile.toUpperCase() ? curTile.toLowerCase() : curTile.toUpperCase();
+      this.tilemap.setTile(targetX, targetY, flipped);
+      this.audio.playRepair();
+      this.particles.emit(targetX, targetY, 15, '#ff9e64', 60, 3);
+      this.renderer.addFloatingText(`Toggled '${curTile}' ➔ '${flipped}' (~)`, targetX, targetY, '#ff9e64');
+
+      // Check if toggling switch triggers door or path
+      if (flipped === 'O' || flipped === 'S') {
+        const switchDoor = this.entities.doors.find(d => !d.isOpen && (d.keyRequired === 'switch' || d.keyRequired === 'lever'));
+        if (switchDoor) {
+          switchDoor.isOpen = true;
+          this.tilemap.setTile(switchDoor.x, switchDoor.y, '=');
+          this.audio.playDoorOpen();
+          this.particles.emit(switchDoor.x, switchDoor.y, 20, '#9ece6a', 80, 4);
+          this.renderer.addFloatingText(`${switchDoor.label} Opened!`, switchDoor.x, switchDoor.y, '#9ece6a');
+        }
+      }
+      this.checkInteractions();
+    } else {
+      this.audio.playError();
+      this.renderer.addFloatingText("No letter to toggle with ~", this.player.x, this.player.y, '#f7768e');
+    }
+  }
+
+  handleStarSearch() {
+    if (!this.player.hasAbility('*')) {
+      this.audio.playError();
+      this.renderer.addFloatingText("Key '*' is locked!", this.player.x, this.player.y, '#f7768e');
+      return;
+    }
+
+    const res = this.tilemap.findMatchingToken(this.player.x, this.player.y);
+    if (res.found && this.canMoveTo(res.x, res.y)) {
+      this.recordHistory();
+      this.player.moveTo(res.x, res.y);
+      this.totalMoves++;
+      this.audio.playWarp();
+      this.particles.emit(res.x, res.y, 20, '#e0af68', 90, 4);
+      this.renderer.addFloatingText(`Warped to matching '${res.token}' (*)!`, res.x, res.y, '#e0af68');
+      this.checkInteractions();
+    } else {
+      this.audio.playError();
+      this.renderer.addFloatingText(res.token ? `No other '${res.token}' found (*)` : "Stand on a rune word (*)", this.player.x, this.player.y, '#f7768e');
+    }
+  }
+
+  handleDeleteLineEnd() {
+    if (!this.player.hasAbility('D')) {
+      this.audio.playError();
+      this.renderer.addFloatingText("Key 'D' is locked!", this.player.x, this.player.y, '#f7768e');
+      return;
+    }
+
+    this.recordHistory();
+    let clearedCount = 0;
+    const y = this.player.y;
+
+    for (const obs of this.entities.obstacles) {
+      if (!obs.isCleared && obs.y === y && obs.x >= this.player.x) {
+        obs.clear();
+        this.tilemap.setTile(obs.x, obs.y, '=');
+        clearedCount++;
+      }
+    }
+
+    for (let x = this.player.x; x < this.tilemap.width; x++) {
+      const tile = this.tilemap.getTile(x, y);
+      if (tile === 'x' || tile === 'X') {
+        this.tilemap.setTile(x, y, '=');
+        clearedCount++;
+      }
+    }
+
+    if (clearedCount > 0) {
+      this.audio.playSlash();
+      this.particles.emit(this.player.x, y, 20, '#f7768e', 80, 4);
+      this.renderer.addFloatingText(`Demolished line to end (D)!`, this.player.x, y, '#f7768e');
+      this.checkInteractions();
+    } else {
+      this.audio.playError();
+      this.renderer.addFloatingText("No obstacles to delete with D", this.player.x, y, '#f7768e');
+    }
+  }
+
   canMoveTo(x, y) {
     // 1. Check closed doors first
     const door = this.entities.doors.find(d => d.x === x && d.y === y && !d.isOpen);
@@ -2806,11 +4228,26 @@ class Game {
         this.particles.emit(x, y, 16, '#ffc777', 60, 4);
         this.renderer.addFloatingText(`${door.label} Unlocked!`, x, y, '#ffc777');
         this.hud.updateInventory(this.player.inventory);
+        if (this.currentLevel?.id === 5) {
+          this.renderer.addFloatingText("Walk right to (28, 2) to enter Chapter 6! ➜", x + 1, y, '#9ece6a');
+          this.updateLevelObjective();
+        }
         return true;
       } else {
         this.audio.playError();
         this.renderer.screenShake(3);
-        this.renderer.addFloatingText(`Need ${door.keyRequired}!`, x, y, '#f7768e');
+        const keyName = door.keyRequired === 'goldKey' ? 'Gold Key' :
+                        door.keyRequired === 'silverKey' ? 'Silver Key' :
+                        door.keyRequired === 'bronzeKey' ? 'Bronze Key' :
+                        door.keyRequired === 'skullKey' ? 'Skull Key' :
+                        door.keyRequired === 'rubyKey' ? 'Ruby Key' :
+                        door.keyRequired === 'emeraldKey' ? 'Emerald Key' :
+                        door.keyRequired === 'diamondKey' ? 'Diamond Key' : door.keyRequired;
+        if (this.currentLevel?.id === 5 && door.id === 'd5_spire') {
+          this.renderer.addFloatingText("Locked! Need Tower Gold Key from dungeon floor (press 'G' to plunge down)!", x, y, '#f7768e');
+        } else {
+          this.renderer.addFloatingText(`Need ${keyName}!`, x, y, '#f7768e');
+        }
         return false;
       }
     }
@@ -2829,6 +4266,301 @@ class Game {
     return true;
   }
 
+  updateLevelObjective() {
+    if (!this.currentLevel) return;
+    if (this.currentLevel.id === 5) {
+      const hasGG = this.player.hasAbility('gg');
+      const hasKey = (this.player.inventory.goldKey || 0) > 0;
+      const door = this.entities.doors.find(d => d.id === 'd5_spire');
+      const isDoorOpen = door?.isOpen;
+
+      let objText = this.currentLevel.objective;
+      if (isDoorOpen) {
+        objText = "Walk right to (28, 2) to enter the staircase to Chapter 6!";
+      } else if (hasKey && hasGG) {
+        objText = "Press 'gg' to fly to top Spire (row 2) and unlock Spire Gate at (24, 2)!";
+      } else if (hasGG && !hasKey) {
+        objText = "Grab Tower Gold Key at dungeon end (26, 17), then press 'gg' to fly to Spire Gate!";
+      } else if (!hasGG && hasKey) {
+        objText = "Open ability chest at (15, 17) for 'gg' & 'G', then fly to Spire Gate!";
+      }
+      this.hud.setLevelInfo(this.currentLevel.name, objText);
+    }
+  }
+
+  openHintsModal() {
+    const hints = this.getCurrentHints();
+    this.hud.openHints(hints);
+  }
+
+  getCurrentHints() {
+    if (!this.currentLevel) return {};
+
+    const lvl = this.currentLevel;
+    const inv = this.player.inventory;
+    const doors = this.entities.doors || [];
+    const chests = this.entities.chests || [];
+    const keys = this.entities.keys || [];
+
+    // Compute immediate dynamic hint based on game progress
+    let immediateHint = "";
+    if (lvl.id === 5) {
+      const hasGG = this.player.hasAbility('gg');
+      const hasKey = (inv.goldKey || 0) > 0;
+      const door = doors.find(d => d.id === 'd5_spire');
+      const isDoorOpen = door?.isOpen;
+
+      if (isDoorOpen) {
+        immediateHint = "Spire Gate is unlocked! Walk right to (28, 2) and step onto the glowing staircase portal to enter Chapter 6! 🪜";
+      } else if (hasKey && hasGG) {
+        immediateHint = "You have both the Gold Key and 'gg'! Press 'gg' now to fly straight up to the Spire Battlement (row 2), then walk right to unlock the Spire Gate at (24, 2)!";
+      } else if (hasGG && !hasKey) {
+        immediateHint = "You have 'gg'! Now walk right along the dungeon floor to grab the Tower Gold Key at (26, 17)!";
+      } else if (!hasGG && hasKey) {
+        immediateHint = "You have the Gold Key! Now open the ancient chest at (15, 17) to unlock 'gg' and 'G' so you can soar to the Spire Gate!";
+      } else {
+        immediateHint = "Walk right along the dungeon floor to open the ancient chest at (15, 17) and unlock 'gg' and 'G'!";
+      }
+    } else {
+      // General dynamic hint solver for any chapter
+      const unopenedChest = chests.find(c => !c.isOpen);
+      if (unopenedChest) {
+        immediateHint = `Open the chest at (${unopenedChest.x}, ${unopenedChest.y}) to unlock essential Vim ability [${unopenedChest.reward.value}]!`;
+      } else {
+        const uncollectedKey = keys.find(k => !k.isCollected);
+        if (uncollectedKey) {
+          immediateHint = `Collect the ${uncollectedKey.name || uncollectedKey.keyType || 'key'} at (${uncollectedKey.x}, ${uncollectedKey.y})!`;
+        } else {
+          const lockedDoor = doors.find(d => !d.isOpen);
+          if (lockedDoor) {
+            if (lockedDoor.canUnlock(inv)) {
+              immediateHint = `You have the key! Step into the locked gate at (${lockedDoor.x}, ${lockedDoor.y}) to open it.`;
+            } else {
+              immediateHint = `The gate at (${lockedDoor.x}, ${lockedDoor.y}) requires a ${lockedDoor.keyRequired}. Explore the room to find it!`;
+            }
+          } else if (this.entities.exit) {
+            immediateHint = `Gate is unlocked! Walk to the glowing exit portal at (${this.entities.exit.x}, ${this.entities.exit.y}) to enter Chapter ${this.entities.exit.targetLevel}!`;
+          } else {
+            immediateHint = lvl.objective;
+          }
+        }
+      }
+    }
+
+    const staticHints = lvl.hints || this.getDefaultLevelHints(lvl);
+
+    return {
+      title: lvl.name,
+      subtitle: lvl.subtitle,
+      objective: lvl.objective,
+      immediateHint: immediateHint,
+      walkthrough: staticHints.walkthrough || [lvl.objective],
+      commands: staticHints.commands || [],
+      tip: staticHints.tip || "Use Vim motions to navigate. Press '?' for the full cheatsheet."
+    };
+  }
+
+  getDefaultLevelHints(lvl) {
+    const defaultGuides = {
+      1: {
+        walkthrough: [
+          "Follow the sandy path using h (left), j (down), k (up), and l (right).",
+          "Talk to Sailor Jack near the pier at (18, 10) for nautical wisdom.",
+          "Collect the Bronze Key resting in the cove at (18, 14).",
+          "Unlock the Shore Gate at (21, 10) and walk to (26, 10) to advance to Chapter 2!"
+        ],
+        commands: [
+          { key: "h / j / k / l", desc: "Move left / down / up / right along walkable path tiles" }
+        ],
+        tip: "Keep your right hand on home row: index finger on 'h', middle on 'j', ring on 'k', pinky on 'l'!"
+      },
+      2: {
+        walkthrough: [
+          "Talk to Island Hermit at (4, 3) to learn word leaping secrets.",
+          "Open the chest at (7, 4) to unlock word leap abilities: w, b, e, and ge.",
+          "Leap across water voids between islands using 'w' (word start) or 'e' (word end).",
+          "Grab the Silver Key on the eastern atoll at (24, 7).",
+          "Unlock the Reef Gate at (23, 10) and step to (24, 10) to enter Chapter 3!"
+        ],
+        commands: [
+          { key: "w", desc: "Leap forward to the beginning of next word/island" },
+          { key: "b", desc: "Leap backward to beginning of previous word/island" },
+          { key: "e", desc: "Leap forward to the end of current/next word/island" },
+          { key: "ge", desc: "Leap backward to the end of previous word/island" }
+        ],
+        tip: "'w' and 'b' land on the start of words, while 'e' and 'ge' land on ends. Use them to jump straight across ocean gaps!"
+      },
+      3: {
+        walkthrough: [
+          "Talk to Cliff Warden at (3, 2).",
+          "Open the chest at (4, 4) to unlock line boundaries: 0, $, and ^.",
+          "Press '$' to zip across the canyon ledge all the way to the right end.",
+          "Collect the Gold Key at (25, 4).",
+          "Press '0' or '^' to fly back to the cliff base, unlock Cliff Gate at (23, 8), and exit to Chapter 4!"
+        ],
+        commands: [
+          { key: "$", desc: "Zip straight to the end of the current line" },
+          { key: "0", desc: "Warp back to the very first character of the line" },
+          { key: "^", desc: "Warp to the first non-blank character of the line" }
+        ],
+        tip: "Never hold 'l' across a long line! A single '$' takes you to the far end instantly."
+      },
+      4: {
+        walkthrough: [
+          "Open ability chest at (3, 4) to master inline seeker motions: f, t, F, and T.",
+          "Use 'f{char}' to leap forward to specific letters on stepping stones across the river.",
+          "Use 't{char}' to stop one tile before a hazard character.",
+          "Collect the Canyon Ruby Key at (24, 6).",
+          "Unlock the Canyon Gate at (25, 8) and step to the exit at (27, 8)!"
+        ],
+        commands: [
+          { key: "f{char}", desc: "Find and jump forward to target character" },
+          { key: "t{char}", desc: "Till: jump forward stopping just before target character" },
+          { key: "F / T", desc: "Find / Till backward in the line" },
+          { key: "; / ,", desc: "Repeat last inline find forward / backward" }
+        ],
+        tip: "Pressing ';' repeats your previous search character so you can hop across identical stones rapidly!"
+      },
+      5: {
+        walkthrough: [
+          "Open the ancient chest ahead at (15, 17) to unlock 'gg' (fly to top) and 'G' (plunge to bottom).",
+          "Collect the Tower Gold Key at the far right of the dungeon floor at (26, 17).",
+          "Type 'gg' to fly directly up to the Spire Battlement at the top of the tower (row 2).",
+          "Walk right to unlock the Spire Gate at (24, 2) with your Gold Key.",
+          "Step onto the glowing staircase portal at (28, 2) to advance to Chapter 6!"
+        ],
+        commands: [
+          { key: "gg", desc: "Fly directly to topmost floor (Spire Battlement walkway at row 2)" },
+          { key: "G", desc: "Plunge directly down to bottom dungeon floor (row 17)" },
+          { key: "8G", desc: "Count jump: leap directly to row 8 (Balcony 3) to collect bonus gems" }
+        ],
+        tip: "Jump motions bypass all vertical walls and stairs in a single instant! Once the gate opens, step onto the glowing portal at (28, 2)."
+      },
+      6: {
+        walkthrough: [
+          "Talk to Forest Ranger at (3, 2).",
+          "Open chest at (3, 4) to unlock paragraph jump motions: { and }.",
+          "Press '}' to leap forward across glades divided by empty lines.",
+          "Collect the Forest Emerald Key at (23, 14).",
+          "Unlock Forest Gate at (24, 8) and enter the Chapter 7 portal at (26, 8)!"
+        ],
+        commands: [
+          { key: "}", desc: "Leap forward to next empty line / paragraph boundary" },
+          { key: "{", desc: "Leap backward to previous empty line / paragraph boundary" }
+        ],
+        tip: "'}' and '{' let you leap over entire blocks of code in Vim!"
+      },
+      7: {
+        walkthrough: [
+          "Open chest to unlock bracket matching '%'.",
+          "Stand on any bracket '(', '[', or '{' and press '%' to teleport across deep chasms to its matching pair.",
+          "Collect the Crypt Skull Key and unlock the Crypt Gate to advance to Chapter 8!"
+        ],
+        commands: [
+          { key: "%", desc: "Teleport to the matching parenthesis, bracket, or curly brace" }
+        ],
+        tip: "In Vim, '%' instantly navigates between opening and closing tags, if/else blocks, and parentheses!"
+      },
+      8: {
+        walkthrough: [
+          "Prepend motion counts: type numbers before a motion like '4w', '3j', '5l'.",
+          "Leap accurately across quicksand tiles with exact counts.",
+          "Retrieve the Diamond Key and unlock the Oasis Gate to advance to Chapter 9!"
+        ],
+        commands: [
+          { key: "{count}{motion}", desc: "Execute motion count times, e.g. 4w, 3j, 5l" }
+        ],
+        tip: "Count motions build speed—instead of pressing 'j' four times, hit '4j'!"
+      },
+      9: {
+        walkthrough: [
+          "Open chest to unlock 'x' (delete character / cut obstacle).",
+          "Use 'x' to slice down overgrown brambles and weeds blocking narrow paths.",
+          "Collect the Bronze Key and unlock the Meadow Gate to enter Chapter 10!"
+        ],
+        commands: [
+          { key: "x", desc: "Cut / delete obstacle or weed tile under cursor" }
+        ],
+        tip: "'x' in Vim deletes the character under the cursor without entering insert mode."
+      },
+      10: {
+        walkthrough: [
+          "Open chest to unlock 'r' (replace character).",
+          "Stand before broken path gaps and type 'r=' or 'r.' to repair stone bridge segments.",
+          "Cross the repaired bridges to claim the Quarry Key and exit to Chapter 11!"
+        ],
+        commands: [
+          { key: "r{char}", desc: "Replace current tile with specified character (e.g. r=)" }
+        ],
+        tip: "'r' replaces a single character in Vim instantly without leaving normal mode!"
+      },
+      11: {
+        walkthrough: [
+          "Learn word manipulation verbs: cw (change word), dw (delete word), yw (yank word).",
+          "Clear corrupt word blocks to open paths and retrieve the Vault Key.",
+          "Unlock Vault Gate and proceed to Chapter 12!"
+        ],
+        commands: [
+          { key: "dw / cw", desc: "Delete word / Change word" },
+          { key: "p", desc: "Put / paste word" }
+        ],
+        tip: "Operators + motions (verb + noun) form the grammar of Vim!"
+      },
+      12: {
+        walkthrough: [
+          "Open chest to unlock '~' (toggle case).",
+          "Step onto lower-case runic floor switches and press '~' to toggle uppercase, opening magnetic gates.",
+          "Collect the Ruby Key and reach the exit portal to Chapter 13!"
+        ],
+        commands: [
+          { key: "~", desc: "Toggle case of letter under cursor and advance" }
+        ],
+        tip: "'~' is the fastest way in Vim to switch between UPPERCASE and lowercase!"
+      },
+      13: {
+        walkthrough: [
+          "Open chest to unlock '*' (search word under cursor).",
+          "Stand on glowing runic beacon words and press '*' to warp to identical beacons across the valley.",
+          "Collect the Golden Beacon Key, unlock Valley Gate, and reach Chapter 14!"
+        ],
+        commands: [
+          { key: "*", desc: "Search forward for word under cursor and warp to next match" },
+          { key: "#", desc: "Search backward for word under cursor" }
+        ],
+        tip: "'*' is a super-power in Vim: place cursor on any variable and press '*' to jump to its next occurrence!"
+      },
+      14: {
+        walkthrough: [
+          "Open chest to unlock 'D' (delete to end of line).",
+          "Press 'D' to demolish entire horizontal laser barriers in one stroke.",
+          "Collect the Master Key and unlock the Vault Gate to enter the final Chapter 15!"
+        ],
+        commands: [
+          { key: "D", desc: "Delete all obstacle characters to the end of the line" }
+        ],
+        tip: "'D' is equivalent to 'd$'—it vaporizes everything from cursor to line end!"
+      },
+      15: {
+        walkthrough: [
+          "The Grand Citadel of the Neovim Grandmaster: synthesize all your skills!",
+          "Conquer the 4 elemental trials using gg, G, w, b, %, x, r, ~, *, and D.",
+          "Collect all 4 Citadel Keys: Diamond, Ruby, Emerald, and Gold.",
+          "Unlock the Grand Citadel Gate and ascend the Golden Throne for the Grandmaster Victory!"
+        ],
+        commands: [
+          { key: "All Motions", desc: "Combine h/j/k/l, w/b/e, 0/$, gg/G, %, x, r, ~, *, D" }
+        ],
+        tip: "You have trained your muscle memory into a reflex. You are ready for true modal mastery in Neovim!"
+      }
+    };
+
+    return defaultGuides[lvl.id] || {
+      walkthrough: [lvl.objective],
+      commands: [{ key: "h, j, k, l", desc: "Navigate the grid" }],
+      tip: "Explore paths and collect keys to unlock the gate to the next chapter."
+    };
+  }
+
   checkInteractions() {
     const px = this.player.x;
     const py = this.player.y;
@@ -2842,6 +4574,10 @@ class Game {
         this.particles.emit(px, py, 15, '#ffc777', 60, 4);
         this.renderer.addFloatingText(`Found ${key.name}! 🗝️`, px, py, '#ffc777');
         this.hud.updateInventory(this.player.inventory);
+        if (this.currentLevel?.id === 5) {
+          this.renderer.addFloatingText("Press 'gg' to fly to the Spire Gate! ⬆️", px, py - 1, '#7dcfff');
+          this.updateLevelObjective();
+        }
       }
     }
 
@@ -2870,10 +4606,22 @@ class Game {
               this.player.unlockAbility(reward.value);
               this.hud.updateAbilities(this.player.unlockedAbilities, reward.value);
               this.renderer.addFloatingText(reward.label, chest.x, chest.y - 1, '#7dcfff');
-              this.dialogue.start('Treasure Chest', '🎁', [
-                reward.label,
-                `You have mastered a new Vim motion! Check the ribbon below.`
-              ]);
+              if (reward.value === 'gg') {
+                this.dialogue.start('Treasure Chest', '🎁', [
+                  reward.label,
+                  "You can now fly vertically across buffer lines!",
+                  "• Press 'gg' to fly directly to the top Spire Battlement.",
+                  "• Press 'G' to plunge back down to the dungeon floor.",
+                  "• Try counts like '8G' to land on Balcony 3!",
+                  "NEXT STEP: Grab the Tower Gold Key at the right end of this dungeon floor (26, 17), then press 'gg' to fly to the Spire Gate!"
+                ]);
+                this.updateLevelObjective();
+              } else {
+                this.dialogue.start('Treasure Chest', '🎁', [
+                  reward.label,
+                  `You have mastered a new Vim motion! Check the ribbon below.`
+                ]);
+              }
             } else if (reward.type === 'gem') {
               this.player.inventory.gems += reward.value;
               this.hud.updateInventory(this.player.inventory);
@@ -2940,6 +4688,7 @@ class Game {
 
     // Update entity animations
     for (const list of Object.values(this.entities)) {
+      if (!Array.isArray(list)) continue;
       for (const item of list) {
         if (item && typeof item.update === 'function') {
           item.update(deltaTime);
@@ -2954,10 +4703,18 @@ class Game {
   }
 }
 
-// Auto bootstrap when DOM is ready
-window.addEventListener('DOMContentLoaded', () => {
-  window.adventureGame = new Game();
-});
+// Auto bootstrap when DOM is ready or immediately if already interactive
+if (typeof window !== 'undefined') {
+  const boot = () => {
+    if (window.adventureGame) return;
+    window.adventureGame = new Game();
+  };
+  if (document.readyState === 'loading') {
+    window.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+}
 
   try { exports.Game = Game; } catch(e) {}
 });

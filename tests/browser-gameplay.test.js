@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import os from 'node:os';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -19,21 +20,32 @@ const chromePaths = [
 
 const chromeBin = chromePaths.find(p => fs.existsSync(p));
 
+async function waitForChrome(port, maxTries = 30) {
+  for (let i = 0; i < maxTries; i++) {
+    try {
+      const res = await fetch(`http://127.0.0.1:${port}/json/version`);
+      if (res.ok) return res;
+    } catch (e) {}
+    await new Promise(r => setTimeout(r, 200));
+  }
+  throw new Error(`Chrome failed to start on port ${port}`);
+}
+
 test('Real Browser Gameplay via CDP (No Screen Freeze & Interactive Play)', { skip: !chromeBin }, async () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chrome-test-1-'));
   const chrome = spawn(chromeBin, [
-    '--headless',
+    '--headless=new',
     '--remote-debugging-port=9223',
+    `--user-data-dir=${tmpDir}`,
     '--no-first-run',
     '--no-default-browser-check'
   ]);
 
-  await new Promise(r => setTimeout(r, 1200));
-
   try {
-    const versionRes = await fetch('http://localhost:9223/json/version');
+    const versionRes = await waitForChrome(9223);
     assert.ok(versionRes.ok, 'Chrome CDP version endpoint reachable');
 
-    const newTabRes = await fetch(`http://localhost:9223/json/new?file://${gameHtml}`, { method: 'PUT' });
+    const newTabRes = await fetch(`http://127.0.0.1:9223/json/new?file://${gameHtml}`, { method: 'PUT' });
     const tabData = await newTabRes.json();
     assert.ok(tabData.webSocketDebuggerUrl, 'WebSocket URL obtained');
 
@@ -140,20 +152,20 @@ test('Real Browser Gameplay via CDP (No Screen Freeze & Interactive Play)', { sk
 
 test('Real Browser Gameplay via CDP: Vim Adventures RPG', { skip: !chromeBin }, async () => {
   const adventureHtml = path.join(rootDir, 'adventure', 'index.html');
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chrome-test-2-'));
   const chrome = spawn(chromeBin, [
-    '--headless',
+    '--headless=new',
     '--remote-debugging-port=9224',
+    `--user-data-dir=${tmpDir}`,
     '--no-first-run',
     '--no-default-browser-check'
   ]);
 
-  await new Promise(r => setTimeout(r, 1200));
-
   try {
-    const versionRes = await fetch('http://localhost:9224/json/version');
+    const versionRes = await waitForChrome(9224);
     assert.ok(versionRes.ok, 'Chrome CDP version endpoint reachable');
 
-    const newTabRes = await fetch(`http://localhost:9224/json/new?file://${adventureHtml}`, { method: 'PUT' });
+    const newTabRes = await fetch(`http://127.0.0.1:9224/json/new?file://${adventureHtml}`, { method: 'PUT' });
     const tabData = await newTabRes.json();
     assert.ok(tabData.webSocketDebuggerUrl, 'WebSocket URL obtained');
 
@@ -233,6 +245,172 @@ test('Real Browser Gameplay via CDP: Vim Adventures RPG', { skip: !chromeBin }, 
     });
     assert.equal(evalMove.result.value.playerX, 4, 'Player moved right with l');
     assert.equal(evalMove.result.value.moves, 1, 'Move counted');
+
+    // Test Chapter 5: Vertical Ascents gg, G, and hints to next stage
+    await send('Runtime.evaluate', {
+      expression: `window.adventureGame.loadLevel(4);`,
+      returnByValue: true
+    });
+    await new Promise(r => setTimeout(r, 400));
+
+    const evalCh5Init = await send('Runtime.evaluate', {
+      expression: `({
+        levelId: window.adventureGame?.currentLevel?.id,
+        playerX: window.adventureGame?.player?.x,
+        playerY: window.adventureGame?.player?.y,
+        hasExitEntity: !!window.adventureGame?.entities?.exit
+      })`,
+      returnByValue: true
+    });
+    assert.equal(evalCh5Init.result.value.levelId, 5, 'Chapter 5 loaded');
+    assert.equal(evalCh5Init.result.value.playerY, 17, 'Player starts in dungeon floor row 17');
+    assert.equal(evalCh5Init.result.value.hasExitEntity, true, 'Exit entity loaded for rendering');
+
+    // Close any opening dialogue
+    await pressKey('Escape');
+    await new Promise(r => setTimeout(r, 200));
+
+    // Test Hints Button & Modal functionality
+    await send('Runtime.evaluate', {
+      expression: `document.getElementById('btn-hints').click();`,
+      returnByValue: true
+    });
+    await new Promise(r => setTimeout(r, 200));
+
+    const evalHintsOpen = await send('Runtime.evaluate', {
+      expression: `({
+        isOpen: document.getElementById('modal-hints')?.classList.contains('open'),
+        hasWalkthrough: document.getElementById('hint-modal-body')?.innerHTML.includes('Path to Next Stage'),
+        hasGGCommand: document.getElementById('hint-modal-body')?.innerHTML.includes('gg')
+      })`,
+      returnByValue: true
+    });
+    assert.equal(evalHintsOpen.result.value.isOpen, true, 'Hints modal opened via Hints button');
+    assert.equal(evalHintsOpen.result.value.hasWalkthrough, true, 'Hints modal displays step-by-step walkthrough');
+    assert.equal(evalHintsOpen.result.value.hasGGCommand, true, 'Hints modal includes gg command explanation');
+
+    // Dismiss hints via Escape
+    await pressKey('Escape');
+    await new Promise(r => setTimeout(r, 200));
+
+    const evalHintsClosed = await send('Runtime.evaluate', {
+      expression: `document.getElementById('modal-hints')?.classList.contains('open')`,
+      returnByValue: true
+    });
+    assert.equal(evalHintsClosed.result.value, false, 'Hints modal closed via Escape');
+
+    // Test toggle via 'H' key
+    await pressKey('H');
+    await new Promise(r => setTimeout(r, 200));
+    const evalHToggled = await send('Runtime.evaluate', {
+      expression: `document.getElementById('modal-hints')?.classList.contains('open')`,
+      returnByValue: true
+    });
+    assert.equal(evalHToggled.result.value, true, "Hints modal opened via 'H' key shortcut");
+
+    // Close hints via 'Got it!' button
+    await send('Runtime.evaluate', {
+      expression: `document.getElementById('btn-dismiss-hints').click();`,
+      returnByValue: true
+    });
+    await new Promise(r => setTimeout(r, 200));
+
+    // Unlock gg/G and grant gold key to test jumps and level progression
+    await send('Runtime.evaluate', {
+      expression: `
+        window.adventureGame.player.unlockAbility('gg');
+        window.adventureGame.player.inventory.goldKey = 1;
+        window.adventureGame.hud.updateAbilities(window.adventureGame.player.unlockedAbilities);
+        window.adventureGame.hud.updateInventory(window.adventureGame.player.inventory);
+      `,
+      returnByValue: true
+    });
+
+    // Press 'g' then 'g' to fly to top Spire Battlement
+    await pressKey('g');
+    await pressKey('g');
+    await new Promise(r => setTimeout(r, 300));
+
+    const evalAfterGG = await send('Runtime.evaluate', {
+      expression: `({
+        playerY: window.adventureGame?.player?.y
+      })`,
+      returnByValue: true
+    });
+    assert.equal(evalAfterGG.result.value.playerY, 2, "gg jumped player straight to row 2 Spire Battlement");
+
+    // Press 'G' to plunge back down to dungeon floor
+    await pressKey('G');
+    await new Promise(r => setTimeout(r, 300));
+
+    const evalAfterG = await send('Runtime.evaluate', {
+      expression: `({
+        playerY: window.adventureGame?.player?.y
+      })`,
+      returnByValue: true
+    });
+    assert.equal(evalAfterG.result.value.playerY, 17, "G plunged player back to row 17 dungeon floor");
+
+    // Press '8' then 'G' to jump to row 8 Balcony 3
+    await pressKey('8');
+    await pressKey('G');
+    await new Promise(r => setTimeout(r, 300));
+
+    const evalAfter8G = await send('Runtime.evaluate', {
+      expression: `({
+        playerY: window.adventureGame?.player?.y
+      })`,
+      returnByValue: true
+    });
+    assert.equal(evalAfter8G.result.value.playerY, 8, "8G jumped player directly to row 8 Balcony");
+
+    // Fly back to top row with gg
+    await pressKey('g');
+    await pressKey('g');
+    await new Promise(r => setTimeout(r, 300));
+
+    // Walk right towards Spire Gate at (24, 2) and exit at (28, 2)
+    await send('Runtime.evaluate', {
+      expression: `
+        // Position player right in front of Spire Gate
+        window.adventureGame.player.x = 23;
+        window.adventureGame.player.y = 2;
+      `,
+      returnByValue: true
+    });
+
+    // Step into door at (24, 2)
+    await pressKey('l');
+    await new Promise(r => setTimeout(r, 200));
+
+    const evalDoor = await send('Runtime.evaluate', {
+      expression: `({
+        doorOpen: window.adventureGame?.entities?.doors?.find(d => d.id === 'd5_spire')?.isOpen,
+        playerX: window.adventureGame?.player?.x
+      })`,
+      returnByValue: true
+    });
+    assert.equal(evalDoor.result.value.doorOpen, true, 'Spire Gate unlocked with gold key');
+    assert.equal(evalDoor.result.value.playerX, 24, 'Player walked through gate');
+
+    // Walk to exit at (28, 2)
+    await send('Runtime.evaluate', {
+      expression: `
+        window.adventureGame.player.x = 28;
+        window.adventureGame.player.y = 2;
+        window.adventureGame.checkInteractions();
+      `,
+      returnByValue: true
+    });
+    await new Promise(r => setTimeout(r, 400));
+
+    const evalNextChapter = await send('Runtime.evaluate', {
+      expression: `({
+        levelId: window.adventureGame?.currentLevel?.id
+      })`,
+      returnByValue: true
+    });
+    assert.equal(evalNextChapter.result.value.levelId, 6, 'Successfully advanced to Chapter 6');
 
     ws.close();
   } finally {

@@ -234,17 +234,20 @@ canvas#game-canvas {
 /* Bottom HUD: Unlocked Abilities Ribbon */
 .abilities-ribbon {
   position: absolute;
-  bottom: 16px;
+  bottom: 12px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+  max-width: 96vw;
+  gap: 6px;
   z-index: 6;
-  background: rgba(36, 40, 59, 0.92);
+  background: rgba(36, 40, 59, 0.94);
   backdrop-filter: blur(8px);
-  padding: 8px 16px;
-  border-radius: 30px;
+  padding: 6px 14px;
+  border-radius: 24px;
   border: 2px solid var(--border-color);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
 }
@@ -454,3 +457,80 @@ canvas#game-canvas {
   color: var(--tn-cyan);
   font-weight: 700;
 }
+
+/* Hint Modal Specific Styles */
+.hint-section {
+  margin-bottom: 16px;
+}
+.hint-section:last-child {
+  margin-bottom: 0;
+}
+.hint-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--tn-cyan);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.hint-callout {
+  background: rgba(224, 175, 104, 0.12);
+  border: 1px solid var(--tn-yellow);
+  border-left: 4px solid var(--tn-yellow);
+  border-radius: 6px;
+  padding: 10px 14px;
+  color: var(--fg);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.hint-step-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.hint-step-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: var(--bg-highlight);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.hint-step-num {
+  background: var(--tn-blue);
+  color: var(--bg-dark);
+  font-weight: 800;
+  font-size: 11px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.hint-key-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.hint-key-table tr {
+  border-bottom: 1px dashed #2f3549;
+}
+.hint-key-table td {
+  padding: 6px 4px;
+}
+.hint-key-table td:first-child {
+  width: 120px;
+}
+

@@ -3,13 +3,14 @@
  */
 
 export class NPC {
-  constructor({ id, name, x, y, sprite = 'sage', dialogue = [], avatar = '🧙‍♂️', quest = null }) {
+  constructor({ id, name, x, y, sprite = 'sage', dialogue = [], avatar = '🧙‍♂️', quest = null, dialogueFn = null }) {
     this.id = id;
     this.name = name;
     this.x = x;
     this.y = y;
     this.sprite = sprite; // 'sage', 'sailor', 'monk', 'master'
     this.dialogue = dialogue; // Array of strings
+    this.dialogueFn = dialogueFn;
     this.avatar = avatar;
     this.quest = quest;
     this.hasTalked = false;
@@ -26,6 +27,10 @@ export class NPC {
   }
 
   getDialogue(gameState) {
+    if (typeof this.dialogueFn === 'function') {
+      const res = this.dialogueFn(gameState);
+      if (res) return res;
+    }
     if (this.quest && this.quest.check(gameState)) {
       return this.quest.completedDialogue;
     }

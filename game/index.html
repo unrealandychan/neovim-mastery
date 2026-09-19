@@ -107,9 +107,12 @@
   </div>
 
   <script src="./js/bundle.js"></script>
-  <script type="module">
-    if (!window.__vim_app) {
-      import('./js/app.js');
+  <script>
+    if (!window.__vim_app && location.protocol !== 'file:') {
+      const s = document.createElement('script');
+      s.type = 'module';
+      s.src = './js/app.js';
+      document.body.appendChild(s);
     }
   </script>
 </body>
