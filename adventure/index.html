@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vim Adventures: Realm of the Modal Hero</title>
+  <link rel="stylesheet" href="css/adventure.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Header Navigation -->
+  <header class="game-header">
+    <div class="brand">
+      <span class="logo-icon">🥋</span>
+      <div class="logo-text">VIM ADVENTURES</div>
+      <span class="logo-badge">RPG Edition</span>
+    </div>
+
+    <div class="nav-controls">
+      <select id="level-select" class="btn-retro" title="Select Chapter"></select>
+      <button id="btn-restart" class="btn-retro" title="Restart Level (R)">🔄 Restart (R)</button>
+      <button id="btn-audio" class="btn-retro" title="Toggle Sound (M)">🔊 Sound (M)</button>
+      <button id="btn-help" class="btn-retro" title="Vim Cheatsheet (?)">❓ Help (?)</button>
+      <a href="../game/" class="btn-retro" style="text-decoration:none; color:var(--tn-purple);" title="Switch to 30-Day Dojo">🎮 Switch to Dojo</a>
+    </div>
+  </header>
+
+  <!-- Viewport Container -->
+  <main class="viewport-container">
+    <canvas id="game-canvas"></canvas>
+    <div class="crt-overlay"></div>
+
+    <!-- HUD Layer -->
+    <div class="hud-layer">
+      <!-- Level Quest Card -->
+      <div class="hud-card level-badge">
+        <div id="level-title" class="level-title">Chapter 1: Shoreline of Motion</div>
+        <div id="level-objective" class="level-objective">Explore the shoreline with h, j, k, l</div>
+      </div>
+
+      <!-- Vim Command State -->
+      <div class="hud-card command-indicator">
+        <span id="command-display">-- NORMAL --</span>
+        <span class="cursor-blink"></span>
+      </div>
+
+      <!-- Inventory Bar -->
+      <div class="hud-card inventory-container">
+        <span class="inv-item" title="Bronze Keys">🗝️ <span id="bronze-keys-count">0</span></span>
+        <span class="inv-item" title="Silver Keys">🥈 <span id="silver-keys-count">0</span></span>
+        <span class="inv-item" title="Gold Keys">🥇 <span id="gold-keys-count">0</span></span>
+        <span class="inv-item" title="Skull Keys">💀 <span id="skull-keys-count">0</span></span>
+        <span class="inv-item" title="Gems">💎 <span id="gems-count">0</span></span>
+      </div>
+    </div>
+
+    <!-- Bottom Abilities Ribbon -->
+    <div class="abilities-ribbon">
+      <div class="ability-key" data-key="h" data-action="key:h" title="Move Left (h)">h</div>
+      <div class="ability-key" data-key="j" data-action="key:j" title="Move Down (j)">j</div>
+      <div class="ability-key" data-key="k" data-action="key:k" title="Move Up (k)">k</div>
+      <div class="ability-key" data-key="l" data-action="key:l" title="Move Right (l)">l</div>
+      <div class="ability-key" data-key="w" data-action="key:w" title="Forward Word Start (w)">w</div>
+      <div class="ability-key" data-key="b" data-action="key:b" title="Backward Word Start (b)">b</div>
+      <div class="ability-key" data-key="e" data-action="key:e" title="Forward Word End (e)">e</div>
+      <div class="ability-key" data-key="ge" data-action="key:ge" title="Backward Word End (ge)">ge</div>
+      <div class="ability-key" data-key="0" data-action="key:0" title="Start of Line (0)">0</div>
+      <div class="ability-key" data-key="$" data-action="key:$" title="End of Line ($)">$</div>
+      <div class="ability-key" data-key="^" data-action="key:^" title="First Non-Blank (^)">^</div>
+      <div class="ability-key" data-key="f" data-action="key:f" title="Find Char (f{char})">f</div>
+      <div class="ability-key" data-key="%" data-action="key:%" title="Matching Bracket (%)">%</div>
+      <div class="ability-key" data-key="x" data-action="key:x" title="Cut Obstacle (x)">x</div>
+      <div class="ability-key" data-key="r" data-action="key:r" title="Replace Char (r{char})">r</div>
+    </div>
+
+    <!-- Retro RPG Dialogue Box -->
+    <div id="dialog-box" class="dialog-container" data-action="dialogue-next" style="cursor:pointer;">
+      <div id="dialog-avatar" class="dialog-avatar">🧙‍♂️</div>
+      <div class="dialog-body">
+        <div id="dialog-speaker" class="dialog-speaker">Master Bram</div>
+        <div id="dialog-text" class="dialog-text">Welcome, traveler...</div>
+        <div class="dialog-prompt">Press <kbd>Space</kbd>, <kbd>Enter</kbd>, or click to continue</div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Help / Cheatsheet Modal -->
+  <div id="modal-help" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>🥋 Vim Adventures: Field Guide</h3>
+        <button id="btn-close-help" class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="control-row">
+          <span>Cardinal Motions</span>
+          <span><kbd>h</kbd> Left &bull; <kbd>j</kbd> Down &bull; <kbd>k</kbd> Up &bull; <kbd>l</kbd> Right</span>
+        </div>
+        <div class="control-row">
+          <span>Word Leaps</span>
+          <span><kbd>w</kbd> Next word &bull; <kbd>b</kbd> Prev word &bull; <kbd>e</kbd> Word end</span>
+        </div>
+        <div class="control-row">
+          <span>Line Jumpers</span>
+          <span><kbd>0</kbd> Line start &bull; <kbd>$</kbd> Line end &bull; <kbd>^</kbd> First non-blank</span>
+        </div>
+        <div class="control-row">
+          <span>Inline Search</span>
+          <span><kbd>f{char}</kbd> Find forward &bull; <kbd>t{char}</kbd> Till &bull; <kbd>;</kbd> Repeat</span>
+        </div>
+        <div class="control-row">
+          <span>Bracket Warp</span>
+          <span><kbd>%</kbd> Warp to matching ( ), [ ], { }</span>
+        </div>
+        <div class="control-row">
+          <span>World Manipulation</span>
+          <span><kbd>x</kbd> Cut weeds &bull; <kbd>r{char}</kbd> Repair bridge</span>
+        </div>
+        <div class="control-row">
+          <span>Counts</span>
+          <span><kbd>3w</kbd> Jump 3 words &bull; <kbd>4j</kbd> Move 4 down</span>
+        </div>
+        <div class="control-row">
+          <span>Game Shortcuts</span>
+          <span><kbd>u</kbd> Undo move &bull; <kbd>R</kbd> Restart room &bull; <kbd>M</kbd> Mute</span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button onclick="document.getElementById('modal-help').classList.remove('open')" class="btn-retro">Close Field Guide</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Victory Celebration Modal -->
+  <div id="modal-victory" class="modal-overlay">
+    <div class="modal-card" style="text-align:center;">
+      <div class="modal-header">
+        <h3 style="color:var(--gold);">🏆 VICTORY: VIM GRANDMASTER!</h3>
+      </div>
+      <div class="modal-body">
+        <div style="font-size: 48px; margin: 10px 0;">🎉 🧙‍♂️ 🏆</div>
+        <p style="font-size: 15px; font-weight:700; color:var(--tn-blue); margin-bottom: 12px;">
+          You have conquered the Realm of Vim Adventures!
+        </p>
+        <p style="margin-bottom: 20px; color:var(--fg-dark);">
+          Your fingers now command the true power of modal editing. Bram Moolenaar's spirit smiles upon your muscle memory.
+        </p>
+        <div style="background:var(--bg-highlight); padding:12px; border-radius:8px; display:inline-block; margin-bottom:16px;">
+          <div>Total Moves: <strong id="stat-moves" style="color:var(--tn-green);">0</strong></div>
+          <div>Gems Gathered: <strong id="stat-gems" style="color:var(--tn-cyan);">0</strong></div>
+          <div>Time Elapsed: <strong id="stat-time" style="color:var(--tn-yellow);">0:00</strong></div>
+        </div>
+      </div>
+      <div class="modal-footer" style="justify-content:center;">
+        <button id="btn-close-victory" class="btn-retro" style="background:var(--tn-blue); color:var(--bg-dark);">Play Again</button>
+        <a href="../game/" class="btn-retro">Enter 30-Day Dojo</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Offline-first bundled RPG engine (works on file:// and http://) -->
+  <script src="js/bundle.js"></script>
+</body>
+</html>

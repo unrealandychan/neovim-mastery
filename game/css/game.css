@@ -188,18 +188,23 @@ body {
 
 /* Cursor Styles */
 .vim-cursor {
-  position: absolute;
+  display: inline-block;
+  vertical-align: baseline;
   pointer-events: none;
+  min-width: 1ch;
 }
 
 .cursor-normal {
   background-color: var(--mode-normal);
   color: #1a1b26 !important;
-  opacity: 0.85;
+  opacity: 0.95;
+  border-radius: 1px;
 }
 
 .cursor-insert {
   border-left: 2px solid var(--mode-insert);
+  margin-left: -1px;
+  margin-right: -1px;
   animation: blink 1s step-start infinite;
 }
 
@@ -207,6 +212,12 @@ body {
   background-color: var(--mode-visual);
   color: #1a1b26 !important;
 }
+
+/* Syntax Highlighting */
+.syn-comment { color: var(--tn-comment); font-style: italic; }
+.syn-string { color: var(--tn-green); }
+.syn-keyword { color: var(--tn-purple); font-style: italic; }
+.syn-type { color: var(--tn-cyan); }
 
 .visual-selection {
   background-color: var(--tn-blue0);
@@ -419,6 +430,45 @@ body {
   display: flex;
   align-items: center;
   font-weight: 600;
+}
+
+/* Neovim Command-Line Bar */
+.cmdline-bar {
+  display: flex;
+  align-items: center;
+  min-height: 26px;
+  background-color: var(--tn-bg);
+  border-top: 1px solid var(--tn-bg-highlight);
+  padding: 0 16px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--tn-fg);
+  z-index: 10;
+}
+
+.cmdline-bar.active {
+  background-color: var(--tn-bg-dark);
+}
+
+.cmd-prompt {
+  font-weight: 700;
+  color: var(--tn-orange);
+  margin-right: 4px;
+}
+
+.cmd-text {
+  color: var(--tn-fg);
+  font-weight: 500;
+}
+
+.cmd-feedback {
+  color: var(--tn-cyan);
+  font-size: 12px;
+}
+
+.cmd-feedback-placeholder {
+  display: inline-block;
+  height: 1em;
 }
 
 /* Modals */

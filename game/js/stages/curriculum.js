@@ -17,6 +17,7 @@ export const STAGES = [
     initialText: '// Neovim Mastery\nconsole.log("");',
     cursorStart: { row: 1, col: 13 },
     targetText: '// Neovim Mastery\nconsole.log("Welcome Eddie");',
+    requiredAction: 'save',
     parKeystrokes: 18,
     optimalKeys: ['i', 'W', 'e', 'l', 'c', 'o', 'm', 'e', ' ', 'E', 'd', 'd', 'i', 'e', 'Escape', ':', 'w', 'Enter'],
     hints: [
@@ -221,6 +222,7 @@ export const STAGES = [
     initialText: '// Buffer 1: Ready to save\nconst appConfig = { port: 3000 };',
     cursorStart: { row: 0, col: 0 },
     targetText: '// Buffer 1: Ready to save\nconst appConfig = { port: 3000 };',
+    requiredAction: 'bnext',
     parKeystrokes: 10,
     optimalKeys: [':', 'w', 'Enter', ':', 'b', 'n', 'e', 'x', 't', 'Enter'],
     hints: [
@@ -542,6 +544,7 @@ export const STAGES = [
     initialText: 'export const status = "BROKEN_PAYLOAD";',
     cursorStart: { row: 0, col: 25 },
     targetText: 'export const status = "READY_FOR_DEPLOYMENT";',
+    requiredAction: 'save',
     parKeystrokes: 27,
     optimalKeys: ['c', 'i', '"', 'R', 'E', 'A', 'D', 'Y', '_', 'F', 'O', 'R', '_', 'D', 'E', 'P', 'L', 'O', 'Y', 'M', 'E', 'N', 'T', 'Escape', ':', 'w', 'Enter'],
     hints: [

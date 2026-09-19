@@ -2,7 +2,7 @@ import { TextBuffer } from './editor/buffer.js';
 import { VimEngine } from './editor/vim-engine.js';
 import { STAGES } from './stages/curriculum.js';
 import { evaluateStage } from './stages/evaluator.js';
-import { renderBuffer } from './ui/renderer.js';
+import { renderBuffer, renderCmdline } from './ui/renderer.js';
 import { renderStatusline } from './ui/statusline.js';
 import { renderHUD } from './ui/hud.js';
 import { renderDiffViewer } from './ui/diff-viewer.js';
@@ -29,6 +29,7 @@ export class App {
     this.dom = {
       editorViewport: document.getElementById('editor-viewport'),
       statusline: document.getElementById('statusline'),
+      cmdlineBar: document.getElementById('cmdline-bar'),
       hud: document.getElementById('keystroke-hud'),
       diffBox: document.getElementById('diff-box'),
       whichKeyDrawer: document.getElementById('which-key-drawer'),
@@ -120,9 +121,16 @@ export class App {
   bindEvents() {
     window.addEventListener('keydown', e => this.handleKeydown(e));
 
-    this.dom.btnHint?.addEventListener('click', () => this.showHint());
-    this.dom.btnReset?.addEventListener('click', () => this.loadStage(this.currentStage.day || 1));
-    this.dom.btnMap?.addEventListener('click', () => {
+    this.dom.btnHint?.addEventListener('click', (e) => {
+      e.currentTarget?.blur();
+      this.showHint();
+    });
+    this.dom.btnReset?.addEventListener('click', (e) => {
+      e.currentTarget?.blur();
+      this.loadStage(this.currentStage.day || 1);
+    });
+    this.dom.btnMap?.addEventListener('click', (e) => {
+      e.currentTarget?.blur();
       renderStageSelectModal(
         this.dom.modalOverlay,
         STAGES,
@@ -130,16 +138,19 @@ export class App {
         day => this.loadStage(day)
       );
     });
-    this.dom.btnWhichKey?.addEventListener('click', () => {
+    this.dom.btnWhichKey?.addEventListener('click', (e) => {
+      e.currentTarget?.blur();
       toggleWhichKey(this.dom.whichKeyDrawer);
     });
-    this.dom.btnAudio?.addEventListener('click', () => {
+    this.dom.btnAudio?.addEventListener('click', (e) => {
+      e.currentTarget?.blur();
       const muted = this.sound.toggleMute();
       this.state.isMuted = muted;
       this.state.save();
       this.updateAudioButton();
     });
-    this.dom.btnSandbox?.addEventListener('click', () => {
+    this.dom.btnSandbox?.addEventListener('click', (e) => {
+      e.currentTarget?.blur();
       if (this.currentStage.day) {
         this.loadSandbox();
         this.dom.btnSandbox.textContent = 'Exit Sandbox';
@@ -165,10 +176,46 @@ export class App {
   }
 
   handleKeydown(e) {
-    // If modal is open, don't capture typing
+    // If modal is open, handle modal keyboard controls
     if (this.dom.modalOverlay?.classList.contains('open')) {
       if (e.key === 'Escape') {
         this.dom.modalOverlay.classList.remove('open');
+      } else if (e.key === 'Enter') {
+        const nextBtn = this.dom.modalOverlay.querySelector('#victory-next-btn') ||
+                        this.dom.modalOverlay.querySelector('.btn-primary');
+        if (nextBtn) {
+          nextBtn.click();
+        } else {
+          this.dom.modalOverlay.classList.remove('open');
+        }
+      } else if (e.key === 'r' || e.key === 'R') {
+        const replayBtn = this.dom.modalOverlay.querySelector('#victory-replay-btn');
+        if (replayBtn) replayBtn.click();
+      }
+      return;
+    }
+
+    // Ignore standalone modifier keys to avoid false error beeps
+    if (['Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'NumLock', 'ScrollLock'].includes(e.key)) {
+      return;
+    }
+
+    // Pass through browser devtools and standard Mac system shortcuts
+    if (e.key === 'F12' || (e.metaKey && ['r', 'R', 'l', 'w', 'q', 'c', 'v', 'a', 'x', 'z'].includes(e.key))) {
+      return;
+    }
+
+    // Advance to next day on Enter if current stage was completed and dismissed
+    if (this.stageCompleted && e.key === 'Enter' && this.engine.getMode() === 'NORMAL') {
+      if (this.currentStage.day && this.currentStage.day < 30) {
+        this.loadStage(this.currentStage.day + 1);
+      } else {
+        renderStageSelectModal(
+          this.dom.modalOverlay,
+          STAGES,
+          this.state,
+          day => this.loadStage(day)
+        );
       }
       return;
     }
@@ -181,10 +228,9 @@ export class App {
 
     let vimKey = e.key;
     if (e.ctrlKey) {
-      vimKey = `<C-${e.key}>`;
+      vimKey = `<C-${e.key.toLowerCase()}>`;
     }
 
-    const prevText = this.engine.getText();
     const result = this.engine.handleKey(vimKey);
 
     if (result.handled) {
@@ -234,6 +280,7 @@ export class App {
   render() {
     renderBuffer(this.dom.editorViewport, this.engine, this.buffer);
     renderStatusline(this.dom.statusline, this.engine, this.currentStage);
+    renderCmdline(this.dom.cmdlineBar, this.engine, this.lastFeedback);
     renderHUD(this.dom.hud, this.keystrokes, this.currentStage.parKeystrokes, this.lastFeedback);
 
     if (this.currentStage.targetText) {
@@ -250,9 +297,15 @@ export class App {
 
 // Auto-boot if running in browser
 if (typeof window !== 'undefined') {
-  window.addEventListener('DOMContentLoaded', () => {
+  const boot = () => {
+    if (window.__vim_app) return;
     const app = new App();
     app.init();
     window.__vim_app = app;
-  });
+  };
+  if (document.readyState === 'loading') {
+    window.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
 }

@@ -32,6 +32,7 @@
         <button class="btn" id="btn-which-key">⌨️ Which-Key</button>
         <button class="btn" id="btn-audio">🔊 Sound: ON</button>
         <button class="btn" id="btn-sandbox">📦 Sandbox</button>
+        <a href="../adventure/" class="btn" style="text-decoration:none; color:#7dcfff; border-color:#7aa2f7;">⚔️ Vim Adventures RPG</a>
       </div>
     </header>
 
@@ -98,10 +99,18 @@
     <!-- Bottom Statusline (Lualine style) -->
     <footer class="statusline" id="statusline"></footer>
 
+    <!-- Neovim Command-Line Bar -->
+    <div class="cmdline-bar" id="cmdline-bar"></div>
+
     <!-- Modal Dialogs -->
     <div class="modal-overlay" id="modal-overlay"></div>
   </div>
 
-  <script type="module" src="./js/app.js"></script>
+  <script src="./js/bundle.js"></script>
+  <script type="module">
+    if (!window.__vim_app) {
+      import('./js/app.js');
+    }
+  </script>
 </body>
 </html>

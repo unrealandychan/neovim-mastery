@@ -2,13 +2,244 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="refresh" content="0; url=./game/">
-  <title>Neovim Mastery: The 30-Day Dojo</title>
-  <script>
-    window.location.href = './game/';
-  </script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Neovim Mastery: Game Hub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #1a1b26;
+      --bg-card: #24283b;
+      --bg-hover: #2f3549;
+      --border-color: #414868;
+      --fg: #c0caf5;
+      --fg-dim: #787c99;
+      --tn-blue: #7aa2f7;
+      --tn-cyan: #7dcfff;
+      --tn-green: #9ece6a;
+      --tn-orange: #ff9e64;
+      --tn-purple: #bb9af7;
+      --tn-yellow: #e0af68;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: radial-gradient(circle at center, #1e2030 0%, #16161e 100%);
+      color: var(--fg);
+      font-family: var(--font-mono);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .hub-header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .hub-badge {
+      display: inline-block;
+      background: var(--tn-purple);
+      color: var(--bg-dark);
+      font-weight: 800;
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .hub-title {
+      font-size: 32px;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+
+    .hub-subtitle {
+      font-size: 14px;
+      color: var(--fg-dim);
+      max-width: 580px;
+      line-height: 1.6;
+    }
+
+    .games-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 420px));
+      gap: 24px;
+      width: 100%;
+      max-width: 900px;
+    }
+
+    .game-card {
+      background: var(--bg-card);
+      border: 2px solid var(--border-color);
+      border-radius: 14px;
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: all 0.25s ease;
+      text-decoration: none;
+      color: inherit;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+    }
+
+    .game-card:hover {
+      border-color: var(--tn-blue);
+      transform: translateY(-4px);
+      box-shadow: 0 16px 40px rgba(122, 162, 247, 0.2);
+    }
+
+    .game-card.featured {
+      border-color: var(--tn-cyan);
+    }
+
+    .game-card.featured::before {
+      content: 'NEW RPG';
+      position: absolute;
+      top: 14px;
+      right: -32px;
+      background: linear-gradient(135deg, var(--tn-cyan), var(--tn-blue));
+      color: var(--bg-dark);
+      font-size: 9px;
+      font-weight: 800;
+      padding: 4px 34px;
+      transform: rotate(45deg);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    }
+
+    .card-icon {
+      font-size: 40px;
+      margin-bottom: 16px;
+    }
+
+    .card-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 8px;
+    }
+
+    .card-desc {
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--fg);
+      margin-bottom: 20px;
+      flex: 1;
+    }
+
+    .card-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 24px;
+    }
+
+    .card-tag {
+      font-size: 11px;
+      background: var(--bg-hover);
+      color: var(--tn-blue);
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+
+    .card-btn {
+      background: linear-gradient(135deg, var(--tn-blue) 0%, #5d87e0 100%);
+      color: var(--bg-dark);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 700;
+      padding: 10px 18px;
+      border-radius: 8px;
+      text-align: center;
+      transition: all 0.2s;
+      border: none;
+      cursor: pointer;
+    }
+
+    .game-card:hover .card-btn {
+      filter: brightness(1.1);
+    }
+
+    .footer-note {
+      margin-top: 36px;
+      font-size: 12px;
+      color: var(--fg-dim);
+    }
+  </style>
 </head>
-<body style="background-color: #1a1b26; color: #7aa2f7; font-family: monospace; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0;">
-  <p>Launching Neovim Mastery Game... If not redirected, <a href="./game/" style="color: #bb9af7;">click here to enter the Dojo</a>.</p>
+<body>
+  <header class="hub-header">
+    <div class="hub-badge">Interactive Learning Suite</div>
+    <h1 class="hub-title"><span>🥋</span> Neovim Mastery Hub</h1>
+    <p class="hub-subtitle">
+      Master modal navigation and editing through immersive gamification. Choose your journey below:
+    </p>
+  </header>
+
+  <main class="games-grid">
+    <!-- Game 1: Vim Adventures RPG -->
+    <a href="./adventure/" class="game-card featured">
+      <div>
+        <div class="card-icon">⚔️</div>
+        <h2 class="card-title">Vim Adventures: Realm of the Modal Hero</h2>
+        <p class="card-desc">
+          A real retro 16-bit RPG adventure inspired by vim-adventures.com! Wander through word archipelagos, leap across chasms with <code>w</code>, <code>b</code>, <code>e</code>, warp through code crypts with <code>%</code>, collect keys, unlock chests, and cut weeds with <code>x</code>.
+        </p>
+      </div>
+      <div>
+        <div class="card-tags">
+          <span class="card-tag">2D Tile RPG</span>
+          <span class="card-tag">Zelda-style</span>
+          <span class="card-tag">8-bit WebAudio</span>
+          <span class="card-tag">5 Chapters</span>
+        </div>
+        <div class="card-btn">⚔️ Play Vim Adventures RPG &rarr;</div>
+      </div>
+    </a>
+
+    <!-- Game 2: 30-Day Dojo -->
+    <a href="./game/" class="game-card">
+      <div>
+        <div class="card-icon">🥋</div>
+        <h2 class="card-title">Neovim Mastery: The 30-Day Dojo</h2>
+        <p class="card-desc">
+          A realistic code editor puzzle game. Solve 30 real-world programming tasks using Vim grammar: operators, text objects (<code>ci"</code>, <code>di(</code>), macro recording, registers, global substitutions, and LazyVim keymaps.
+        </p>
+      </div>
+      <div>
+        <div class="card-tags">
+          <span class="card-tag">Code Editor Buffer</span>
+          <span class="card-tag">Text Objects</span>
+          <span class="card-tag">30 Daily Stages</span>
+          <span class="card-tag">Star Ratings</span>
+        </div>
+        <div class="card-btn" style="background:var(--bg-hover); color:#fff; border:1px solid var(--border-color);">🥋 Enter 30-Day Dojo &rarr;</div>
+      </div>
+    </a>
+  </main>
+
+  <footer class="footer-note">
+    Run locally with <code>./play-game.sh</code> &bull; Built with HTML5 Canvas, Web Audio API &amp; Modern Vanilla ES Modules
+  </footer>
 </body>
 </html>

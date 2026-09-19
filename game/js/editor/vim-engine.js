@@ -28,6 +28,7 @@ export class VimEngine {
     this.redoStack = [];
     this.lastChange = null;
     this.flashTargets = []; // for flash teleportation
+    this.actionsExecuted = new Set(); // tracks executed actions like 'save', 'bnext'
     this.onStateChange = null;
   }
 
@@ -128,6 +129,29 @@ export class VimEngine {
         this.buffer.setCursor(cur.row, cur.col - 1);
       }
       this.buffer.clampCursor('NORMAL');
+      return { handled: true };
+    }
+
+    if (key === '<C-s>') {
+      this.saveSnapshot();
+      this.actionsExecuted.add('save');
+      return { handled: true, feedback: 'Saved buffer to disk.', action: 'save' };
+    }
+
+    if (key === 'ArrowLeft') {
+      this.moveLeft(1);
+      return { handled: true };
+    }
+    if (key === 'ArrowRight') {
+      this.moveRight(1);
+      return { handled: true };
+    }
+    if (key === 'ArrowUp') {
+      this.moveUp(1);
+      return { handled: true };
+    }
+    if (key === 'ArrowDown') {
+      this.moveDown(1);
       return { handled: true };
     }
 
@@ -408,6 +432,23 @@ export class VimEngine {
       this.undo();
       return { handled: true };
     }
+    if (key === '<C-r>') {
+      const redone = this.redo();
+      return { handled: true, feedback: redone ? '1 change redone.' : 'Already at newest change.' };
+    }
+    if (key === '<C-s>') {
+      this.saveSnapshot();
+      this.actionsExecuted.add('save');
+      return { handled: true, feedback: 'Saved buffer to disk.', action: 'save' };
+    }
+    if (key === '<C-d>') {
+      this.moveDown(count * 5);
+      return { handled: true };
+    }
+    if (key === '<C-u>') {
+      this.moveUp(count * 5);
+      return { handled: true };
+    }
     if (key === 'p') {
       this.saveSnapshot();
       this.paste(false);
@@ -530,9 +571,20 @@ export class VimEngine {
       return { handled: true };
     }
 
-    // Motion with operator: dw, cw, d$, d0, etc.
+    // Motion with operator: dw, cw, d$, d0, dj, dk, etc.
     const motionChar = seq.slice(1);
     if (['w', 'b', 'e', '$', '0', '^', 'j', 'k', 'h', 'l'].includes(motionChar)) {
+      if (motionChar === 'j' || motionChar === 'k') {
+        this.saveSnapshot();
+        if (motionChar === 'k') {
+          this.moveUp(count);
+        }
+        this.operatorHandler.executeLineOp(op, count + 1);
+        this.activeOperator = null;
+        this.pendingKeys = '';
+        return { handled: true };
+      }
+
       this.saveSnapshot();
       const start = this.buffer.getCursor();
       // Execute motion temporarily to find end
@@ -542,10 +594,12 @@ export class VimEngine {
       else if (motionChar === '$') this.moveDollar();
       else if (motionChar === '0') this.move0();
       else if (motionChar === '^') this.moveHat();
+      else if (motionChar === 'h') this.moveLeft(count);
+      else if (motionChar === 'l') this.moveRight(count);
       const end = this.buffer.getCursor();
       if (motionChar === '$') {
         end.col = this.buffer.getLine(end.row).length;
-      } else if (motionChar === 'e') {
+      } else if (motionChar === 'e' || motionChar === 'l') {
         end.col = end.col + 1;
       }
 
@@ -562,6 +616,9 @@ export class VimEngine {
       return { handled: true };
     }
 
+    // Sequence did not match any known operator combination: reset operator pending to prevent deadlocks
+    this.activeOperator = null;
+    this.pendingKeys = '';
     return { handled: false };
   }
 
@@ -706,7 +763,11 @@ export class VimEngine {
   }
 
   executeCommand(cmd) {
-    return this.commandHandler.execute(cmd);
+    const res = this.commandHandler.execute(cmd);
+    if (res && res.action) {
+      this.actionsExecuted.add(res.action);
+    }
+    return res;
   }
 
   handleFlashKey(key) {

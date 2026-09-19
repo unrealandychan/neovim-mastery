@@ -97,24 +97,36 @@ export function renderVictoryModal(container, stage, evaluation, onNext, onRepla
           </a>
         </div>
       </div>
-      <div class="modal-footer" style="justify-content: center;">
-        <button class="btn" id="victory-replay-btn">🔄 Replay</button>
-        ${stage.day < 30 ? '<button class="btn btn-primary" id="victory-next-btn">Next Day ➔</button>' : '<button class="btn btn-primary" id="victory-next-btn">🏆 View Map</button>'}
+        <div style="display: flex; gap: 8px; justify-content: center; width: 100%;">
+          <button class="btn" id="victory-replay-btn">🔄 Replay (r)</button>
+          ${stage.day < 30 ? '<button class="btn btn-primary" id="victory-next-btn">Next Day ➔ (Enter)</button>' : '<button class="btn btn-primary" id="victory-next-btn">🏆 View Map (Enter)</button>'}
+        </div>
+        <div style="font-size: 11px; color: var(--tn-fg-dark); margin-top: 8px; width: 100%;">
+          Press <kbd style="background: var(--tn-bg-highlight); padding: 2px 5px; border-radius: 3px; color: var(--tn-fg);">Enter</kbd> to proceed, <kbd style="background: var(--tn-bg-highlight); padding: 2px 5px; border-radius: 3px; color: var(--tn-fg);">r</kbd> to replay, <kbd style="background: var(--tn-bg-highlight); padding: 2px 5px; border-radius: 3px; color: var(--tn-fg);">Esc</kbd> to close
+        </div>
       </div>
     </div>
   `;
 
   container.classList.add('open');
 
-  container.querySelector('#victory-replay-btn')?.addEventListener('click', () => {
+  container.querySelector('#victory-replay-btn')?.addEventListener('click', (e) => {
+    e.currentTarget?.blur();
     container.classList.remove('open');
     if (onReplay) onReplay();
   });
 
-  container.querySelector('#victory-next-btn')?.addEventListener('click', () => {
+  container.querySelector('#victory-next-btn')?.addEventListener('click', (e) => {
+    e.currentTarget?.blur();
     container.classList.remove('open');
     if (onNext) onNext();
   });
+
+  container.onclick = (e) => {
+    if (e.target === container) {
+      container.classList.remove('open');
+    }
+  };
 }
 
 function escapeHtml(str) {

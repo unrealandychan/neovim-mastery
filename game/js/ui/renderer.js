@@ -2,7 +2,7 @@
  * Terminal & Buffer DOM Renderer
  */
 
-function escapeHtml(str) {
+export function escapeHtml(str) {
   return (str || '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -15,22 +15,34 @@ function escapeHtml(str) {
  * @param {string} text
  * @returns {string}
  */
-function highlightCode(text) {
-  let s = escapeHtml(text);
+export function highlightCode(text) {
+  if (!text) return ' ';
+  const regex = /(\/\/.*$|#.*$)|("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`)|(\b(?:const|let|var|function|def|func|fn|return|if|else|import|export|type|interface|switch|case|package|struct)\b)|(\b(?:string|number|boolean|any|void|Promise|User|UserProfile|int|float|true|false|null|nil|None)\b)/g;
 
-  // Comments
-  s = s.replace(/(\/\/.*$|#.*$)/g, '<span style="color: var(--tn-comment); font-style: italic;">$1</span>');
+  let lastIndex = 0;
+  let out = '';
+  let m;
 
-  // Strings
-  s = s.replace(/(&quot;.*?&quot;|&#39;.*?&#39;|`.*?`|"[^"]*"|'[^']*')/g, '<span style="color: var(--tn-green);">$1</span>');
-
-  // Keywords
-  s = s.replace(/\b(const|let|var|function|def|func|fn|return|if|else|import|export|type|interface|switch|case|package|struct)\b/g, '<span style="color: var(--tn-purple); font-style: italic;">$1</span>');
-
-  // Types & builtins
-  s = s.replace(/\b(string|number|boolean|any|void|Promise|User|UserProfile|int|float|true|false|null|nil|None)\b/g, '<span style="color: var(--tn-cyan);">$1</span>');
-
-  return s;
+  while ((m = regex.exec(text)) !== null) {
+    if (m.index > lastIndex) {
+      out += escapeHtml(text.slice(lastIndex, m.index));
+    }
+    const [full, comment, str, kw, type] = m;
+    if (comment) {
+      out += `<span class="syn-comment">${escapeHtml(comment)}</span>`;
+    } else if (str) {
+      out += `<span class="syn-string">${escapeHtml(str)}</span>`;
+    } else if (kw) {
+      out += `<span class="syn-keyword">${escapeHtml(kw)}</span>`;
+    } else if (type) {
+      out += `<span class="syn-type">${escapeHtml(type)}</span>`;
+    }
+    lastIndex = regex.lastIndex;
+  }
+  if (lastIndex < text.length) {
+    out += escapeHtml(text.slice(lastIndex));
+  }
+  return out || ' ';
 }
 
 /**
@@ -134,3 +146,29 @@ export function renderBuffer(container, engine, buffer) {
 
   container.innerHTML = html;
 }
+
+/**
+ * Renders the Neovim command-line bar below the statusline
+ * @param {HTMLElement} container
+ * @param {import('../editor/vim-engine.js').VimEngine} engine
+ * @param {string} feedback
+ */
+export function renderCmdline(container, engine, feedback = '') {
+  if (!container) return;
+
+  const mode = engine.getMode();
+  if (mode === 'COMMAND') {
+    const cmd = engine.commandLine || ':';
+    const promptChar = cmd[0] || ':';
+    const rest = cmd.slice(1);
+    container.innerHTML = `<span class="cmd-prompt">${promptChar}</span><span class="cmd-text">${escapeHtml(rest)}</span><span class="vim-cursor cursor-normal">&nbsp;</span>`;
+    container.className = 'cmdline-bar active';
+  } else if (feedback) {
+    container.innerHTML = `<span class="cmd-feedback">${escapeHtml(feedback)}</span>`;
+    container.className = 'cmdline-bar';
+  } else {
+    container.innerHTML = `<span class="cmd-feedback-placeholder"></span>`;
+    container.className = 'cmdline-bar';
+  }
+}
+

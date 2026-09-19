@@ -36,3 +36,65 @@ test('Stage evaluator checks text match and awards 3 stars for par', () => {
   assert.equal(result.completed, true);
   assert.equal(result.stars, 3);
 });
+
+test('Day 1 does not complete mid-typing in INSERT mode before saving', () => {
+  const stage = STAGES[0]; // Day 1
+  const buf = new TextBuffer(stage.initialText);
+  const engine = new VimEngine(buf);
+  buf.setCursor(stage.cursorStart.row, stage.cursorStart.col);
+
+  // Type: iWelcome Eddie (without Escape or :w)
+  const typingKeys = ['i', 'W', 'e', 'l', 'c', 'o', 'm', 'e', ' ', 'E', 'd', 'd', 'i', 'e'];
+  for (const k of typingKeys) {
+    engine.handleKey(k);
+  }
+
+  assert.equal(engine.getMode(), 'INSERT');
+  assert.equal(engine.getText(), stage.targetText);
+
+  // Even though text matches, stage must NOT be completed in INSERT mode or without :w
+  const resultMidTyping = evaluateStage(stage, engine, typingKeys);
+  assert.equal(resultMidTyping.completed, false);
+
+  // Press Escape: now in NORMAL mode, but :w not executed yet
+  engine.handleKey('Escape');
+  assert.equal(engine.getMode(), 'NORMAL');
+  const resultEscaped = evaluateStage(stage, engine, [...typingKeys, 'Escape']);
+  assert.equal(resultEscaped.completed, false);
+
+  // Execute :w
+  engine.handleKey(':');
+  engine.handleKey('w');
+  engine.handleKey('Enter');
+  const resultSaved = evaluateStage(stage, engine, [...typingKeys, 'Escape', ':', 'w', 'Enter']);
+  assert.equal(resultSaved.completed, true);
+});
+
+test('Day 12 requires both :w and :bnext actions to complete', () => {
+  const stage = STAGES[11]; // Day 12
+  const buf = new TextBuffer(stage.initialText);
+  const engine = new VimEngine(buf);
+
+  // Initial state should not be completed
+  let res = evaluateStage(stage, engine, []);
+  assert.equal(res.completed, false);
+
+  // Only saving :w is not enough
+  engine.handleKey(':');
+  engine.handleKey('w');
+  engine.handleKey('Enter');
+  res = evaluateStage(stage, engine, [':', 'w', 'Enter']);
+  assert.equal(res.completed, false);
+
+  // Now run :bnext
+  engine.handleKey(':');
+  engine.handleKey('b');
+  engine.handleKey('n');
+  engine.handleKey('e');
+  engine.handleKey('x');
+  engine.handleKey('t');
+  engine.handleKey('Enter');
+  res = evaluateStage(stage, engine, stage.optimalKeys);
+  assert.equal(res.completed, true);
+});
+

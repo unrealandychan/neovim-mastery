@@ -9,6 +9,11 @@ export function normalizeKey(key) {
   if (key === 'Backspace' || key === '<BS>' || key === '<bs>') return 'Backspace';
   if (key === 'Tab' || key === '<Tab>') return 'Tab';
   if (key === '<Space>' || key === ' ') return ' ';
+  if (key === '<leader>' || key === '<Leader>') return ' ';
+  if (/^<c-r>$/i.test(key)) return '<C-r>';
+  if (/^<c-s>$/i.test(key)) return '<C-s>';
+  if (/^<c-d>$/i.test(key)) return '<C-d>';
+  if (/^<c-u>$/i.test(key)) return '<C-u>';
   return key;
 }
 
