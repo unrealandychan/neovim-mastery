@@ -378,9 +378,9 @@ export class Game {
   }
 
   handleFind(type, targetChar, count = 1) {
-    if (!this.player.hasAbility('f')) {
+    if (!this.player.hasAbility(type)) {
       this.audio.playError();
-      this.renderer.addFloatingText("Key 'f' is locked!", this.player.x, this.player.y, '#f7768e');
+      this.renderer.addFloatingText(`Key '${type}' is locked!`, this.player.x, this.player.y, '#f7768e');
       return;
     }
 
@@ -454,29 +454,44 @@ export class Game {
     }
   }
 
-  handleCutObstacle() {
+  handleCutObstacle(count = 1) {
     if (!this.player.hasAbility('x')) {
       this.audio.playError();
       this.renderer.addFloatingText("Key 'x' is locked!", this.player.x, this.player.y, '#f7768e');
       return;
     }
 
-    // Check if standing on or facing obstacle
-    const obstacle = this.entities.obstacles.find(o => !o.isCleared && (
-      (o.x === this.player.x && o.y === this.player.y) ||
-      (this.player.direction === 'right' && o.x === this.player.x + 1 && o.y === this.player.y) ||
-      (this.player.direction === 'left' && o.x === this.player.x - 1 && o.y === this.player.y) ||
-      (this.player.direction === 'down' && o.x === this.player.x && o.y === this.player.y + 1) ||
-      (this.player.direction === 'up' && o.x === this.player.x && o.y === this.player.y - 1)
-    ));
+    let cutAny = false;
+    for (let c = 0; c < count; c++) {
+      let targetX = this.player.x;
+      let targetY = this.player.y;
+      if (this.player.direction === 'right') targetX += (c + 1);
+      else if (this.player.direction === 'left') targetX -= (c + 1);
+      else if (this.player.direction === 'down') targetY += (c + 1);
+      else if (this.player.direction === 'up') targetY -= (c + 1);
 
-    if (obstacle) {
-      this.recordHistory();
-      obstacle.clear();
-      this.tilemap.setTile(obstacle.x, obstacle.y, '='); // turn into path
-      this.audio.playSlash();
-      this.particles.emit(obstacle.x, obstacle.y, 14, '#9ece6a', 70, 3);
-      this.renderer.addFloatingText('Cut with x!', obstacle.x, obstacle.y, '#9ece6a');
+      let obstacle = null;
+      if (c === 0) {
+        obstacle = this.entities.obstacles.find(o => !o.isCleared && o.x === this.player.x && o.y === this.player.y);
+      }
+      if (!obstacle) {
+        obstacle = this.entities.obstacles.find(o => !o.isCleared && o.x === targetX && o.y === targetY);
+      }
+
+      if (obstacle) {
+        if (!cutAny) this.recordHistory();
+        obstacle.clear();
+        this.tilemap.setTile(obstacle.x, obstacle.y, '='); // turn into path
+        this.audio.playSlash();
+        this.particles.emit(obstacle.x, obstacle.y, 14, '#9ece6a', 70, 3);
+        cutAny = true;
+      } else {
+        break;
+      }
+    }
+
+    if (cutAny) {
+      this.renderer.addFloatingText('Cut with x!', this.player.x, this.player.y, '#9ece6a');
       this.checkInteractions();
     } else {
       this.audio.playError();
@@ -913,15 +928,16 @@ export class Game {
       },
       11: {
         walkthrough: [
-          "Learn word manipulation verbs: cw (change word), dw (delete word), yw (yank word).",
-          "Clear corrupt word blocks to open paths and retrieve the Vault Key.",
-          "Unlock Vault Gate and proceed to Chapter 12!"
+          "Talk to Chronos the Sage at (4, 3) to learn temporal undo mechanics.",
+          "Beware the collapsing floor traps: stepping onto false runes triggers temporal dead-ends.",
+          "Press 'u' to rewind time and undo accidental steps or trap triggers.",
+          "Navigate the true chrono path to retrieve the Silver Key at (27, 8).",
+          "Unlock the Chrono Gate at (24, 10) and enter Chapter 12!"
         ],
         commands: [
-          { key: "dw / cw", desc: "Delete word / Change word" },
-          { key: "p", desc: "Put / paste word" }
+          { key: "u", desc: "Undo last step or action and rewind time" }
         ],
-        tip: "Operators + motions (verb + noun) form the grammar of Vim!"
+        tip: "In Vim, 'u' is your ultimate safety net—undo mistakes instantly to restore peace of mind!"
       },
       12: {
         walkthrough: [

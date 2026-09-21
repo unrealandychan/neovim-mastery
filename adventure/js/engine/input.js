@@ -186,6 +186,12 @@ export class InputHandler {
 
     // 5. Handling Repeat Find (; and ,)
     if (key === ';') {
+      if (!this.game.player.hasAbility(';')) {
+        this.game.audio.playError();
+        this.game.renderer.addFloatingText("Key ';' is locked!", this.game.player.x, this.game.player.y, '#f7768e');
+        this.resetBuffer();
+        return;
+      }
       if (this.lastFind) {
         this.executeFind(this.lastFind.type, this.lastFind.target);
       } else {
@@ -196,6 +202,12 @@ export class InputHandler {
     }
 
     if (key === ',') {
+      if (!this.game.player.hasAbility(',')) {
+        this.game.audio.playError();
+        this.game.renderer.addFloatingText("Key ',' is locked!", this.game.player.x, this.game.player.y, '#f7768e');
+        this.resetBuffer();
+        return;
+      }
       if (this.lastFind) {
         // Reverse direction
         const revMap = { f: 'F', F: 'f', t: 'T', T: 't' };
@@ -232,8 +244,9 @@ export class InputHandler {
       return;
     }
 
-    if (key === 'D') {
-      this.game.handleDeleteLineEnd();
+    if (key === 'x') {
+      const count = this.getCount();
+      this.game.handleCutObstacle(count);
       this.resetBuffer();
       return;
     }

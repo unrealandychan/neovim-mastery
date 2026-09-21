@@ -513,11 +513,11 @@ test('Simulated Chapter 12 Walkthrough: Chamber of Case Inversion (~)', () => {
   const player = new Player(lvl.playerStart.x, lvl.playerStart.y);
   lvl.initialAbilities.forEach(a => player.unlockAbility(a));
 
-  // Flip switch 'o' to 'O'
-  const switchTile = tm.getTile(17, 4);
+  // Flip switch 'o' to 'O' at (19, 4)
+  const switchTile = tm.getTile(19, 4);
   assert.equal(switchTile, 'o');
-  tm.setTile(17, 4, 'O');
-  assert.equal(tm.getTile(17, 4), 'O');
+  tm.setTile(19, 4, 'O');
+  assert.equal(tm.getTile(19, 4), 'O');
 
   // Switch gate unlocks
   const switchDoor = lvl.doors.find(d => d.keyRequired === 'switch');
@@ -539,6 +539,7 @@ test('Simulated Chapter 12 Walkthrough: Chamber of Case Inversion (~)', () => {
 
   player.moveTo(lvl.exit.x, lvl.exit.y);
   assert.equal(player.x, lvl.exit.x);
+  assert.equal(player.y, lvl.exit.y);
   assert.equal(lvl.exit.targetLevel, 13);
 });
 
@@ -548,10 +549,12 @@ test('Simulated Chapter 13 Walkthrough: Valley of Golden Beacons (*)', () => {
   const player = new Player(lvl.playerStart.x, lvl.playerStart.y);
   lvl.initialAbilities.forEach(a => player.unlockAbility(a));
 
-  // Warp across beacon tokens with *
-  const match = tm.findMatchingToken(11, 1);
+  // Warp across beacon tokens with * from (24, 1) SOLAR to (4, 4) SOLAR
+  const match = tm.findMatchingToken(24, 1);
   assert.equal(match.found, true);
-  assert.equal(match.token, 'BEACON');
+  assert.equal(match.token, 'SOLAR');
+  assert.equal(match.x, 4);
+  assert.equal(match.y, 4);
   player.moveTo(match.x, match.y);
 
   // Collect Ruby Key
@@ -569,6 +572,7 @@ test('Simulated Chapter 13 Walkthrough: Valley of Golden Beacons (*)', () => {
 
   player.moveTo(lvl.exit.x, lvl.exit.y);
   assert.equal(player.x, lvl.exit.x);
+  assert.equal(player.y, lvl.exit.y);
   assert.equal(lvl.exit.targetLevel, 14);
 });
 
@@ -646,3 +650,148 @@ test('Simulated Chapter 15 Walkthrough: Grand Citadel of the Neovim Grandmaster 
   assert.equal(player.y, lvl.exit.y);
   assert.equal(lvl.exit.isVictory, true);
 });
+
+test('Simulated Chapter 3 Walkthrough: The Line Canyon (0, $, ^)', () => {
+  const lvl = LEVELS[2];
+  const tm = new Tilemap(lvl.width, lvl.height, lvl.map);
+  const player = new Player(lvl.playerStart.x, lvl.playerStart.y);
+  lvl.initialAbilities.forEach(a => player.unlockAbility(a));
+
+  // 1. Move to chest using $
+  const chest = new Chest(lvl.chests[0]);
+  const endX = tm.getLineEnd(player.y);
+  player.moveTo(endX, player.y);
+  const reward = chest.open();
+  player.unlockAbility(reward.value);
+  assert.equal(player.hasAbility('$'), true);
+  assert.equal(player.hasAbility('0'), true);
+
+  // 2. Return to left with 0
+  const startX = tm.getLineStart(player.y, true);
+  player.moveTo(startX, player.y);
+  assert.equal(player.x, 2);
+
+  // 3. Move down to row 6 bridge and cross with $ to Gold Key
+  player.moveTo(2, 6);
+  const keyEndX = tm.getLineEnd(6);
+  player.moveTo(keyEndX, 6);
+  const key = new KeyItem(lvl.keys[0]);
+  key.collect();
+  player.inventory[key.keyType] = 1;
+  assert.equal(player.inventory.goldKey, 1);
+
+  // 4. Return to left with 0 and descend to Canyon Gate
+  player.moveTo(tm.getLineStart(6, true), 6);
+  player.moveTo(2, 10);
+  const door = new Door(lvl.doors[0]);
+  door.unlock(player.inventory);
+  assert.equal(door.isOpen, true);
+
+  player.moveTo(lvl.exit.x, lvl.exit.y);
+  assert.equal(player.exitReached || (player.x === lvl.exit.x && player.y === lvl.exit.y), true);
+  assert.equal(lvl.exit.targetLevel, 4);
+});
+
+test('Simulated Chapter 4 Walkthrough: Caverns of Till & Reverse Seek (f, t, F, T, ;, ,)', () => {
+  const lvl = LEVELS[3];
+  const tm = new Tilemap(lvl.width, lvl.height, lvl.map);
+  const player = new Player(lvl.playerStart.x, lvl.playerStart.y);
+  lvl.initialAbilities.forEach(a => player.unlockAbility(a));
+
+  // 1. Find character 'c' in row 2 to reach chest
+  const findRes = tm.findCharInRow(2, player.x, 'c', true, false);
+  assert.equal(findRes.found, true);
+  player.moveTo(findRes.x, 2);
+
+  const chest = new Chest(lvl.chests[0]);
+  const rew = chest.open();
+  player.unlockAbility(rew.value);
+  assert.equal(player.hasAbility('f'), true);
+
+  // 2. Till before magma 'm' on row 6
+  player.moveTo(4, 6);
+  const tillRes = tm.findCharInRow(6, 4, 'm', true, true);
+  assert.equal(tillRes.found, true);
+  player.moveTo(tillRes.x, 6);
+
+  // 3. Collect Bronze Key on row 8
+  const key = new KeyItem(lvl.keys[0]);
+  player.moveTo(key.x, key.y);
+  key.collect();
+  player.inventory[key.keyType] = 1;
+  assert.equal(player.inventory.bronzeKey, 1);
+
+  // 4. Reverse seek 'F' back to stone 's'
+  const findBack = tm.findCharInRow(8, key.x, 's', false, false);
+  assert.equal(findBack.found, true);
+
+  const door = new Door(lvl.doors[0]);
+  door.unlock(player.inventory);
+  assert.equal(door.isOpen, true);
+
+  player.moveTo(lvl.exit.x, lvl.exit.y);
+  assert.equal(lvl.exit.targetLevel, 5);
+});
+
+test('Simulated Chapter 8 Walkthrough: Labyrinth of Precision Counts (3w, 5j, 18h)', () => {
+  const lvl = LEVELS[7];
+  const tm = new Tilemap(lvl.width, lvl.height, lvl.map);
+  const player = new Player(lvl.playerStart.x, lvl.playerStart.y);
+  lvl.initialAbilities.forEach(a => player.unlockAbility(a));
+
+  // 1. Precision 3w motion across islands on row 1
+  let x = player.x;
+  for (let i = 0; i < 3; i++) {
+    x = tm.findNextWord(x, 1).x;
+  }
+  player.moveTo(x, 1);
+  assert.equal(tm.isWalkable(player.x, 1), true);
+
+  // 2. Collect Bronze Key on row 6
+  const key = new KeyItem(lvl.keys[0]);
+  player.moveTo(key.x, key.y);
+  key.collect();
+  player.inventory[key.keyType] = 1;
+  assert.equal(player.inventory.bronzeKey, 1);
+
+  // 3. Unlock Labyrinth Gate
+  const door = new Door(lvl.doors[0]);
+  door.unlock(player.inventory);
+  assert.equal(door.isOpen, true);
+
+  player.moveTo(lvl.exit.x, lvl.exit.y);
+  assert.equal(lvl.exit.targetLevel, 9);
+});
+
+test('Simulated Chapter 11 Walkthrough: Halls of Undo and Reversal (u)', () => {
+  const lvl = LEVELS[10];
+  const tm = new Tilemap(lvl.width, lvl.height, lvl.map);
+  const player = new Player(lvl.playerStart.x, lvl.playerStart.y);
+  lvl.initialAbilities.forEach(a => player.unlockAbility(a));
+
+  // 1. Verify intrinsic 'u' ability
+  assert.equal(player.hasAbility('u'), true);
+
+  // Open bonus gem chest
+  const chest = new Chest(lvl.chests[0]);
+  player.moveTo(chest.x, chest.y);
+  const rew = chest.open();
+  player.inventory.gems += rew.value;
+  assert.equal(player.inventory.gems, 120);
+
+  // 2. Collect Silver Key in Temporal Vault
+  const key = new KeyItem(lvl.keys[0]);
+  player.moveTo(key.x, key.y);
+  key.collect();
+  player.inventory[key.keyType] = 1;
+  assert.equal(player.inventory.silverKey, 1);
+
+  // 3. Unlock Temporal Gate and exit
+  const door = new Door(lvl.doors[0]);
+  door.unlock(player.inventory);
+  assert.equal(door.isOpen, true);
+
+  player.moveTo(lvl.exit.x, lvl.exit.y);
+  assert.equal(lvl.exit.targetLevel, 12);
+});
+

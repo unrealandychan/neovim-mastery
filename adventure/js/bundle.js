@@ -882,20 +882,18 @@ class Player {
       this.unlockedAbilities.add('^');
     }
     if (key === 'f') {
-      this.unlockedAbilities.add('F');
-      this.unlockedAbilities.add('t');
-      this.unlockedAbilities.add('T');
       this.unlockedAbilities.add(';');
-      this.unlockedAbilities.add(',');
     }
     if (key === 't') {
       this.unlockedAbilities.add('T');
       this.unlockedAbilities.add(';');
-      this.unlockedAbilities.add(',');
     }
     if (key === 'F') {
-      this.unlockedAbilities.add(';');
+      this.unlockedAbilities.add('T');
       this.unlockedAbilities.add(',');
+    }
+    if (key === '0') {
+      this.unlockedAbilities.add('^');
     }
     if (key === 'gg') {
       this.unlockedAbilities.add('G');
@@ -1341,7 +1339,7 @@ const LEVELS = [
       }
     ],
     keys: [
-      { id: 'k2', x: 25, y: 12, keyType: 'silverKey', name: 'Silver Key' }
+      { id: 'k2', x: 2, y: 8, keyType: 'silverKey', name: 'Silver Key' }
     ],
     doors: [
       { id: 'd2', x: 14, y: 14, keyRequired: 'silverKey', orientation: 'horizontal', label: 'Archipelago Gate' }
@@ -1369,161 +1367,149 @@ const LEVELS = [
       { id: 'g5', x: 24, y: 2, value: 20 },
       { id: 'g6', x: 10, y: 4, value: 20 },
       { id: 'g7', x: 17, y: 4, value: 20 },
-      { id: 'g8', x: 7, y: 8, value: 20 }
+      { id: 'g8', x: 14, y: 8, value: 20 }
     ],
     portals: [],
     obstacles: [],
     exit: { x: 10, y: 16, targetLevel: 3 },
-    objective: "Use 'w' and 'e' to leap across words, collect the Silver Key, and open the gate!"
+    objective: "Leap forward to unlock 'e' and 'b', backtrack with 'b' to seize the Silver Key, then unlock the gate!"
   },
 
   // =========================================================================
-  // CHAPTER 3: The Line Canyon & Temple of Find [Dojo Days 3 & 5]
-  // Mechanics: 0, $, ^ and f, ; (inline find search)
+  // CHAPTER 3: The Line Canyon [Dojo Day 3]
+  // Mechanics: 0, $, ^ instant line boundary jumps across canyon ledges
   // =========================================================================
   {
     id: 3,
-    name: "Chapter 3: The Temple of Find",
-    subtitle: "Command the Line with 0, $, and inline search f [Dojo Days 3 & 5]",
+    name: "Chapter 3: The Line Canyon",
+    subtitle: "Command Line Boundaries with 0, $, and ^ [Dojo Day 3]",
     width: 36,
-    height: 18,
+    height: 12,
     playerStart: { x: 2, y: 2 },
     initialAbilities: ['h', 'j', 'k', 'l', 'w', 'b', 'e', 'ge'],
     map: [
       "####################################",
+      "# Cliff Base: Warden's Perch ~~~~~ #",
+      "# ..Cliff_Warden~~~~~~~~~~~~~~~~~~ #",
+      "#.##################################",
+      "#...Ledge_Alpha:==================$#",
+      "#.##################################",
+      "#...Ledge_Beta:=================Key#",
+      "#.##################################",
+      "#...Cliff_Sanctuary:====Gate====Exit",
+      "#.##################################",
       "#..................................#",
-      "# const start = explore_canyon();  #",
-      "#..................................#",
-      "# let speed = instant_line_jump;   #",
-      "#..................................#",
-      "# find_treasure_with_f_target;     #",
-      "#..................................#",
-      "# type_f_then_z_to_reach_z_portal; #",
-      "#..................................#",
-      "# press_dollar_to_hit_line_end;    #",
-      "#..................................#",
-      "# press_zero_to_snap_back_home;    #",
-      "#..................................#",
-      "# unlock_gate_with_golden_key;     #",
-      "#..................................#",
-      "# enter_crypt_portal_below;        #",
       "####################################"
     ],
     npcs: [
       {
-        id: 'findley',
-        name: 'Master Findley',
-        x: 28,
+        id: 'warden',
+        name: 'Cliff Warden',
+        x: 6,
         y: 2,
-        avatar: '🧙‍♂️',
+        avatar: '🧗',
         dialogue: [
-          "Greetings! Why crawl character by character when you can fly?",
-          "Press '$' to zip directly to the end of a line!",
-          "Press '0' or '^' to snap to the beginning!",
-          "And best of all: press 'f' followed by any letter to instantly teleport to it on the line!"
+          "Greetings, traveler! These suspension bridges span bottomless chasms.",
+          "Never crawl 30 steps with 'l' or 'h' across a long ledge!",
+          "Press '$' to zip straight to the far end of the line in one instant.",
+          "Press '0' or '^' to snap back to the cliff base stairway instantly!"
         ]
       }
     ],
     keys: [
-      { id: 'k3', x: 28, y: 14, keyType: 'goldKey', name: 'Gold Key' }
+      { id: 'k3', x: 34, y: 6, keyType: 'goldKey', name: 'Gold Key' }
     ],
     doors: [
-      { id: 'd3', x: 18, y: 16, keyRequired: 'goldKey', orientation: 'vertical', label: 'Temple Gate' }
+      { id: 'd3', x: 24, y: 8, keyRequired: 'goldKey', orientation: 'vertical', label: 'Cliff Gate' }
     ],
     chests: [
       {
         id: 'c4',
-        x: 31,
+        x: 34,
         y: 4,
         rewardType: 'ability',
         rewardValue: '$',
         label: "Unlocked '$' & '0' (Line Boundaries)!"
-      },
-      {
-        id: 'c5',
-        x: 27,
-        y: 6,
-        rewardType: 'ability',
-        rewardValue: 'f',
-        label: "Unlocked 'f' & ';' (Find Character Forward)!"
       }
     ],
     gems: [
-      { id: 'g9', x: 12, y: 4, value: 30 },
-      { id: 'g10', x: 25, y: 8, value: 30 },
-      { id: 'g11', x: 16, y: 10, value: 30 },
-      { id: 'g12', x: 10, y: 12, value: 30 }
+      { id: 'g9', x: 18, y: 4, value: 30 },
+      { id: 'g10', x: 18, y: 6, value: 30 },
+      { id: 'g11', x: 18, y: 8, value: 30 }
     ],
     portals: [],
     obstacles: [],
-    exit: { x: 26, y: 16, targetLevel: 4 },
-    objective: "Master 'f<char>', '$', and '0' to navigate the canyon and seize the Gold Key!"
+    exit: { x: 35, y: 8, targetLevel: 4 },
+    objective: "Use '$' to zip across ledges for the chest and Gold Key, snap back with '0', and unlock the gate!"
   },
 
   // =========================================================================
   // CHAPTER 4: The Caverns of Till & Reverse Seek [Dojo Day 5]
-  // Mechanics: t, T, F, and repeat , (safe precision inline seek)
+  // Mechanics: Inline seeking with f, t, F, T, ;, and ,
   // =========================================================================
   {
     id: 4,
     name: "Chapter 4: Caverns of Till & Reverse Seek",
-    subtitle: "Precision Till t/T and Backward F [Dojo Day 5]",
+    subtitle: "Precision Inline Seeking with f, t, F, T, ;, and , [Dojo Day 5]",
     width: 34,
-    height: 18,
+    height: 12,
     playerStart: { x: 2, y: 2 },
-    initialAbilities: ['h', 'j', 'k', 'l', 'w', 'b', 'e', 'ge', '0', '$', '^', 'f', ';'],
+    initialAbilities: ['h', 'j', 'k', 'l', 'w', 'b', 'e', 'ge', '0', '$', '^'],
     map: [
       "##################################",
-      "#................................#",
-      "# path:..safe_walkway~~magma_pit.#",
-      "#................................#",
-      "# danger:..ice_bridge~~spikes_X..#",
-      "#................................#",
-      "# seek_back:..return_home_with_F.#",
-      "#................................#",
-      "# stop_till_safe:..till_with_t~~.#",
-      "#................................#",
-      "# repeat_reverse_with_comma_key..#",
-      "#................................#",
-      "# bronze_key_shines_in_chamber...#",
-      "#................................#",
-      "# cavern_gate_locks_exit_door....#",
-      "#................................#",
-      "# venture_into_spire_above.......#",
+      "# Magma Caverns: Seekers Vault   #",
+      "# ..Hermit........c1.............#",
+      "#.################################",
+      "#...a~~~b~~~c~~~d~~~e~~~c2.......#",
+      "#.################################",
+      "#...bridge===c3~~~~~~magma_pit~~~#",
+      "#.################################",
+      "#...s~~~t~~~o~~~n~~~e~~~Key......#",
+      "#.################################",
+      "#...Cavern_Gate=============Exit.#",
       "##################################"
     ],
     npcs: [
       {
         id: 'hermit',
         name: 'Cavern Hermit',
-        x: 10,
+        x: 4,
         y: 2,
         avatar: '🧔',
         dialogue: [
-          "Beware the magma and spikes! If you use 'f~', you will land right IN the lava!",
-          "Use 't~' (Till) instead: it lands you ONE tile BEFORE the target, keeping you safe!",
-          "Use 'F<char>' to seek backwards to safety, and ',' to reverse your repeat search."
+          "Beware the magma pits! Walking with normal steps will burn your feet.",
+          "Use 'f{char}' to leap forward across stepping stones over the lava.",
+          "Use 't~' (Till) to stop safely 1 tile before a hazard pit!",
+          "Use 'F{char}' and ',' to reverse your search and leap backward to safety."
         ]
       }
     ],
     keys: [
-      { id: 'k4_bronze', x: 25, y: 12, keyType: 'bronzeKey', name: 'Bronze Key' }
+      { id: 'k4_bronze', x: 24, y: 8, keyType: 'bronzeKey', name: 'Bronze Key' }
     ],
     doors: [
-      { id: 'd4_cavern', x: 22, y: 14, keyRequired: 'bronzeKey', orientation: 'vertical', label: 'Cavern Gate' }
+      { id: 'd4_cavern', x: 15, y: 10, keyRequired: 'bronzeKey', orientation: 'vertical', label: 'Cavern Gate' }
     ],
     chests: [
       {
+        id: 'c4_find',
+        x: 18,
+        y: 2,
+        rewardType: 'ability',
+        rewardValue: 'f',
+        label: "Unlocked 'f' & ';' (Find Character Forward)!"
+      },
+      {
         id: 'c4_till',
-        x: 28,
-        y: 8,
+        x: 24,
+        y: 4,
         rewardType: 'ability',
         rewardValue: 't',
-        label: "Unlocked 't' & 'T' (Till Inline Seek)!"
+        label: "Unlocked 't' & 'T' (Till Before Target)!"
       },
       {
         id: 'c4_rev',
-        x: 29,
+        x: 12,
         y: 6,
         rewardType: 'ability',
         rewardValue: 'F',
@@ -1532,13 +1518,13 @@ const LEVELS = [
     ],
     gems: [
       { id: 'g4_1', x: 12, y: 4, value: 30 },
-      { id: 'g4_2', x: 19, y: 6, value: 30 },
-      { id: 'g4_3', x: 14, y: 10, value: 30 }
+      { id: 'g4_2', x: 12, y: 8, value: 30 },
+      { id: 'g4_3', x: 20, y: 8, value: 30 }
     ],
     portals: [],
     obstacles: [],
-    exit: { x: 30, y: 16, targetLevel: 5 },
-    objective: "Use 't' to stop safely before magma, grab the Bronze Key, and advance to Chapter 5!"
+    exit: { x: 28, y: 10, targetLevel: 5 },
+    objective: "Master 'f' across magma stepping stones, use 't' before hazards, grab the Bronze Key, and advance!"
   },
 
   // =========================================================================
@@ -1557,19 +1543,19 @@ const LEVELS = [
       "################################",
       "# Spire Battlement Top Floor   #",
       "# ============================ #",
-      "#..............................#",
+      "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#",
       "# Balcony 4: Air currents blow #",
       "# ============================ #",
-      "#..............................#",
+      "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#",
       "# Balcony 3: High observatory  #",
       "# ============================ #",
-      "#..............................#",
+      "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#",
       "# Balcony 2: Library archives  #",
       "# ============================ #",
-      "#..............................#",
+      "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#",
       "# Balcony 1: Armory chambers   #",
       "# ============================ #",
-      "#..............................#",
+      "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#",
       "# Dungeon Vault: Ground Floor  #",
       "# ============================ #",
       "# Golden Key lies in dungeon   #",
@@ -1682,20 +1668,20 @@ const LEVELS = [
       "##################################",
       "# Glade 1: Sunlit canopy glade   #",
       "# ============================== #",
-      "#                                #",
-      "#                                #",
+      "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#",
+      "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#",
       "# Glade 2: Ancient oak grove     #",
       "# ============================== #",
-      "#                                #",
-      "#                                #",
+      "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#",
+      "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#",
       "# Glade 3: Whispering pines      #",
       "# ============================== #",
-      "#                                #",
-      "#                                #",
+      "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#",
+      "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#",
       "# Glade 4: Silver Key shrine     #",
       "# ============================== #",
-      "#                                #",
-      "#                                #",
+      "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#",
+      "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#",
       "# Glade 5: Sacred forest exit    #",
       "# ============================== #",
       "##################################"
@@ -1758,46 +1744,47 @@ const LEVELS = [
       "# ( Chamber Alpha ) ~~~~~~~~~~ #",
       "# ................. ~~~~~~~~~~ #",
       "# ( ............. ) ~~~~~~~~~~ #",
-      "################### ~~~~~~~~~~ #",
-      "~~~~~~~~~~~~~~~~~~~ ~~~~~~~~~~ #",
+      "################################",
+      "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#",
       "# [ Chamber Beta  ] ~~~~~~~~~~ #",
       "# ................. ~~~~~~~~~~ #",
       "# [ ............. ] ~~~~~~~~~~ #",
-      "################### ~~~~~~~~~~ #",
-      "~~~~~~~~~~~~~~~~~~~ ~~~~~~~~~~ #",
+      "################################",
+      "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#",
       "# { Chamber Gamma } ~~~~~~~~~~ #",
       "# ................. ~~~~~~~~~~ #",
       "# { ............. } ~~~~~~~~~~ #",
-      "###################. ~~~~~~~~~ #",
-      "# Skull Key Altar Awaits Exit  #",
-      "# ............................ #",
+      "################################",
+      "#..Skull Key Altar Awaits Exit.#",
+      "#..............................#",
       "################################"
     ],
     npcs: [
       {
         id: 'monk',
         name: 'Bracket Monk',
-        x: 10,
+        x: 8,
         y: 3,
         avatar: '📿',
         dialogue: [
-          "The walls here are impenetrable to normal footsteps.",
+          "The chambers are sealed by solid granite and chasms. Walking cannot cross.",
+          "Open the chest here in Chamber Alpha to unlock the power of '%'!",
           "Stand upon any bracket '(', ')', '[', ']', '{', or '}' and press '%'!",
-          "The power of '%' will instantly transport your spirit to its matching partner!"
+          "The power of '%' will instantly transport you to its matching partner across the void!"
         ]
       }
     ],
     keys: [
-      { id: 'k7_skull', x: 16, y: 15, keyType: 'skullKey', name: 'Skull Key' }
+      { id: 'k7_skull', x: 16, y: 16, keyType: 'skullKey', name: 'Skull Key' }
     ],
     doors: [
-      { id: 'd7_crypt', x: 24, y: 15, keyRequired: 'skullKey', orientation: 'vertical', label: 'Crypt Seal' }
+      { id: 'd7_crypt', x: 24, y: 16, keyRequired: 'skullKey', orientation: 'vertical', label: 'Crypt Seal' }
     ],
     chests: [
       {
         id: 'c7_bracket',
         x: 14,
-        y: 12,
+        y: 3,
         rewardType: 'ability',
         rewardValue: '%',
         label: "Unlocked '%' (Matching Bracket Warp)!"
@@ -1810,69 +1797,64 @@ const LEVELS = [
     ],
     portals: [
       { id: 'p1', x: 2, y: 3, targetX: 18, targetY: 3, char: '(' },
-      { id: 'p2', x: 18, y: 3, targetX: 2, targetY: 3, char: ')' },
+      { id: 'p2', x: 18, y: 3, targetX: 2, targetY: 8, char: ')' },
       { id: 'p3', x: 2, y: 8, targetX: 18, targetY: 8, char: '[' },
-      { id: 'p4', x: 18, y: 8, targetX: 2, targetY: 8, char: ']' },
+      { id: 'p4', x: 18, y: 8, targetX: 2, targetY: 13, char: ']' },
       { id: 'p5', x: 2, y: 13, targetX: 18, targetY: 13, char: '{' },
-      { id: 'p6', x: 18, y: 13, targetX: 2, targetY: 13, char: '}' }
+      { id: 'p6', x: 18, y: 13, targetX: 4, targetY: 16, char: '}' }
     ],
     obstacles: [],
-    exit: { x: 28, y: 15, targetLevel: 8 },
-    objective: "Use '%' to warp across brackets, retrieve the Skull Key, and unlock the Crypt Seal!"
+    exit: { x: 28, y: 16, targetLevel: 8 },
+    objective: "Unlock '%' in Chamber Alpha, warp through Beta and Gamma to the Altar, and claim the Skull Key!"
   },
 
   // =========================================================================
   // CHAPTER 8: The Labyrinth of Precision Counts [Dojo Day 2]
-  // Mechanics: Count grammar (3w, 4j, 6l, 2f,) over crumbling tiles
+  // Mechanics: Count grammar (3w, 5j, 18h, 4j, 10h) across water bridges
   // =========================================================================
   {
     id: 8,
     name: "Chapter 8: Labyrinth of Precision Counts",
-    subtitle: "Precision Leaps with Counts: 3w, 4j, 6l [Dojo Day 2]",
+    subtitle: "Precision Leaps with Counts: 3w, 5j, 18h [Dojo Day 2]",
     width: 34,
-    height: 18,
-    playerStart: { x: 2, y: 2 },
+    height: 13,
+    playerStart: { x: 2, y: 1 },
     initialAbilities: ['h', 'j', 'k', 'l', 'w', 'b', 'e', 'ge', '0', '$', '^', 'f', 'F', 't', 'T', ';', ',', 'gg', 'G', '{', '}', '%'],
     map: [
       "##################################",
-      "# START~~~~~~~~~~~~~~~~~~~~~~~~~~#",
-      "# step:..~~~jump~~~safe~~~zone...#",
-      "# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #",
-      "# ~~~~~~....~~~~~~....~~~~~~.... #",
-      "# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #",
-      "# count_3w_across_ocean_islands. #",
-      "# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #",
-      "# leap_4j_downward_to_platforms. #",
-      "# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #",
-      "# hit_6l_right_into_sanctuary... #",
-      "# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #",
-      "# bronze_key_rests_on_pillar.... #",
-      "# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #",
-      "# unlock_labyrinth_gate_ahead... #",
-      "# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #",
-      "# enter_pruning_grounds_now..... #",
+      "# START~~~~Island1~~~~Island2~~~.#",
+      "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~..#",
+      "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~..#",
+      "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~..#",
+      "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~..#",
+      "#~~~~~~~~~~~~Key===============..#",
+      "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~..#",
+      "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~..#",
+      "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~..#",
+      "#~~~~~~~~~~~~Exit====Gate======..#",
+      "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#",
       "##################################"
     ],
     npcs: [
       {
         id: 'mathius',
         name: 'Count Mathius',
-        x: 8,
-        y: 2,
+        x: 4,
+        y: 1,
         avatar: '🧮',
         dialogue: [
           "In Vim, numbers give commands their true multiplied power!",
-          "Instead of pressing 'w' three times, type '3w'.",
-          "Try '4j' or '6l' to jump long distances without wearing down your keys!",
-          "Combine counts with motions to cross this treacherous chasm."
+          "Type '3w' to leap across the three islands to the far tower.",
+          "Use '5j' to descend the vertical bridge, then '18h' to reach the Key!",
+          "Precision counts save time and protect you from falling into the sea."
         ]
       }
     ],
     keys: [
-      { id: 'k8_bronze', x: 28, y: 12, keyType: 'bronzeKey', name: 'Bronze Key' }
+      { id: 'k8_bronze', x: 13, y: 6, keyType: 'bronzeKey', name: 'Bronze Key' }
     ],
     doors: [
-      { id: 'd8_gate', x: 24, y: 14, keyRequired: 'bronzeKey', orientation: 'vertical', label: 'Labyrinth Gate' }
+      { id: 'd8_gate', x: 21, y: 10, keyRequired: 'bronzeKey', orientation: 'vertical', label: 'Labyrinth Gate' }
     ],
     chests: [
       {
@@ -1885,91 +1867,90 @@ const LEVELS = [
       }
     ],
     gems: [
-      { id: 'g8_1', x: 12, y: 4, value: 50 },
-      { id: 'g8_2', x: 20, y: 4, value: 50 },
-      { id: 'g8_3', x: 28, y: 4, value: 50 }
+      { id: 'g8_1', x: 11, y: 1, value: 50 },
+      { id: 'g8_2', x: 22, y: 1, value: 50 },
+      { id: 'g8_3', x: 31, y: 3, value: 50 }
     ],
     portals: [],
     obstacles: [],
-    exit: { x: 30, y: 16, targetLevel: 9 },
-    objective: "Use counts like '3w', '4j', '6l' to leap islands, grab the Bronze Key, and advance!"
+    exit: { x: 13, y: 10, targetLevel: 9 },
+    objective: "Use counts like '3w', '5j', '18h' to navigate bridges, claim the Bronze Key, and advance!"
   },
 
   // =========================================================================
   // CHAPTER 9: The Pruning Grounds of 'x' [Dojo Days 2 & 4]
-  // Mechanics: Character deletion / weed clearing with x
+  // Mechanics: Character deletion / weed clearing with x and counts (3x)
   // =========================================================================
   {
     id: 9,
     name: "Chapter 9: The Pruning Grounds of 'x'",
-    subtitle: "Slice Glitches, Bugs, and Weeds with x [Dojo Days 2 & 4]",
+    subtitle: "Slice Glitches, Bugs, and Weeds with x and 3x [Dojo Days 2 & 4]",
     width: 32,
-    height: 18,
+    height: 14,
     playerStart: { x: 2, y: 2 },
     initialAbilities: ['h', 'j', 'k', 'l', 'w', 'b', 'e', 'ge', '0', '$', '^', 'f', 'F', 't', 'T', ';', ',', 'gg', 'G', '{', '}', '%'],
     map: [
       "################################",
-      "# Gardener Overgrown Sanctuary #",
+      "# Gardener Pete's Hedge Maze   #",
+      "# .Pete.........Chest..........#",
+      "#.##############################",
+      "#...Corridor_A....x............#",
+      "##############################.#",
+      "#...Corridor_B....xxx..........#",
+      "#.##############################",
+      "#...Key...x...Corridor_C.......#",
+      "##############################.#",
+      "#...Pruning_Gate==========Exit.#",
       "# ============================ #",
-      "# ............................ #",
-      "# xxxxxxxxxxxxxxxxxxxxxxxx.... #",
-      "# ............................ #",
-      "# ....xxxxxxxxxxxxxxxxxxxx.... #",
-      "# ............................ #",
-      "# xxxxxxxxxxxxxxxxxxxxxxxx.... #",
-      "# ............................ #",
-      "# Ruby Key glows in overgrown. #",
-      "# ............................ #",
-      "# Pruning Gate seals garden .. #",
-      "# ============================ #",
-      "# ............................ #",
-      "# Enter the Mason's workshop . #",
-      "# ============================ #",
+      "#..............................#",
       "################################"
     ],
     npcs: [
       {
         id: 'pete',
         name: 'Gardener Pete',
-        x: 8,
-        y: 3,
+        x: 4,
+        y: 2,
         avatar: '🧑‍🌾',
         dialogue: [
-          "Glitch weeds 'x' have choked my entire garden path!",
-          "Stand facing them and press 'x' to prune them away, turning them into stone paths.",
-          "Clear the weeds, retrieve my Ruby Key, and open the garden gate!"
+          "Glitch weeds 'x' have choked my entire hedgerow maze!",
+          "Stand facing a weed and press 'x' to slice it away into a walkable path.",
+          "For clusters of weeds like 'xxx', type '3x' to prune them all at once!",
+          "Prune the corridors, claim my Ruby Key, and unlock the garden gate."
         ]
       }
     ],
     keys: [
-      { id: 'k9_ruby', x: 5, y: 10, keyType: 'rubyKey', name: 'Ruby Key' }
+      { id: 'k9_ruby', x: 5, y: 8, keyType: 'rubyKey', name: 'Ruby Key' }
     ],
     doors: [
-      { id: 'd9_gate', x: 22, y: 12, keyRequired: 'rubyKey', orientation: 'vertical', label: 'Pruning Gate' }
+      { id: 'd9_gate', x: 20, y: 10, keyRequired: 'rubyKey', orientation: 'vertical', label: 'Pruning Gate' }
     ],
     chests: [
       {
         id: 'c9_x',
-        x: 26,
-        y: 3,
+        x: 18,
+        y: 2,
         rewardType: 'ability',
         rewardValue: 'x',
         label: "Unlocked 'x' (Cut Character / Obstacle)!"
       }
     ],
     gems: [
-      { id: 'g9_1', x: 15, y: 5, value: 50 },
-      { id: 'g9_2', x: 15, y: 7, value: 50 },
-      { id: 'g9_3', x: 15, y: 9, value: 50 }
+      { id: 'g9_1', x: 10, y: 4, value: 50 },
+      { id: 'g9_2', x: 10, y: 6, value: 50 },
+      { id: 'g9_3', x: 20, y: 8, value: 50 }
     ],
     portals: [],
     obstacles: [
-      { id: 'obs9_1', x: 2, y: 4, char: 'x', type: 'weed' },
-      { id: 'obs9_2', x: 10, y: 6, char: 'x', type: 'weed' },
-      { id: 'obs9_3', x: 2, y: 8, char: 'x', type: 'weed' }
+      { id: 'obs9_1', x: 18, y: 4, char: 'x', type: 'weed' },
+      { id: 'obs9_2', x: 18, y: 6, char: 'x', type: 'weed' },
+      { id: 'obs9_3', x: 19, y: 6, char: 'x', type: 'weed' },
+      { id: 'obs9_4', x: 20, y: 6, char: 'x', type: 'weed' },
+      { id: 'obs9_5', x: 10, y: 8, char: 'x', type: 'weed' }
     ],
-    exit: { x: 28, y: 15, targetLevel: 10 },
-    objective: "Unlock 'x', slice through the glitch weeds, grab the Ruby Key, and unlock the gate!"
+    exit: { x: 26, y: 10, targetLevel: 10 },
+    objective: "Unlock 'x', prune single and clustered weeds with 'x' and '3x', grab Ruby Key, and exit!"
   },
 
   // =========================================================================
@@ -1981,53 +1962,48 @@ const LEVELS = [
     name: "Chapter 10: Masons of Replacement ('r')",
     subtitle: "Restore Broken Bridges with r= [Dojo Days 4 & 14]",
     width: 34,
-    height: 18,
+    height: 12,
     playerStart: { x: 2, y: 2 },
     initialAbilities: ['h', 'j', 'k', 'l', 'w', 'b', 'e', 'ge', '0', '$', '^', 'f', 'F', 't', 'T', ';', ',', 'gg', 'G', '{', '}', '%', 'x'],
     map: [
       "##################################",
-      "# Mason's Aqueduct Construction  #",
-      "# ============================== #",
-      "# .............................. #",
-      "# Bridge 1:..====~====~====..... #",
-      "# .............................. #",
-      "# Bridge 2:..====~====~====..... #",
-      "# .............................. #",
-      "# Bridge 3:..====~====~====..... #",
-      "# .............................. #",
-      "# Emerald Key in tool shed...... #",
-      "# .............................. #",
-      "# Mason Gate locks exit path.... #",
-      "# ============================== #",
-      "# .............................. #",
-      "# Halls of Time await beyond.... #",
-      "# ============================== #",
+      "# West Bank      ~~~   East Bank #",
+      "# .Bob..Chest... ~~~ ........... #",
+      "# .............. ~~~ ........... #",
+      "# .............. ~~~ ........... #",
+      "# .............. ~~~ ........... #",
+      "# ===Bridge=====~~======Key===== #",
+      "# .............. ~~~ ........... #",
+      "# .............. ~~~ ........... #",
+      "# .............. ~~~ Mason_GateE #",
+      "# ============== ~~~ =========== #",
       "##################################"
     ],
     npcs: [
       {
         id: 'bob',
         name: 'Mason Bob',
-        x: 8,
+        x: 4,
         y: 2,
         avatar: '👷',
         dialogue: [
-          "Our water aqueducts have gaps '~' where stones collapsed into the river!",
-          "Facing a gap, press 'r' followed by '=' to replace the water with solid path.",
-          "Repair the bridge spans to collect the Emerald Key and cross to safety!"
+          "A raging river cuts our workshop in two! The bridge collapsed into water '~'!",
+          "Open the chest at (10, 2) to unlock the mason's tool 'r'.",
+          "Face each water gap and type 'r=' to replace the rushing water with solid bridge '=}.",
+          "Cross the repaired bridge, seize the Emerald Key, and open the Mason Gate!"
         ]
       }
     ],
     keys: [
-      { id: 'k10_emerald', x: 28, y: 10, keyType: 'emeraldKey', name: 'Emerald Key' }
+      { id: 'k10_emerald', x: 25, y: 6, keyType: 'emeraldKey', name: 'Emerald Key' }
     ],
     doors: [
-      { id: 'd10_mason', x: 24, y: 12, keyRequired: 'emeraldKey', orientation: 'vertical', label: 'Mason Gate' }
+      { id: 'd10_mason', x: 28, y: 9, keyRequired: 'emeraldKey', orientation: 'vertical', label: 'Mason Gate' }
     ],
     chests: [
       {
         id: 'c10_r',
-        x: 26,
+        x: 10,
         y: 2,
         rewardType: 'ability',
         rewardValue: 'r',
@@ -2035,14 +2011,14 @@ const LEVELS = [
       }
     ],
     gems: [
-      { id: 'g10_1', x: 17, y: 4, value: 60 },
-      { id: 'g10_2', x: 17, y: 6, value: 60 },
-      { id: 'g10_3', x: 17, y: 8, value: 60 }
+      { id: 'g10_1', x: 8, y: 6, value: 60 },
+      { id: 'g10_2', x: 20, y: 6, value: 60 },
+      { id: 'g10_3', x: 28, y: 6, value: 60 }
     ],
     portals: [],
     obstacles: [],
-    exit: { x: 28, y: 15, targetLevel: 11 },
-    objective: "Unlock 'r', use 'r=' to repair bridge gaps, grab the Emerald Key, and open the gate!"
+    exit: { x: 31, y: 9, targetLevel: 11 },
+    objective: "Unlock 'r', use 'r=' to repair both bridge gaps, grab the Emerald Key, and open the gate!"
   },
 
   // =========================================================================
@@ -2054,26 +2030,23 @@ const LEVELS = [
     name: "Chapter 11: Halls of Undo & Reversal",
     subtitle: "Manipulate Time and Reverse Traps with u [Dojo Day 12]",
     width: 32,
-    height: 18,
+    height: 15,
     playerStart: { x: 2, y: 2 },
-    initialAbilities: ['h', 'j', 'k', 'l', 'w', 'b', 'e', 'ge', '0', '$', '^', 'f', 'F', 't', 'T', ';', ',', 'gg', 'G', '{', '}', '%', 'x', 'r'],
+    initialAbilities: ['h', 'j', 'k', 'l', 'w', 'b', 'e', 'ge', '0', '$', '^', 'f', 'F', 't', 'T', ';', ',', 'gg', 'G', '{', '}', '%', 'x', 'r', 'u'],
     map: [
       "################################",
       "# Chrono Chamber of Time Loops #",
-      "# ============================ #",
-      "# ............................ #",
-      "# Dead-End Vault with Key: ... #",
-      "# ............................ #",
-      "# ############################ #",
-      "# ............................ #",
-      "# Labyrinth Corridors Ahead .. #",
-      "# ............................ #",
-      "# Silver Key unlocks door .... #",
-      "# ............................ #",
-      "# Chrono Gate guards exit .... #",
-      "# ============================ #",
-      "# ............................ #",
-      "# Step into Polarity Chamber.. #",
+      "# .Chronos.....................#",
+      "#.##############################",
+      "#...Trap_Pit: Dead_End_Fault...#",
+      "#.##############################",
+      "#..............................#",
+      "#.##############################",
+      "#...Silver_Key_Altar_Vault:==K.#",
+      "#.##############################",
+      "#..............................#",
+      "#.##############################",
+      "#...Chrono_Gate===========Exit.#",
       "# ============================ #",
       "################################"
     ],
@@ -2081,18 +2054,19 @@ const LEVELS = [
       {
         id: 'chronos',
         name: 'Chronos the Sage',
-        x: 8,
+        x: 4,
         y: 2,
         avatar: '⏳',
         dialogue: [
-          "Never fear making a wrong turn or getting stuck in a trap corridor.",
+          "Beware the temporal pitfalls! The upper vault is a deceptive dead-end trap.",
           "In Vim, the 'u' key is your eternal undo spell!",
-          "Make a misstep? Cut the wrong tile? Press 'u' to rewind time and state instantly."
+          "Make a misstep into a dead end? Press 'u' repeatedly to rewind your path and time itself.",
+          "Retrieve the Silver Key from the middle vault and unlock the Chrono Gate!"
         ]
       }
     ],
     keys: [
-      { id: 'k11_silver', x: 27, y: 4, keyType: 'silverKey', name: 'Silver Key' }
+      { id: 'k11_silver', x: 29, y: 8, keyType: 'silverKey', name: 'Silver Key' }
     ],
     doors: [
       { id: 'd11_chrono', x: 20, y: 12, keyRequired: 'silverKey', orientation: 'vertical', label: 'Chrono Gate' }
@@ -2100,8 +2074,8 @@ const LEVELS = [
     chests: [
       {
         id: 'c11_gems',
-        x: 27,
-        y: 9,
+        x: 22,
+        y: 8,
         rewardType: 'gems',
         rewardValue: 120,
         label: "Discovered 120 Timeless Gems!"
@@ -2110,12 +2084,12 @@ const LEVELS = [
     gems: [
       { id: 'g11_1', x: 12, y: 4, value: 60 },
       { id: 'g11_2', x: 20, y: 4, value: 60 },
-      { id: 'g11_3', x: 12, y: 9, value: 60 }
+      { id: 'g11_3', x: 12, y: 8, value: 60 }
     ],
     portals: [],
     obstacles: [],
-    exit: { x: 26, y: 15, targetLevel: 12 },
-    objective: "Navigate the corridors, collect the Silver Key, use 'u' if trapped, and unlock the gate!"
+    exit: { x: 29, y: 12, targetLevel: 12 },
+    objective: "Navigate the corridors, use 'u' to rewind trap steps, claim the Silver Key, and unlock the Chrono Gate!"
   },
 
   // =========================================================================
@@ -2127,54 +2101,52 @@ const LEVELS = [
     name: "Chapter 12: Chamber of Case Inversion ('~')",
     subtitle: "Toggle Binary Switches and Gates with ~ [Dojo Days 13 & 27]",
     width: 34,
-    height: 18,
+    height: 14,
     playerStart: { x: 2, y: 2 },
-    initialAbilities: ['h', 'j', 'k', 'l', 'w', 'b', 'e', 'ge', '0', '$', '^', 'f', 'F', 't', 'T', ';', ',', 'gg', 'G', '{', '}', '%', 'x', 'r'],
+    initialAbilities: ['h', 'j', 'k', 'l', 'w', 'b', 'e', 'ge', '0', '$', '^', 'f', 'F', 't', 'T', ';', ',', 'gg', 'G', '{', '}', '%', 'x', 'r', 'u'],
     map: [
       "##################################",
       "# Sanctuary of Polarity Crystals #",
+      "# .Switcher.....Chest............#",
+      "#.################################",
+      "#...Switch_Alpha: [o] =====Gate1.#",
+      "################################.#",
+      "#...Switch_Beta:  [s] =====Gate2.#",
+      "################################.#",
+      "#...Gold_Key_Vault:==============#",
+      "################################.#",
+      "#...Polarity_Gate===========Exit.#",
       "# ============================== #",
-      "# .............................. #",
-      "# Switch Alpha: [o] closed gate. #",
-      "# .............................. #",
-      "# Switch Beta:  [s] drawbridge.. #",
-      "# .............................. #",
-      "# Gold Key shines in locked room #",
-      "# .............................. #",
-      "# Polarity Gate seals passage... #",
-      "# ============================== #",
-      "# .............................. #",
-      "# Enter the Valley of Beacons... #",
-      "# ============================== #",
-      "# .............................. #",
-      "# Exit portal ready ahead....... #",
+      "#................................#",
       "##################################"
     ],
     npcs: [
       {
         id: 'switcher',
         name: 'Mystic Switcher',
-        x: 8,
+        x: 4,
         y: 2,
         avatar: '🔮',
         dialogue: [
-          "Behold the ancient runes! Lowercase letters like 'o' are dormant and closed.",
-          "Stand facing the switch and press '~' (tilde) to invert its case to uppercase 'O'!",
-          "Inverting the switch triggers magical mechanisms that open gates throughout the room."
+          "Behold the ancient polarity mechanisms! Lowercase letters like 'o' and 's' are dormant.",
+          "Open the chest at (18, 2) to unlock the '~' (tilde) case inversion power.",
+          "Stand facing switch 'o' and press '~' to flip it to uppercase 'O' and open Gate 1!",
+          "Next, face switch 's' and press '~' to flip it to 'S' to lower Gate 2 and claim the Gold Key!"
         ]
       }
     ],
     keys: [
-      { id: 'k12_gold', x: 28, y: 8, keyType: 'goldKey', name: 'Gold Key' }
+      { id: 'k12_gold', x: 20, y: 8, keyType: 'goldKey', name: 'Gold Key' }
     ],
     doors: [
-      { id: 'd12_switch', x: 22, y: 4, keyRequired: 'switch', orientation: 'vertical', label: 'Switch Gate' },
-      { id: 'd12_polarity', x: 24, y: 10, keyRequired: 'goldKey', orientation: 'vertical', label: 'Polarity Gate' }
+      { id: 'd12_switch', x: 28, y: 4, keyRequired: 'switch', orientation: 'vertical', label: 'Switch Gate 1' },
+      { id: 'd12_drawbridge', x: 28, y: 6, keyRequired: 'switch', orientation: 'vertical', label: 'Switch Gate 2' },
+      { id: 'd12_polarity', x: 20, y: 10, keyRequired: 'goldKey', orientation: 'vertical', label: 'Polarity Gate' }
     ],
     chests: [
       {
         id: 'c12_tilde',
-        x: 26,
+        x: 18,
         y: 2,
         rewardType: 'ability',
         rewardValue: '~',
@@ -2182,14 +2154,14 @@ const LEVELS = [
       }
     ],
     gems: [
-      { id: 'g12_1', x: 12, y: 6, value: 70 },
-      { id: 'g12_2', x: 20, y: 6, value: 70 },
-      { id: 'g12_3', x: 12, y: 12, value: 70 }
+      { id: 'g12_1', x: 10, y: 4, value: 70 },
+      { id: 'g12_2', x: 10, y: 6, value: 70 },
+      { id: 'g12_3', x: 10, y: 8, value: 70 }
     ],
     portals: [],
     obstacles: [],
-    exit: { x: 28, y: 15, targetLevel: 13 },
-    objective: "Unlock '~', flip switch 'o' to 'O' to open the inner room, grab the Gold Key, and exit!"
+    exit: { x: 28, y: 10, targetLevel: 13 },
+    objective: "Unlock '~', flip switch 'o'->'O' and 's'->'S' to unlock both gates, grab Gold Key, and exit!"
   },
 
   // =========================================================================
@@ -2200,71 +2172,69 @@ const LEVELS = [
     id: 13,
     name: "Chapter 13: Valley of Golden Beacons ('*')",
     subtitle: "Search and Warp to Matching Tokens with * [Dojo Days 18 & 23]",
-    width: 36,
-    height: 20,
-    playerStart: { x: 2, y: 2 },
-    initialAbilities: ['h', 'j', 'k', 'l', 'w', 'b', 'e', 'ge', '0', '$', '^', 'f', 'F', 't', 'T', ';', ',', 'gg', 'G', '{', '}', '%', 'x', 'r', '~'],
+    width: 34,
+    height: 17,
+    playerStart: { x: 2, y: 1 },
+    initialAbilities: ['h', 'j', 'k', 'l', 'w', 'b', 'e', 'ge', '0', '$', '^', 'f', 'F', 't', 'T', ';', ',', 'gg', 'G', '{', '}', '%', 'x', 'r', 'u', '~'],
     map: [
-      "####################################",
-      "# Cliff 1: BEACON ~~~~~~~~~~~~~~~~ #",
-      "# ================================ #",
-      "# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #",
-      "# Cliff 2: ~~~~~~~~ BEACON ~~~~~~~ #",
-      "# ================================ #",
-      "# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #",
-      "# Cliff 3: ~~~~~~~~~~~~~~ RUNE ~~~ #",
-      "# ================================ #",
-      "# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #",
-      "# Cliff 4: RUNE ~~~~~~~~~~~~~~~~~~ #",
-      "# ================================ #",
-      "# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #",
-      "# Cliff 5: ~~~~~~~~~~~~~~ NOVA ~~~ #",
-      "# Ruby Key rests on remote peak .. #",
-      "# Cliff 6: NOVA ~~~~~~~~~~~~~~~~~~ #",
-      "# Starlight Gate awaits traveler . #",
-      "# ================================ #",
-      "# Passage to Demolition Vaults ... #",
-      "####################################"
+      "##################################",
+      "# Island_One:...Chest...SOLAR... #",
+      "# ============================== #",
+      "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#",
+      "#...SOLAR=========ASTRAL.........#",
+      "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#",
+      "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#",
+      "#...ASTRAL========LUNAR..........#",
+      "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#",
+      "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#",
+      "#...ZENITH====LUNAR======Key.....#",
+      "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#",
+      "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#",
+      "#...ZENITH====Gate==========Exit.#",
+      "# ============================== #",
+      "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#",
+      "##################################"
     ],
     npcs: [
       {
         id: 'stella',
         name: 'Stargazer Stella',
-        x: 10,
-        y: 2,
+        x: 4,
+        y: 1,
         avatar: '🔭',
         dialogue: [
-          "The cliffs are separated by miles of bottomless air.",
-          "Stand on any beacon word like 'BEACON' or 'RUNE' and press '*'!",
-          "In Vim, '*' searches forward for the word under the cursor, warping you straight to the next matching beacon!"
+          "The sky islands are isolated by miles of bottomless void.",
+          "Open the chest at (16, 1) to unlock the '*' token search warp.",
+          "Stand upon a beacon word like 'SOLAR', 'ASTRAL', or 'LUNAR' and press '*'!",
+          "In Vim, '*' searches forward for the word under your cursor, warping you across the chasm!"
         ]
       }
     ],
     keys: [
-      { id: 'k13_ruby', x: 28, y: 14, keyType: 'rubyKey', name: 'Ruby Key' }
+      { id: 'k13_ruby', x: 26, y: 10, keyType: 'rubyKey', name: 'Ruby Key' }
     ],
     doors: [
-      { id: 'd13_star', x: 24, y: 16, keyRequired: 'rubyKey', orientation: 'vertical', label: 'Starlight Gate' }
+      { id: 'd13_star', x: 14, y: 13, keyRequired: 'rubyKey', orientation: 'vertical', label: 'Starlight Gate' }
     ],
     chests: [
       {
         id: 'c13_star',
-        x: 26,
-        y: 2,
+        x: 16,
+        y: 1,
         rewardType: 'ability',
         rewardValue: '*',
         label: "Unlocked '*' (Search Word Under Cursor)!"
       }
     ],
     gems: [
-      { id: 'g13_1', x: 19, y: 4, value: 75 },
-      { id: 'g13_2', x: 25, y: 7, value: 75 },
-      { id: 'g13_3', x: 10, y: 10, value: 75 }
+      { id: 'g13_1', x: 10, y: 4, value: 75 },
+      { id: 'g13_2', x: 10, y: 7, value: 75 },
+      { id: 'g13_3', x: 20, y: 10, value: 75 }
     ],
     portals: [],
     obstacles: [],
-    exit: { x: 30, y: 18, targetLevel: 14 },
-    objective: "Unlock '*', warp across cliffs with matching tokens, retrieve the Ruby Key, and proceed!"
+    exit: { x: 28, y: 13, targetLevel: 14 },
+    objective: "Unlock '*', warp across beacon islands using '*', retrieve Ruby Key, and exit!"
   },
 
   // =========================================================================
@@ -2276,26 +2246,23 @@ const LEVELS = [
     name: "Chapter 14: Line Demolition Vaults ('D')",
     subtitle: "Obliterate Barriers to Line End with D [Dojo Day 4]",
     width: 34,
-    height: 18,
+    height: 15,
     playerStart: { x: 2, y: 2 },
-    initialAbilities: ['h', 'j', 'k', 'l', 'w', 'b', 'e', 'ge', '0', '$', '^', 'f', 'F', 't', 'T', ';', ',', 'gg', 'G', '{', '}', '%', 'x', 'r', '~', '*'],
+    initialAbilities: ['h', 'j', 'k', 'l', 'w', 'b', 'e', 'ge', '0', '$', '^', 'f', 'F', 't', 'T', ';', ',', 'gg', 'G', '{', '}', '%', 'x', 'r', 'u', '~', '*'],
     map: [
       "##################################",
       "# Demolition Training Arena      #",
-      "# ============================== #",
-      "# .............................. #",
-      "# Corridor 1:..xxxxxxxxx barriers#",
-      "# .............................. #",
-      "# Corridor 2:..xxxxxxxxx tripwire#",
-      "# .............................. #",
-      "# Corridor 3:..xxxxxxxxx lasers..#",
-      "# .............................. #",
-      "# Diamond Key locked in chamber. #",
-      "# .............................. #",
-      "# Vault Gate guards Grand Citadel#",
-      "# ============================== #",
-      "# .............................. #",
-      "# Ascend to Citadel of Bram..... #",
+      "# .Dan..Chest....................#",
+      "#.################################",
+      "#...# Barrier_1: xxxxxxxxxxxxxxx.#",
+      "#.################################",
+      "#...#............................#",
+      "#.################################",
+      "#...# Barrier_2: xxxxxxxxxxxxxxx.#",
+      "#.################################",
+      "#...# Barrier_3: xxxxxxxxxxxxxxK.#",
+      "#.################################",
+      "#...Vault_Gate==============Exit.#",
       "# ============================== #",
       "##################################"
     ],
@@ -2303,26 +2270,27 @@ const LEVELS = [
       {
         id: 'dan',
         name: 'Demolition Dan',
-        x: 8,
+        x: 4,
         y: 2,
         avatar: '💣',
         dialogue: [
           "Single 'x' cuts one tile at a time. Too slow for a master!",
-          "In Vim, 'D' (d$) deletes from your cursor all the way to the END of the line!",
-          "Stand before a row of barrier traps and hit 'D' to blast the entire path open in one strike!"
+          "Open the chest at (10, 2) to unlock 'D' (delete to end of line)!",
+          "Stand facing each laser barrier row and hit 'D' to blast the entire path open in one strike!",
+          "Vaporize Barrier 3 to seize the Diamond Key, then open the Vault Gate!"
         ]
       }
     ],
     keys: [
-      { id: 'k14_diamond', x: 28, y: 10, keyType: 'diamondKey', name: 'Diamond Key' }
+      { id: 'k14_diamond', x: 31, y: 10, keyType: 'diamondKey', name: 'Diamond Key' }
     ],
     doors: [
-      { id: 'd14_vault', x: 24, y: 12, keyRequired: 'diamondKey', orientation: 'vertical', label: 'Vault Gate' }
+      { id: 'd14_vault', x: 15, y: 12, keyRequired: 'diamondKey', orientation: 'vertical', label: 'Vault Gate' }
     ],
     chests: [
       {
         id: 'c14_d',
-        x: 26,
+        x: 10,
         y: 2,
         rewardType: 'ability',
         rewardValue: 'D',
@@ -2330,17 +2298,17 @@ const LEVELS = [
       }
     ],
     gems: [
-      { id: 'g14_1', x: 14, y: 4, value: 80 },
-      { id: 'g14_2', x: 14, y: 6, value: 80 },
-      { id: 'g14_3', x: 14, y: 8, value: 80 }
+      { id: 'g14_1', x: 31, y: 4, value: 80 },
+      { id: 'g14_2', x: 31, y: 8, value: 80 },
+      { id: 'g14_3', x: 20, y: 6, value: 80 }
     ],
     portals: [],
     obstacles: [
-      { id: 'obs14_1', x: 15, y: 4, char: 'x', type: 'barrier' },
-      { id: 'obs14_2', x: 15, y: 6, char: 'x', type: 'barrier' },
-      { id: 'obs14_3', x: 15, y: 8, char: 'x', type: 'barrier' }
+      { id: 'obs14_1', x: 17, y: 4, char: 'x', type: 'barrier' },
+      { id: 'obs14_2', x: 17, y: 8, char: 'x', type: 'barrier' },
+      { id: 'obs14_3', x: 17, y: 10, char: 'x', type: 'barrier' }
     ],
-    exit: { x: 28, y: 15, targetLevel: 15 },
+    exit: { x: 28, y: 12, targetLevel: 15 },
     objective: "Unlock 'D', vaporize barrier rows, claim the Diamond Key, and enter the Grand Citadel!"
   },
 
@@ -2352,60 +2320,60 @@ const LEVELS = [
     id: 15,
     name: "Chapter 15: Grand Citadel of the Neovim Grandmaster",
     subtitle: "The Ultimate Modal Trial - Bram Moolenaar's Blessing [Dojo Days 29-30]",
-    width: 36,
+    width: 34,
     height: 22,
-    playerStart: { x: 3, y: 19 },
-    initialAbilities: ['h', 'j', 'k', 'l', 'w', 'b', 'e', 'ge', '0', '$', '^', 'f', 'F', 't', 'T', ';', ',', 'gg', 'G', '{', '}', '%', 'x', 'r', '~', '*', 'D'],
+    playerStart: { x: 31, y: 20 },
+    initialAbilities: ['h', 'j', 'k', 'l', 'w', 'b', 'e', 'ge', '0', '$', '^', 'f', 'F', 't', 'T', ';', ',', 'gg', 'G', '{', '}', '%', 'x', 'r', 'u', '~', '*', 'D'],
     map: [
-      "####################################",
-      "# Golden Citadel of Modal Masters  #",
-      "# ================================ #",
-      "# ( Crown Chamber ) ~~~~~~~~~~~~~~ #",
-      "# ( ..............) ~~~~~~~~~~~~~~ #",
-      "# Switch: [o] ~~~~~ RUNE ~~~~~~~~~ #",
-      "# ================================ #",
-      "#                                  #",
-      "# Barrier Row: xxxxxxxxxxxxxxxxxx. #",
-      "#                                  #",
-      "# Broken Bridge: =====~=====~===== #",
-      "#                                  #",
-      "# RUNE ~~~~~~~~~~~~~~~~~~~~~~~~~~~ #",
-      "# ================================ #",
-      "#                                  #",
-      "# Golden Key on Altar of Mastery . #",
-      "# ================================ #",
-      "# Grandmaster Gate to the Throne . #",
-      "# ................................ #",
-      "# Traveler Entrance: Begin Trial . #",
-      "# ================================ #",
-      "####################################"
+      "##################################",
+      "# Bram's Golden Throne of Glory  #",
+      "# ...............Exit........... #",
+      "# ...........Grandmaster........ #",
+      "# ==============Gate============ #",
+      "# .............CROWN............ #",
+      "##################################",
+      "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#",
+      "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#",
+      "#.################################",
+      "#...Switch: [o] ==Gate===Key CROWN#",
+      "#.################################",
+      "#................................#",
+      "################################.#",
+      "#...Barrier:..xxxxxxxxxxxxxxxxx..#",
+      "#.################################",
+      "#................................#",
+      "################################.#",
+      "#...Bridge====~~================.#",
+      "#.################################",
+      "# Foyer: Begin the Grand Trial . #",
+      "##################################"
     ],
     npcs: [
       {
         id: 'grandmaster',
         name: 'Grandmaster Bram',
-        x: 18,
+        x: 16,
         y: 3,
         avatar: '👑',
         dialogue: [
           "Welcome to the pinnacle of the Modal Arts, Hero!",
-          "You have walked the Shoreline, leaped the Archipelago, navigated the Lines,",
-          "ascended the Towers, paired the Brackets, and mastered Deletion and Replacement.",
-          "Combine all your arts in this final hall, reach my throne, and receive the Grandmaster Crown!"
+          "You repaired broken bridges with 'r', vaporized barrier rows with 'D',",
+          "inverted polarities with '~', and leaped across the stars with '*'.",
+          "Step upon my Golden Throne, claim your Grandmaster Crown, and ascend to Vim immortality!"
         ]
       }
     ],
     keys: [
-      { id: 'k15_gold', x: 28, y: 15, keyType: 'goldKey', name: 'Grandmaster Gold Key' }
+      { id: 'k15_gold', x: 25, y: 10, keyType: 'goldKey', name: 'Grandmaster Gold Key' }
     ],
     doors: [
-      { id: 'd15_switch', x: 18, y: 5, keyRequired: 'switch', orientation: 'vertical', label: 'Citadel Switch Gate' },
-      { id: 'd15_master', x: 18, y: 17, keyRequired: 'goldKey', orientation: 'vertical', label: 'Grandmaster Gate' }
+      { id: 'd15_switch', x: 18, y: 10, keyRequired: 'switch', orientation: 'vertical', label: 'Citadel Switch Gate' },
+      { id: 'd15_master', x: 16, y: 4, keyRequired: 'goldKey', orientation: 'vertical', label: 'Grandmaster Gate' }
     ],
     chests: [
       {
         id: 'c15_trophy',
-        x: 15,
+        x: 13,
         y: 3,
         rewardType: 'gems',
         rewardValue: 500,
@@ -2413,19 +2381,16 @@ const LEVELS = [
       }
     ],
     gems: [
-      { id: 'g15_1', x: 8, y: 3, value: 100 },
-      { id: 'g15_2', x: 26, y: 3, value: 100 },
-      { id: 'g15_3', x: 8, y: 15, value: 100 }
+      { id: 'g15_1', x: 8, y: 10, value: 100 },
+      { id: 'g15_2', x: 10, y: 14, value: 100 },
+      { id: 'g15_3', x: 10, y: 18, value: 100 }
     ],
-    portals: [
-      { id: 'p15_1', x: 2, y: 3, targetX: 18, targetY: 4, char: '(' },
-      { id: 'p15_2', x: 18, y: 4, targetX: 2, targetY: 3, char: ')' }
-    ],
+    portals: [],
     obstacles: [
-      { id: 'obs15_1', x: 15, y: 8, char: 'x', type: 'barrier' }
+      { id: 'obs15_1', x: 14, y: 14, char: 'x', type: 'barrier' }
     ],
-    exit: { x: 18, y: 2, isVictory: true },
-    objective: "Synthesize all modal powers, unlock the Grandmaster Gate, and reach Bram's Golden Throne!"
+    exit: { x: 16, y: 2, isVictory: true },
+    objective: "Repair bridges ('r='), vaporize barriers ('D'), toggle switch ('~'), warp with '*', and reach Bram's Throne!"
   }
 ];
 
@@ -3501,6 +3466,12 @@ class InputHandler {
 
     // 5. Handling Repeat Find (; and ,)
     if (key === ';') {
+      if (!this.game.player.hasAbility(';')) {
+        this.game.audio.playError();
+        this.game.renderer.addFloatingText("Key ';' is locked!", this.game.player.x, this.game.player.y, '#f7768e');
+        this.resetBuffer();
+        return;
+      }
       if (this.lastFind) {
         this.executeFind(this.lastFind.type, this.lastFind.target);
       } else {
@@ -3511,6 +3482,12 @@ class InputHandler {
     }
 
     if (key === ',') {
+      if (!this.game.player.hasAbility(',')) {
+        this.game.audio.playError();
+        this.game.renderer.addFloatingText("Key ',' is locked!", this.game.player.x, this.game.player.y, '#f7768e');
+        this.resetBuffer();
+        return;
+      }
       if (this.lastFind) {
         // Reverse direction
         const revMap = { f: 'F', F: 'f', t: 'T', T: 't' };
@@ -3547,8 +3524,9 @@ class InputHandler {
       return;
     }
 
-    if (key === 'D') {
-      this.game.handleDeleteLineEnd();
+    if (key === 'x') {
+      const count = this.getCount();
+      this.game.handleCutObstacle(count);
       this.resetBuffer();
       return;
     }
@@ -3961,9 +3939,9 @@ class Game {
   }
 
   handleFind(type, targetChar, count = 1) {
-    if (!this.player.hasAbility('f')) {
+    if (!this.player.hasAbility(type)) {
       this.audio.playError();
-      this.renderer.addFloatingText("Key 'f' is locked!", this.player.x, this.player.y, '#f7768e');
+      this.renderer.addFloatingText(`Key '${type}' is locked!`, this.player.x, this.player.y, '#f7768e');
       return;
     }
 
@@ -4037,29 +4015,44 @@ class Game {
     }
   }
 
-  handleCutObstacle() {
+  handleCutObstacle(count = 1) {
     if (!this.player.hasAbility('x')) {
       this.audio.playError();
       this.renderer.addFloatingText("Key 'x' is locked!", this.player.x, this.player.y, '#f7768e');
       return;
     }
 
-    // Check if standing on or facing obstacle
-    const obstacle = this.entities.obstacles.find(o => !o.isCleared && (
-      (o.x === this.player.x && o.y === this.player.y) ||
-      (this.player.direction === 'right' && o.x === this.player.x + 1 && o.y === this.player.y) ||
-      (this.player.direction === 'left' && o.x === this.player.x - 1 && o.y === this.player.y) ||
-      (this.player.direction === 'down' && o.x === this.player.x && o.y === this.player.y + 1) ||
-      (this.player.direction === 'up' && o.x === this.player.x && o.y === this.player.y - 1)
-    ));
+    let cutAny = false;
+    for (let c = 0; c < count; c++) {
+      let targetX = this.player.x;
+      let targetY = this.player.y;
+      if (this.player.direction === 'right') targetX += (c + 1);
+      else if (this.player.direction === 'left') targetX -= (c + 1);
+      else if (this.player.direction === 'down') targetY += (c + 1);
+      else if (this.player.direction === 'up') targetY -= (c + 1);
 
-    if (obstacle) {
-      this.recordHistory();
-      obstacle.clear();
-      this.tilemap.setTile(obstacle.x, obstacle.y, '='); // turn into path
-      this.audio.playSlash();
-      this.particles.emit(obstacle.x, obstacle.y, 14, '#9ece6a', 70, 3);
-      this.renderer.addFloatingText('Cut with x!', obstacle.x, obstacle.y, '#9ece6a');
+      let obstacle = null;
+      if (c === 0) {
+        obstacle = this.entities.obstacles.find(o => !o.isCleared && o.x === this.player.x && o.y === this.player.y);
+      }
+      if (!obstacle) {
+        obstacle = this.entities.obstacles.find(o => !o.isCleared && o.x === targetX && o.y === targetY);
+      }
+
+      if (obstacle) {
+        if (!cutAny) this.recordHistory();
+        obstacle.clear();
+        this.tilemap.setTile(obstacle.x, obstacle.y, '='); // turn into path
+        this.audio.playSlash();
+        this.particles.emit(obstacle.x, obstacle.y, 14, '#9ece6a', 70, 3);
+        cutAny = true;
+      } else {
+        break;
+      }
+    }
+
+    if (cutAny) {
+      this.renderer.addFloatingText('Cut with x!', this.player.x, this.player.y, '#9ece6a');
       this.checkInteractions();
     } else {
       this.audio.playError();
@@ -4496,15 +4489,16 @@ class Game {
       },
       11: {
         walkthrough: [
-          "Learn word manipulation verbs: cw (change word), dw (delete word), yw (yank word).",
-          "Clear corrupt word blocks to open paths and retrieve the Vault Key.",
-          "Unlock Vault Gate and proceed to Chapter 12!"
+          "Talk to Chronos the Sage at (4, 3) to learn temporal undo mechanics.",
+          "Beware the collapsing floor traps: stepping onto false runes triggers temporal dead-ends.",
+          "Press 'u' to rewind time and undo accidental steps or trap triggers.",
+          "Navigate the true chrono path to retrieve the Silver Key at (27, 8).",
+          "Unlock the Chrono Gate at (24, 10) and enter Chapter 12!"
         ],
         commands: [
-          { key: "dw / cw", desc: "Delete word / Change word" },
-          { key: "p", desc: "Put / paste word" }
+          { key: "u", desc: "Undo last step or action and rewind time" }
         ],
-        tip: "Operators + motions (verb + noun) form the grammar of Vim!"
+        tip: "In Vim, 'u' is your ultimate safety net—undo mistakes instantly to restore peace of mind!"
       },
       12: {
         walkthrough: [

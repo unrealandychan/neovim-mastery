@@ -43,20 +43,18 @@ export class Player {
       this.unlockedAbilities.add('^');
     }
     if (key === 'f') {
-      this.unlockedAbilities.add('F');
-      this.unlockedAbilities.add('t');
-      this.unlockedAbilities.add('T');
       this.unlockedAbilities.add(';');
-      this.unlockedAbilities.add(',');
     }
     if (key === 't') {
       this.unlockedAbilities.add('T');
       this.unlockedAbilities.add(';');
-      this.unlockedAbilities.add(',');
     }
     if (key === 'F') {
-      this.unlockedAbilities.add(';');
+      this.unlockedAbilities.add('T');
       this.unlockedAbilities.add(',');
+    }
+    if (key === '0') {
+      this.unlockedAbilities.add('^');
     }
     if (key === 'gg') {
       this.unlockedAbilities.add('G');
