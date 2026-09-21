@@ -251,6 +251,17 @@
 - **Purpose**: Discovers and activates Python virtual environments (uv, poetry, conda, pipenv, venv).
 - **Key Shortcut**: `<leader>cv` (Select Virtualenv).
 
+### [render-markdown.nvim](https://github.com/MeanderingProgrammer/render-markdown.nvim), [markdown-preview.nvim](https://github.com/iamcco/markdown-preview.nvim) & [glow.nvim](https://github.com/ellisonleao/glow.nvim)
+- **Purpose**: Complete tri-mode Markdown editing and preview suite.
+  - **Inline Buffer Rendering** (`render-markdown.nvim`): Live formatting of headings, tables, checkboxes, callout blocks, and syntax highlights directly inside the buffer.
+  - **Live Browser Sync** (`markdown-preview.nvim`): Synchronized web preview with GitHub Flavored Markdown, KaTeX math formulas, and Mermaid diagrams.
+  - **Terminal Floating Window** (`glow.nvim`): Quick popup preview rendered cleanly in your terminal using Charm's `glow` CLI.
+- **Config**: `lua/plugins/markdown.lua`
+- **Key Shortcuts**:
+  - `<leader>um`: Toggle inline buffer markdown rendering.
+  - `<leader>mp` (or `<leader>cp`): Toggle live browser preview.
+  - `<leader>mg`: Open markdown in floating Glow window.
+
 ---
 
 ## 💡 Master Keystroke Quick Reference Card
@@ -289,5 +300,10 @@ Keep this card handy while coding:
 │   <leader>gg        Floating LazyGit                        │
 │   :Lazy             Open plugin manager                     │
 │   :Mason            Open LSP / tools installer              │
+├─────────────────────────────────────────────────────────────┤
+│ MARKDOWN & PREVIEWS                                         │
+│   <leader>um        Toggle in-buffer rendered Markdown      │
+│   <leader>mp        Live browser preview (MarkdownPreview)  │
+│   <leader>mg        Floating terminal preview (Glow)        │
 └─────────────────────────────────────────────────────────────┘
 ```

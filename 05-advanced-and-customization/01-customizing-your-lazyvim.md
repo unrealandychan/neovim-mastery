@@ -63,21 +63,36 @@ end, { desc = "Copy relative path" })
 
 Any `.lua` file placed in `lua/plugins/` is automatically discovered by Lazy.nvim!
 
-For example, to install a markdown preview plugin:
-Create `~/.config/nvim/lua/plugins/markdown.lua`:
+For example, our pre-configured Markdown suite in `lua/plugins/markdown.lua`:
 ```lua
 return {
+  -- In-buffer live rendering (headings, checkboxes, callouts)
+  {
+    "MeanderingProgrammer/render-markdown.nvim",
+    opts = { checkbox = { enabled = true } },
+    keys = {
+      { "<leader>um", "<cmd>RenderMarkdown toggle<cr>", desc = "Toggle Markdown Render" },
+    },
+  },
+  -- Live browser preview with sync scrolling
   {
     "iamcco/markdown-preview.nvim",
     cmd = { "MarkdownPreviewToggle", "MarkdownPreview", "MarkdownPreviewStop" },
-    build = "cd app && npm install",
     keys = {
-      { "<leader>mp", "<cmd>MarkdownPreviewToggle<cr>", desc = "Markdown Preview" },
+      { "<leader>mp", "<cmd>MarkdownPreviewToggle<cr>", desc = "Markdown Preview (Browser)" },
+    },
+  },
+  -- Floating terminal preview via Glow
+  {
+    "ellisonleao/glow.nvim",
+    cmd = "Glow",
+    keys = {
+      { "<leader>mg", "<cmd>Glow<cr>", desc = "Markdown Preview (Glow Window)" },
     },
   },
 }
 ```
-Next time you open Neovim, Lazy.nvim automatically downloads and compiles it!
+Next time you open Neovim, Lazy.nvim automatically downloads and configures your plugins!
 
 ---
 
