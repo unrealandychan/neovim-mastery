@@ -63,12 +63,81 @@ export class CommandModeHandler {
       return { handled: true, feedback: 'Buffer closed.', action: 'bdelete' };
     }
 
-    // Window split commands
+    // Window split & layout commands
     if (trimmed === ':sp' || trimmed === ':split') {
-      return { handled: true, feedback: 'Horizontal split created.', action: 'split' };
+      this.engine.actionsExecuted.add('split');
+      this.engine.actionsExecuted.add('window_cmd');
+      return { handled: true, feedback: 'Horizontal split created (:sp)', action: 'split' };
     }
     if (trimmed === ':vs' || trimmed === ':vsplit') {
-      return { handled: true, feedback: 'Vertical split created.', action: 'vsplit' };
+      this.engine.actionsExecuted.add('vsplit');
+      this.engine.actionsExecuted.add('window_cmd');
+      return { handled: true, feedback: 'Vertical split created (:vs)', action: 'vsplit' };
+    }
+    if (trimmed === ':on' || trimmed === ':only') {
+      this.engine.actionsExecuted.add('zen');
+      this.engine.actionsExecuted.add('window_cmd');
+      return { handled: true, feedback: 'Zen mode: Only editor buffer (:only)', action: 'zen' };
+    }
+    if (trimmed === ':zen') {
+      this.engine.actionsExecuted.add('zen');
+      return { handled: true, feedback: 'Toggled Zen mode (:zen)', action: 'zen' };
+    }
+    if (trimmed === ':q' || trimmed === ':close' || trimmed === ':clo') {
+      this.engine.actionsExecuted.add('close_window');
+      this.engine.actionsExecuted.add('window_cmd');
+      return { handled: true, feedback: 'Closed split window (:q)', action: 'close_window' };
+    }
+    if (trimmed === ':h' || trimmed === ':help' || trimmed === ':mission') {
+      this.engine.actionsExecuted.add('mission_modal');
+      return { handled: true, feedback: 'Opened Mission floating window (:help)', action: 'mission_modal' };
+    }
+    if (/^:wincmd\s+/i.test(trimmed)) {
+      const arg = trimmed.split(/\s+/)[1];
+      if (arg === 'v') {
+        this.engine.actionsExecuted.add('vsplit');
+        return { handled: true, feedback: 'Vertical split (:wincmd v)', action: 'vsplit' };
+      }
+      if (arg === 's') {
+        this.engine.actionsExecuted.add('split');
+        return { handled: true, feedback: 'Horizontal split (:wincmd s)', action: 'split' };
+      }
+      if (arg === 'o') {
+        this.engine.actionsExecuted.add('zen');
+        return { handled: true, feedback: 'Zen mode (:wincmd o)', action: 'zen' };
+      }
+      if (arg === 'q' || arg === 'c') {
+        this.engine.actionsExecuted.add('close_window');
+        return { handled: true, feedback: 'Closed window (:wincmd q)', action: 'close_window' };
+      }
+      if (arg === '=') {
+        this.engine.actionsExecuted.add('equalize_split');
+        return { handled: true, feedback: 'Windows equalized (:wincmd =)', action: 'equalize_split' };
+      }
+      if (arg === '>') {
+        this.engine.actionsExecuted.add('resize_width_plus');
+        return { handled: true, feedback: 'Expanded width (:wincmd >)', action: 'resize_width_plus' };
+      }
+      if (arg === '<') {
+        this.engine.actionsExecuted.add('resize_width_minus');
+        return { handled: true, feedback: 'Shrunk width (:wincmd <)', action: 'resize_width_minus' };
+      }
+      if (arg === '+') {
+        this.engine.actionsExecuted.add('resize_height_plus');
+        return { handled: true, feedback: 'Expanded height (:wincmd +)', action: 'resize_height_plus' };
+      }
+      if (arg === '-') {
+        this.engine.actionsExecuted.add('resize_height_minus');
+        return { handled: true, feedback: 'Shrunk height (:wincmd -)', action: 'resize_height_minus' };
+      }
+      if (arg === 'r' || arg === 'x') {
+        this.engine.actionsExecuted.add('swap_splits');
+        return { handled: true, feedback: 'Swapped windows (:wincmd r)', action: 'swap_splits' };
+      }
+      if (arg === 'w') {
+        this.engine.actionsExecuted.add('switch_window');
+        return { handled: true, feedback: 'Switched window (:wincmd w)', action: 'switch_window' };
+      }
     }
 
     // Plugin triggers

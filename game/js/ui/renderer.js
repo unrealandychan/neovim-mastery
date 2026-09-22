@@ -58,19 +58,24 @@ export function renderBuffer(container, engine, buffer) {
   const mode = engine.getMode();
 
   let html = '';
+  const isFlashMode = mode === 'FLASH';
+  const hasFlashTargets = (engine.flashTargets || []).length > 0;
 
   for (let r = 0; r < lines.length; r++) {
     const isCurrentLine = r === cur.row;
-    const lineClass = isCurrentLine ? 'buffer-line active-line' : 'buffer-line';
+    const lineFlashTargets = (engine.flashTargets || []).filter(t => t.row === r);
+    const hasTargetsOnThisLine = lineFlashTargets.length > 0;
+
+    let lineClass = isCurrentLine ? 'buffer-line active-line' : 'buffer-line';
+    if (isFlashMode && hasFlashTargets) {
+      lineClass += hasTargetsOnThisLine ? ' flash-target-line' : ' flash-dimmed-line';
+    }
 
     // Hybrid line numbers (relative + absolute on current)
     const lineNum = isCurrentLine ? `${r + 1}` : `${Math.abs(r - cur.row)}`;
 
     const rawLine = lines[r];
     let lineRendered = '';
-
-    // Check if line contains flash targets
-    const lineFlashTargets = (engine.flashTargets || []).filter(t => t.row === r);
 
     // Visual selection range calculation
     let isLineSelected = false;
@@ -107,12 +112,14 @@ export function renderBuffer(container, engine, buffer) {
     }
 
     if (lineFlashTargets.length > 0) {
-      // Render line with flash target labels
+      // Render line with non-destructive flash beacon badges and highlighted target text
       let lastIdx = 0;
       for (const t of lineFlashTargets) {
         lineRendered += escapeHtml(rawLine.slice(lastIdx, t.col));
-        lineRendered += `<span class="flash-label">${escapeHtml(t.label)}</span>`;
-        lastIdx = t.col + 1;
+        const matchLen = 2;
+        const matchedChars = escapeHtml(rawLine.slice(t.col, t.col + matchLen));
+        lineRendered += `<span class="flash-match-wrapper"><span class="flash-label" data-label="${escapeHtml(t.label)}">${escapeHtml(t.label.toUpperCase())}</span><span class="flash-matched-text">${matchedChars}</span></span>`;
+        lastIdx = t.col + matchLen;
       }
       lineRendered += escapeHtml(rawLine.slice(lastIdx));
     } else if (isLineSelected) {
@@ -132,6 +139,7 @@ export function renderBuffer(container, engine, buffer) {
       let cursorClass = 'vim-cursor cursor-normal';
       if (mode === 'INSERT') cursorClass = 'vim-cursor cursor-insert';
       if (mode === 'VISUAL') cursorClass = 'vim-cursor cursor-visual';
+      if (mode === 'FLASH') cursorClass = 'vim-cursor cursor-flash';
 
       lineRendered = `${before}<span class="${cursorClass}">${escapeHtml(cursorChar)}</span>${after}`;
     } else {
@@ -141,6 +149,25 @@ export function renderBuffer(container, engine, buffer) {
     html += `<div class="${lineClass}">
       <span class="line-num">${lineNum}</span>
       <span class="line-content">${lineRendered}</span>
+    </div>`;
+  }
+
+  // Floating Flash Prompt Bar inside viewport when in FLASH mode
+  if (isFlashMode) {
+    let flashStatusHtml = '';
+    if (hasFlashTargets) {
+      const q = engine.lastFlashQuery || '';
+      const beaconKey = (engine.flashTargets[0]?.label || 'a').toUpperCase();
+      flashStatusHtml = `<span class="flash-bar-query">Target: <strong>${escapeHtml(q)}</strong></span> <span class="flash-bar-action">▸ Press beacon <kbd class="flash-beacon-key">${beaconKey}</kbd> to jump</span>`;
+    } else if (engine.pendingKeys && engine.pendingKeys.length > 0) {
+      flashStatusHtml = `<span class="flash-bar-query">Query: <strong>${escapeHtml(engine.pendingKeys)}</strong>_</span> <span class="flash-bar-hint">(type 1 more character)</span>`;
+    } else {
+      flashStatusHtml = `<span class="flash-bar-hint">Type 2 search characters to jump · &lt;Esc&gt; to cancel</span>`;
+    }
+
+    html += `<div class="flash-prompt-bar">
+      <div class="flash-prompt-badge">⚡ FLASH</div>
+      <div class="flash-prompt-content">${flashStatusHtml}</div>
     </div>`;
   }
 

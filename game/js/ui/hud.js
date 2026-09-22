@@ -64,24 +64,41 @@ export const KEY_EXPLANATIONS = {
  * @param {string[]} keystrokes
  * @param {number} par
  * @param {string} lastActionMsg
+ * @param {import('../editor/vim-engine.js').VimEngine} [engine]
  */
-export function renderHUD(hudEl, keystrokes = [], par = 10, lastActionMsg = '') {
+export function renderHUD(hudEl, keystrokes = [], par = 10, lastActionMsg = '', engine = null) {
   if (!hudEl) return;
 
   const count = keystrokes.length;
   const recent = keystrokes.slice(-4).join(' ');
   const fullSeq = keystrokes.slice(-3).join('');
-  const explanation = KEY_EXPLANATIONS[fullSeq] || KEY_EXPLANATIONS[keystrokes[keystrokes.length - 1]] || '';
+  const mode = engine ? engine.getMode() : 'NORMAL';
+
+  let explanation = '';
+  if (mode === 'FLASH') {
+    if (engine.flashTargets && engine.flashTargets.length > 0) {
+      const label = engine.flashTargets[0]?.label?.toUpperCase() || 'A';
+      explanation = `⚡ Flash: Press glowing beacon [${label}] to jump`;
+    } else if (engine.pendingKeys && engine.pendingKeys.length > 0) {
+      explanation = `⚡ Flash search: "${engine.pendingKeys}_" (type 1 more char)`;
+    } else {
+      explanation = '⚡ Flash: Type 2 characters to locate jump targets';
+    }
+  } else if (lastActionMsg && lastActionMsg.startsWith('Flash: teleported')) {
+    explanation = `⚡ Flash Teleported!`;
+  } else {
+    explanation = KEY_EXPLANATIONS[fullSeq] || KEY_EXPLANATIONS[keystrokes[keystrokes.length - 1]] || '';
+  }
 
   hudEl.innerHTML = `
     <div class="hud-keys">
-      <span style="color: var(--tn-comment); font-size: 11px;">KEYS:</span>
+      <span class="hud-label">KEYS:</span>
       <span class="key-badge">${recent ? escapeHtml(recent) : 'Ready'}</span>
       ${explanation ? `<span class="hud-message">${escapeHtml(explanation)}</span>` : ''}
     </div>
-    <div class="hud-stats" style="display: flex; gap: 14px; font-size: 12px;">
-      <span style="color: var(--tn-fg-dark);">${lastActionMsg ? escapeHtml(lastActionMsg) : ''}</span>
-      <span style="color: ${count <= par ? 'var(--tn-green)' : 'var(--tn-yellow)'}; font-weight: 700;">
+    <div class="hud-stats">
+      <span class="hud-action-msg">${lastActionMsg ? escapeHtml(lastActionMsg) : ''}</span>
+      <span class="hud-golf-stat ${count <= par ? 'stat-under-par' : 'stat-over-par'}">
         Strokes: ${count} / Par: ${par}
       </span>
     </div>

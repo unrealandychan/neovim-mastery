@@ -46,15 +46,15 @@ export function renderDiffViewer(container, currentText, targetText) {
   let html = '';
   lines.forEach((l, idx) => {
     if (l.type === 'match') {
-      html += `<div class="diff-line diff-match">✓ ${escapeHtml(l.target)}</div>`;
+      html += `<div class="diff-line diff-match"><span class="diff-indicator diff-indicator-match">✓</span> <span class="diff-code">${escapeHtml(l.target)}</span></div>`;
     } else if (l.type === 'missing') {
-      html += `<div class="diff-line diff-missing">+ ${escapeHtml(l.target)} (missing)</div>`;
+      html += `<div class="diff-line diff-missing"><span class="diff-indicator diff-indicator-add">+</span> <span class="diff-code">${escapeHtml(l.target)}</span> <span class="diff-badge diff-badge-missing">missing</span></div>`;
     } else if (l.type === 'extra') {
-      html += `<div class="diff-line diff-unwanted">- ${escapeHtml(l.current)} (extra)</div>`;
+      html += `<div class="diff-line diff-unwanted"><span class="diff-indicator diff-indicator-del">-</span> <span class="diff-code">${escapeHtml(l.current)}</span> <span class="diff-badge diff-badge-extra">extra</span></div>`;
     } else {
       html += `<div class="diff-line diff-diff">
-        <span class="diff-unwanted">- ${escapeHtml(l.current)}</span><br>
-        <span class="diff-match">+ ${escapeHtml(l.target)}</span>
+        <div class="diff-subline diff-unwanted"><span class="diff-indicator diff-indicator-del">-</span> <span class="diff-code">${escapeHtml(l.current)}</span></div>
+        <div class="diff-subline diff-match"><span class="diff-indicator diff-indicator-add">+</span> <span class="diff-code">${escapeHtml(l.target)}</span></div>
       </div>`;
     }
   });

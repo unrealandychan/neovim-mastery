@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { TextBuffer } from '../game/js/editor/buffer.js';
 import { VimEngine } from '../game/js/editor/vim-engine.js';
+import { GameState } from '../game/js/state.js';
+import { SplitManager } from '../game/js/ui/split-manager.js';
 
 test('LazyVim Leader Key (<Space>): Triggering plugin actions', () => {
   const buf = new TextBuffer('const x = 10;');
@@ -212,3 +214,190 @@ test('Marks navigation: ma and jump with \'a', () => {
   assert.equal(buf.getCursor().row, 2);
   assert.equal(engine.actionsExecuted.has('mark_jump'), true);
 });
+
+test('Neovim Window Splits (<C-w>): Vertical, Horizontal, Zen, Resize, Equalize, Swap', () => {
+  const buf = new TextBuffer('console.log("split test");');
+  const engine = new VimEngine(buf);
+
+  let executedAction = '';
+  engine.onPluginAction = (action) => {
+    executedAction = action;
+  };
+
+  // <C-w>v: Vertical split
+  engine.handleKey('<C-w>');
+  assert.equal(engine.pendingWindowCmd, true);
+  const r1 = engine.handleKey('v');
+  assert.equal(r1.handled, true);
+  assert.equal(r1.action, 'vsplit');
+  assert.equal(executedAction, 'vsplit');
+  assert.equal(engine.pendingWindowCmd, false);
+
+  // <C-w>s: Horizontal split
+  engine.handleKey('<C-w>');
+  const r2 = engine.handleKey('s');
+  assert.equal(r2.action, 'split');
+  assert.equal(executedAction, 'split');
+
+  // <C-w>o: Zen / Only mode
+  engine.handleKey('<C-w>');
+  const r3 = engine.handleKey('o');
+  assert.equal(r3.action, 'zen');
+
+  // <C-w>q: Close window
+  engine.handleKey('<C-w>');
+  const r4 = engine.handleKey('q');
+  assert.equal(r4.action, 'close_window');
+
+  // <C-w>=: Equalize splits
+  engine.handleKey('<C-w>');
+  const r5 = engine.handleKey('=');
+  assert.equal(r5.action, 'equalize_split');
+
+  // <C-w>> and <C-w><: Resize width
+  engine.handleKey('<C-w>');
+  const r6 = engine.handleKey('>');
+  assert.equal(r6.action, 'resize_width_plus');
+
+  engine.handleKey('<C-w>');
+  const r7 = engine.handleKey('<');
+  assert.equal(r7.action, 'resize_width_minus');
+
+  // <C-w>r: Swap windows
+  engine.handleKey('<C-w>');
+  const r8 = engine.handleKey('r');
+  assert.equal(r8.action, 'swap_splits');
+
+  // <C-w>w: Switch window
+  engine.handleKey('<C-w>');
+  const r9 = engine.handleKey('w');
+  assert.equal(r9.action, 'switch_window');
+});
+
+test('Command Mode Splits (:vsplit, :split, :only, :zen, :close, :wincmd)', () => {
+  const buf = new TextBuffer('code block');
+  const engine = new VimEngine(buf);
+
+  // :vsplit / :vs
+  engine.handleKey(':');
+  for (const ch of 'vsplit') engine.handleKey(ch);
+  const r1 = engine.handleKey('Enter');
+  assert.equal(r1.action, 'vsplit');
+
+  // :split / :sp
+  engine.handleKey(':');
+  for (const ch of 'sp') engine.handleKey(ch);
+  const r2 = engine.handleKey('Enter');
+  assert.equal(r2.action, 'split');
+
+  // :only / :on
+  engine.handleKey(':');
+  for (const ch of 'only') engine.handleKey(ch);
+  const r3 = engine.handleKey('Enter');
+  assert.equal(r3.action, 'zen');
+
+  // :zen
+  engine.handleKey(':');
+  for (const ch of 'zen') engine.handleKey(ch);
+  const r4 = engine.handleKey('Enter');
+  assert.equal(r4.action, 'zen');
+
+  // :wincmd v
+  engine.handleKey(':');
+  for (const ch of 'wincmd v') engine.handleKey(ch);
+  const r5 = engine.handleKey('Enter');
+  assert.equal(r5.action, 'vsplit');
+
+  // :wincmd =
+  engine.handleKey(':');
+  for (const ch of 'wincmd =') engine.handleKey(ch);
+  const r6 = engine.handleKey('Enter');
+  assert.equal(r6.action, 'equalize_split');
+});
+
+test('LazyVim UI Toggles (<Space>uz, <Space>us, <Space>ur, <Space>um, <Space>ud)', () => {
+  const buf = new TextBuffer('leader toggles');
+  const engine = new VimEngine(buf);
+
+  // <Space>uz: Zen Mode
+  engine.handleKey(' ');
+  const r1 = engine.handleKey('u');
+  assert.equal(r1.handled, true);
+  const r2 = engine.handleKey('z');
+  assert.equal(r2.action, 'zen');
+
+  // <Space>us: Split orientation toggle
+  engine.handleKey(' ');
+  engine.handleKey('u');
+  const r3 = engine.handleKey('s');
+  assert.equal(r3.action, 'toggle_split_orientation');
+
+  // <Space>ur: Swap window reverse
+  engine.handleKey(' ');
+  engine.handleKey('u');
+  const r4 = engine.handleKey('r');
+  assert.equal(r4.action, 'swap_splits');
+
+  // <Space>um: Mission Pane toggle
+  engine.handleKey(' ');
+  engine.handleKey('u');
+  const r5 = engine.handleKey('m');
+  assert.equal(r5.action, 'toggle_mission');
+
+  // <Space>ud: Diff View toggle
+  engine.handleKey(' ');
+  engine.handleKey('u');
+  const r6 = engine.handleKey('d');
+  assert.equal(r6.action, 'toggle_diff');
+});
+
+test('SplitManager and GameState Split Persistence', () => {
+  const state = new GameState();
+
+  // Test state defaults
+  assert.equal(state.splitMode, 'vertical');
+  assert.equal(state.splitRatio, 55);
+  assert.equal(state.splitReversed, false);
+  assert.equal(state.splitTab, 'diff');
+
+  // Test setSplitMode
+  state.setSplitMode('horizontal');
+  assert.equal(state.splitMode, 'horizontal');
+
+  // Test toggleZen
+  state.toggleZen();
+  assert.equal(state.splitMode, 'zen');
+  state.toggleZen();
+  assert.equal(state.splitMode, 'horizontal'); // restores previous
+
+  // Test setSplitRatio clamping
+  state.setSplitRatio(10); // below min 20
+  assert.equal(state.splitRatio, 20);
+  state.setSplitRatio(95); // above max 80
+  assert.equal(state.splitRatio, 80);
+  state.setSplitRatio(60);
+  assert.equal(state.splitRatio, 60);
+
+  // Test reverse
+  state.toggleSplitReverse();
+  assert.equal(state.splitReversed, true);
+
+  // Test splitTab
+  state.setSplitTab('mission');
+  assert.equal(state.splitTab, 'mission');
+
+  // Test SplitManager
+  const mgr = new SplitManager(state);
+  mgr.setMode('vertical');
+  assert.equal(state.splitMode, 'vertical');
+
+  mgr.adjustRatio(10);
+  assert.equal(state.splitRatio, 70);
+
+  mgr.equalize();
+  assert.equal(state.splitRatio, 50);
+
+  mgr.setTab('cheatsheet');
+  assert.equal(state.splitTab, 'cheatsheet');
+});
+

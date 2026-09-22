@@ -15,12 +15,14 @@ import { NeoTreeSidebar } from './ui/neo-tree.js';
 import { TroubleDrawer } from './ui/trouble.js';
 import { LspPopups } from './ui/lsp-popups.js';
 import { LazyGitModal } from './ui/lazygit-modal.js';
+import { SplitManager } from './ui/split-manager.js';
 
 export class App {
   constructor() {
     this.state = new GameState();
     this.sound = new SoundFX();
     this.sound.setMuted(this.state.isMuted);
+    this.splitManager = null;
 
     this.currentStage = null;
     this.buffer = null;
@@ -63,9 +65,16 @@ export class App {
 
   init() {
     this.initPlugins();
+    this.initSplitManager();
     this.bindEvents();
     this.loadStage(this.state.currentDay);
     this.updateAudioButton();
+  }
+
+  initSplitManager() {
+    if (typeof document === 'undefined') return;
+    this.splitManager = new SplitManager(this.state);
+    this.splitManager.init();
   }
 
   initPlugins() {
@@ -163,28 +172,86 @@ export class App {
     };
 
     this.engine.onPluginAction = (action) => {
-      if (action === 'fzf_files' && this.fzfModal) {
-        this.fzfModal.open('files');
-      } else if (action === 'fzf_grep' && this.fzfModal) {
-        this.fzfModal.open('grep');
-      } else if (action === 'fzf_buffers' && this.fzfModal) {
-        this.fzfModal.open('buffers');
-      } else if (action === 'neotree' && this.neoTree) {
-        this.neoTree.toggle();
-      } else if (action === 'trouble' && this.troubleDrawer) {
-        this.troubleDrawer.toggle();
-      } else if (action === 'lsp_hover' && this.lspPopups) {
-        const word = this.engine.getWordUnderCursor();
-        this.lspPopups.showHover(word, `(symbol) ${word || 'element'}: unknown`, `LSP documentation for '${word || 'symbol'}'.`);
-      } else if (action === 'lsp_code_action' && this.lspPopups) {
-        this.lspPopups.showAction();
-      } else if (action === 'lsp_rename' && this.lspPopups) {
-        const word = this.engine.getWordUnderCursor();
-        this.lspPopups.showRename(word);
-      } else if (action === 'lazygit' && this.lazygitModal) {
-        this.lazygitModal.open();
-      }
+      this.handleAction(action);
     };
+  }
+
+  handleAction(action) {
+    if (!action) return;
+
+    if (action === 'vsplit') {
+      this.splitManager?.setMode('vertical');
+    } else if (action === 'split') {
+      this.splitManager?.setMode('horizontal');
+    } else if (action === 'zen') {
+      this.splitManager?.toggleZen();
+    } else if (action === 'close_window') {
+      this.splitManager?.setMode('zen');
+    } else if (action === 'equalize_split') {
+      this.splitManager?.equalize();
+    } else if (action === 'resize_width_plus') {
+      this.splitManager?.adjustRatio(5);
+    } else if (action === 'resize_width_minus') {
+      this.splitManager?.adjustRatio(-5);
+    } else if (action === 'resize_height_plus') {
+      this.splitManager?.adjustRatio(5);
+    } else if (action === 'resize_height_minus') {
+      this.splitManager?.adjustRatio(-5);
+    } else if (action === 'swap_splits') {
+      this.splitManager?.toggleReverse();
+    } else if (action === 'switch_window') {
+      this.splitManager?.switchActiveWindow();
+    } else if (action === 'toggle_mission') {
+      this.splitManager?.setTab('mission');
+      if (this.state.splitMode === 'zen') this.splitManager?.setMode('vertical');
+    } else if (action === 'toggle_diff') {
+      this.splitManager?.setTab('diff');
+      if (this.state.splitMode === 'zen') this.splitManager?.setMode('vertical');
+    } else if (action === 'toggle_split_orientation') {
+      const next = this.state.splitMode === 'horizontal' ? 'vertical' : 'horizontal';
+      this.splitManager?.setMode(next);
+    } else if (action === 'mission_modal') {
+      this.splitManager?.openFloatingMission(this.currentStage);
+    } else if (action === 'hint') {
+      this.showHint();
+    } else if (action === 'reset') {
+      this.loadStage(this.currentStage.day || 1);
+    } else if (action === 'next_stage') {
+      if (this.currentStage?.day && this.currentStage.day < STAGES.length) {
+        this.loadStage(this.currentStage.day + 1);
+      }
+    } else if (action === 'prev_stage') {
+      if (this.currentStage?.day && this.currentStage.day > 1) {
+        this.loadStage(this.currentStage.day - 1);
+      }
+    } else if (action === 'stage_map') {
+      renderStageSelectModal(
+        this.dom.modalOverlay,
+        STAGES,
+        this.state,
+        day => this.loadStage(day)
+      );
+    } else if (action === 'fzf_files' || action === 'fzf') {
+      this.fzfModal?.open('files');
+    } else if (action === 'fzf_grep') {
+      this.fzfModal?.open('grep');
+    } else if (action === 'fzf_buffers') {
+      this.fzfModal?.open('buffers');
+    } else if (action === 'neotree') {
+      this.neoTree?.toggle();
+    } else if (action === 'trouble') {
+      this.troubleDrawer?.toggle();
+    } else if (action === 'lsp_hover') {
+      const word = this.engine?.getWordUnderCursor();
+      this.lspPopups?.showHover(word, `(symbol) ${word || 'element'}: unknown`, `LSP documentation for '${word || 'symbol'}'.`);
+    } else if (action === 'lsp_code_action') {
+      this.lspPopups?.showAction();
+    } else if (action === 'lsp_rename') {
+      const word = this.engine?.getWordUnderCursor();
+      this.lspPopups?.showRename(word);
+    } else if (action === 'lazygit') {
+      this.lazygitModal?.open();
+    }
   }
 
   loadStage(dayNumber) {
@@ -249,10 +316,52 @@ export class App {
     if (this.dom.statStars) {
       this.dom.statStars.textContent = stars > 0 ? '⭐'.repeat(stars) : '☆☆☆';
     }
+
+    const diffMini = document.getElementById('diff-mini-title');
+    if (diffMini) {
+      diffMini.textContent = s.day ? `Day ${s.day}: ${s.title}` : s.title;
+    }
+
+    if (this.dom.tabFilename) {
+      this.dom.tabFilename.textContent = s.day ? `day_${s.day}_exercise.ts` : 'sandbox.ts';
+    }
+
+    const navPillDay = document.getElementById('nav-pill-day');
+    const navPillTitle = document.getElementById('nav-pill-title');
+    if (navPillDay) navPillDay.textContent = s.day ? `Day ${s.day}` : 'Sandbox';
+    if (navPillTitle) navPillTitle.textContent = s.title || 'Practice Session';
+    const missionChap = document.getElementById('mission-chapter');
+    if (missionChap) {
+      missionChap.textContent = s.chapterRef
+        ? '📖 ' + s.chapterRef.split('/')[0].replace(/^\d+-/, '').replace(/-/g, ' ')
+        : '🥋 Neovim Dojo';
+    }
   }
 
   bindEvents() {
     window.addEventListener('keydown', e => this.handleKeydown(e));
+
+    document.getElementById('btn-prev-stage')?.addEventListener('click', (e) => {
+      e.currentTarget?.blur();
+      this.handleAction('prev_stage');
+    });
+    document.getElementById('btn-next-stage')?.addEventListener('click', (e) => {
+      e.currentTarget?.blur();
+      this.handleAction('next_stage');
+    });
+    document.getElementById('nav-stage-pill')?.addEventListener('click', (e) => {
+      e.currentTarget?.blur();
+      this.handleAction('stage_map');
+    });
+
+    document.getElementById('tab-quick-diff')?.addEventListener('click', () => {
+      this.splitManager?.setTab('diff');
+      if (this.state.splitMode === 'zen') this.splitManager?.setMode('vertical');
+    });
+    document.getElementById('tab-quick-mission')?.addEventListener('click', () => {
+      this.splitManager?.setTab('mission');
+      if (this.state.splitMode === 'zen') this.splitManager?.setMode('vertical');
+    });
 
     this.dom.btnHint?.addEventListener('click', (e) => {
       e.currentTarget?.blur();
@@ -372,6 +481,9 @@ export class App {
       if (result.feedback) {
         this.lastFeedback = result.feedback;
       }
+      if (result.action) {
+        this.handleAction(result.action);
+      }
     } else {
       this.sound.playError();
     }
@@ -412,9 +524,9 @@ export class App {
 
   render() {
     renderBuffer(this.dom.editorViewport, this.engine, this.buffer);
-    renderStatusline(this.dom.statusline, this.engine, this.currentStage);
+    renderStatusline(this.dom.statusline, this.engine, { ...this.currentStage, splitMode: this.state.splitMode });
     renderCmdline(this.dom.cmdlineBar, this.engine, this.lastFeedback);
-    renderHUD(this.dom.hud, this.keystrokes, this.currentStage.parKeystrokes, this.lastFeedback);
+    renderHUD(this.dom.hud, this.keystrokes, this.currentStage.parKeystrokes, this.lastFeedback, this.engine);
 
     if (this.currentStage.targetText) {
       renderDiffViewer(this.dom.diffBox, this.buffer.getText(), this.currentStage.targetText);

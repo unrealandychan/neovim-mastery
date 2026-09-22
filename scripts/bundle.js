@@ -150,6 +150,7 @@ const dojoFiles = [
   'ui/trouble.js',
   'ui/lsp-popups.js',
   'ui/lazygit-modal.js',
+  'ui/split-manager.js',
   'ui/audio.js',
   'ui/modal.js',
   'state.js',

@@ -12,36 +12,60 @@
 </head>
 <body>
   <div id="app">
-    <!-- Top Navigation -->
+    <!-- Top Navigation & Neovim Layout Switcher -->
     <header class="top-nav">
-      <div style="display: flex; align-items: center; gap: 16px;">
+      <div class="nav-left">
         <div class="window-dots">
           <span class="dot dot-red"></span>
           <span class="dot dot-yellow"></span>
           <span class="dot dot-green"></span>
         </div>
-        <div class="nav-title">
-          <span>🥋 Neovim Mastery Dojo</span>
-          <span class="badge">LazyVim • Tokyo Night</span>
+        <div class="nav-brand">
+          <span class="nav-logo">🥋</span>
+          <span class="nav-brand-text">Neovim Dojo</span>
+          <span class="nav-theme-tag">LazyVim</span>
         </div>
       </div>
-      <div class="nav-actions">
-        <button class="btn" id="btn-map">🗺️ 60-Stage Map</button>
-        <button class="btn" id="btn-hint">💡 Hint</button>
-        <button class="btn" id="btn-reset">🔄 Reset</button>
-        <button class="btn" id="btn-which-key">⌨️ Which-Key</button>
-        <button class="btn" id="btn-audio">🔊 Sound: ON</button>
-        <button class="btn" id="btn-sandbox">📦 Sandbox</button>
-        <a href="../adventure/" class="btn" style="text-decoration:none; color:#7dcfff; border-color:#7aa2f7;">⚔️ Vim Adventures RPG</a>
+
+      <!-- Centered Stage Quick Switcher -->
+      <div class="stage-nav-control">
+        <button class="stage-nav-btn" id="btn-prev-stage" title="Previous Stage (Day - 1)">◀</button>
+        <div class="stage-nav-pill" id="nav-stage-pill" title="Click to view 60-Stage Map">
+          <span class="stage-nav-day" id="nav-pill-day">Day 1</span>
+          <span class="stage-nav-sep">•</span>
+          <span class="stage-nav-title" id="nav-pill-title">Mental Model</span>
+        </div>
+        <button class="stage-nav-btn" id="btn-next-stage" title="Next Stage (Day + 1)">▶</button>
+      </div>
+
+      <!-- Right Nav: Split Controls & Action Tools -->
+      <div class="nav-right">
+        <!-- Screen Split Segmented Controls -->
+        <div class="split-controls" title="Screen Split Layout (:vs, :sp, :only, <C-w>v, <C-w>s, <C-w>o)">
+          <button class="split-btn active" id="btn-split-vert" title="Vertical Split (:vsplit, <C-w>v)">◫ Vert</button>
+          <button class="split-btn" id="btn-split-horiz" title="Horizontal Split (:split, <C-w>s)">⬓ Horiz</button>
+          <button class="split-btn" id="btn-split-zen" title="Zen Fullscreen Buffer (:only, <C-w>o)">▢ Zen</button>
+          <button class="split-btn" id="btn-split-swap" title="Swap Window Positions (<C-w>r)">⇄ Swap</button>
+        </div>
+
+        <div class="nav-actions">
+          <button class="btn btn-action" id="btn-map" title="Browse 60-Stage Curriculum Map">🗺️ Map</button>
+          <button class="btn btn-action" id="btn-hint" title="Show Keystroke Hint">💡 Hint</button>
+          <button class="btn btn-action" id="btn-reset" title="Reset Buffer & Keystrokes">🔄 Reset</button>
+          <button class="btn btn-action" id="btn-which-key" title="Open LazyVim Which-Key Guide">⌨️ Keys</button>
+          <button class="btn btn-action" id="btn-audio" title="Toggle Sound FX">🔊 Sound</button>
+          <button class="btn btn-action" id="btn-sandbox" title="Open Free Scratchpad Sandbox">📦 Sandbox</button>
+          <a href="../adventure/" class="btn btn-action btn-adventure" style="text-decoration:none;" title="Play Vim Adventures RPG Mode">⚔️ RPG</a>
+        </div>
       </div>
     </header>
 
     <!-- Main Workspace -->
-    <main class="main-workspace">
+    <main class="main-workspace layout-vertical" id="main-workspace">
       <!-- Editor Pane -->
-      <section class="editor-pane">
+      <section class="editor-pane" id="editor-pane">
         <div class="buffer-tabs">
-          <div class="tab active">
+          <div class="tab active" id="tab-editor-buffer">
             <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
               <path fill-rule="evenodd" d="M3.75 1.5a.25.25 0 00-.25.25v12.5c0 .138.112.25.25.25h8.5a.25.25 0 00.25-.25V6H9.75A1.75 1.75 0 018 4.25V1.5H3.75zm5.75.56v2.19c0 .138.112.25.25.25h2.19L9.5 2.06zM2 1.75C2 .784 2.784 0 3.75 0h5.586a1.75 1.75 0 011.237.513l3.914 3.914c.328.328.513.774.513 1.237v8.586A1.75 1.75 0 0113.25 16H3.75A1.75 1.75 0 012 14.25V1.75z"/>
             </svg>
@@ -60,38 +84,102 @@
         <div class="keystroke-hud" id="keystroke-hud"></div>
       </section>
 
-      <!-- Sidepane: Mission Briefing & Diff -->
-      <aside class="sidepane">
-        <div class="mission-panel">
-          <div class="stage-badge" id="mission-badge">Day 1 • Week 1</div>
-          <h2 class="mission-title" id="mission-title">Mental Model & Survival</h2>
-          <div class="mission-concept" id="mission-concept">🎯 Normal Mode vs Insert Mode & Saving</div>
-          <p class="mission-desc" id="mission-desc">
-            Enter Insert mode with "i", type "Welcome Eddie", return to Normal mode with &lt;Esc&gt;, and save with ":w".
-          </p>
-          <div class="stats-card">
-            <div>
-              <div class="stat-val" id="stat-par">18</div>
-              <div class="stat-lbl">Golf Par</div>
-            </div>
-            <div>
-              <div class="stat-val" id="stat-strokes">0</div>
-              <div class="stat-lbl">Strokes</div>
-            </div>
-            <div>
-              <div class="stat-val" id="stat-stars">☆☆☆</div>
-              <div class="stat-lbl">Rating</div>
-            </div>
+      <!-- Draggable Split Divider -->
+      <div class="split-divider vertical" id="split-divider" title="Drag to resize split (:wincmd > / <)"></div>
+
+      <!-- Split Window / Secondary Pane -->
+      <aside class="sidepane" id="split-pane">
+        <!-- Split Winbar Header -->
+        <div class="split-winbar">
+          <div class="split-tabs">
+            <button class="split-tab active" id="split-tab-diff" title="Target Buffer & Live Diff">🎯 target_diff.ts</button>
+            <button class="split-tab" id="split-tab-mission" title="Mission Briefing & Guide">📋 mission.md</button>
+            <button class="split-tab" id="split-tab-cheat" title="Neovim Cheatsheet">⌨️ cheat.txt</button>
+          </div>
+          <div class="split-win-actions">
+            <button class="win-action-btn" id="btn-win-horiz" title="Horizontal Split (:sp, <C-w>s)">⬓</button>
+            <button class="win-action-btn" id="btn-win-vert" title="Vertical Split (:vs, <C-w>v)">◫</button>
+            <button class="win-action-btn" id="btn-split-close" title="Close Split Window (:q, <C-w>q)">✕</button>
           </div>
         </div>
 
-        <!-- Target Diff View -->
-        <div class="diff-container">
-          <div class="diff-header">
-            <span>🎯 TARGET GOAL (LIVE DIFF)</span>
-            <span style="font-size: 10px; color: var(--tn-comment);">Match buffer to complete</span>
+        <!-- Diff View Pane (With Integrated Mission Briefing Card) -->
+        <div class="split-content-pane" id="diff-view-pane">
+          <!-- Integrated Mission Briefing Card -->
+          <div class="mission-brief-card">
+            <div class="mission-brief-header">
+              <div class="mission-badges-row">
+                <span class="mission-badge" id="mission-badge">Day 1 • Week 1</span>
+                <span class="mission-chapter" id="mission-chapter">📖 Getting Started</span>
+              </div>
+              <div class="mission-scorecard">
+                <div class="score-pill">
+                  <span class="score-label">PAR</span>
+                  <span class="score-value par-val" id="stat-par">18</span>
+                </div>
+                <div class="score-pill">
+                  <span class="score-label">STROKES</span>
+                  <span class="score-value stroke-val" id="stat-strokes">0</span>
+                </div>
+                <div class="score-pill">
+                  <span class="score-label">RATING</span>
+                  <span class="score-value star-val" id="stat-stars">☆☆☆</span>
+                </div>
+              </div>
+            </div>
+
+            <h2 class="mission-title" id="mission-title">Mental Model & Survival</h2>
+            <div class="mission-concept" id="mission-concept">🎯 Normal Mode vs Insert Mode & Saving</div>
+            <p class="mission-desc" id="mission-desc">
+              Enter Insert mode with "i", type "Welcome Eddie", return to Normal mode with &lt;Esc&gt;, and save with ":w".
+            </p>
           </div>
-          <div class="diff-box" id="diff-box"></div>
+
+          <div class="diff-container">
+            <div class="diff-header">
+              <span class="diff-title-badge">🎯 TARGET GOAL (LIVE DIFF)</span>
+              <span class="diff-helper-text">Match buffer text to clear stage</span>
+            </div>
+            <div class="diff-box" id="diff-box"></div>
+          </div>
+        </div>
+
+        <!-- Full Mission View Pane -->
+        <div class="split-content-pane" id="mission-view-pane" style="display: none;">
+          <div class="mission-panel">
+            <div class="stage-badge">Curriculum Mission</div>
+            <h2 class="deep-mission-heading">Stage Guide & Hints</h2>
+            <p class="deep-mission-sub">Use <kbd class="key-badge">Space</kbd> + <kbd class="key-badge">h</kbd> or click 💡 Hint for instant step guidance.</p>
+          </div>
+        </div>
+
+        <!-- Cheatsheet View Pane -->
+        <div class="split-content-pane" id="cheat-view-pane" style="display: none;">
+          <div class="cheat-content" style="padding: 14px; font-size: 12px; line-height: 1.6; color: var(--tn-fg); overflow-y: auto;">
+            <div style="font-weight: 700; color: var(--tn-blue); margin-bottom: 8px;">🥋 NEOVIM & LAZYVIM REFERENCE</div>
+            <div style="display: grid; grid-template-columns: 1fr; gap: 8px; margin-bottom: 12px;">
+              <div style="background: var(--tn-bg); padding: 8px; border-radius: 4px; border: 1px solid var(--tn-bg-highlight);">
+                <div style="font-weight: 600; color: var(--tn-cyan); margin-bottom: 4px;">Screen Splits & Windows</div>
+                <div><kbd class="key-badge">:vs</kbd> / <kbd class="key-badge">&lt;C-w&gt;v</kbd> Vertical Split</div>
+                <div><kbd class="key-badge">:sp</kbd> / <kbd class="key-badge">&lt;C-w&gt;s</kbd> Horizontal Split</div>
+                <div><kbd class="key-badge">:only</kbd> / <kbd class="key-badge">&lt;C-w&gt;o</kbd> Zen Fullscreen</div>
+                <div><kbd class="key-badge">:q</kbd> / <kbd class="key-badge">&lt;C-w&gt;q</kbd> Close Split</div>
+                <div><kbd class="key-badge">&lt;C-w&gt;=</kbd> Equalize Window Sizes</div>
+                <div><kbd class="key-badge">&lt;C-w&gt;w</kbd> Switch Active Window</div>
+                <div><kbd class="key-badge">&lt;C-w&gt;r</kbd> Swap Window Positions</div>
+              </div>
+              <div style="background: var(--tn-bg); padding: 8px; border-radius: 4px; border: 1px solid var(--tn-bg-highlight);">
+                <div style="font-weight: 600; color: var(--tn-magenta); margin-bottom: 4px;">LazyVim Leader Commands</div>
+                <div><kbd class="key-badge">&lt;Space&gt;w...</kbd> Windows & Split Menu</div>
+                <div><kbd class="key-badge">&lt;Space&gt;uz</kbd> Toggle Zen Mode</div>
+                <div><kbd class="key-badge">&lt;Space&gt;um</kbd> Toggle Mission Pane</div>
+                <div><kbd class="key-badge">&lt;Space&gt;ud</kbd> Toggle Live Diff</div>
+                <div><kbd class="key-badge">&lt;Space&gt;m</kbd> Mission Floating Modal</div>
+                <div><kbd class="key-badge">&lt;Space&gt;ff</kbd> Fzf Find Files</div>
+                <div><kbd class="key-badge">&lt;Space&gt;sg</kbd> Live Grep</div>
+              </div>
+            </div>
+          </div>
         </div>
       </aside>
     </main>

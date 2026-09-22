@@ -551,12 +551,81 @@ class CommandModeHandler {
       return { handled: true, feedback: 'Buffer closed.', action: 'bdelete' };
     }
 
-    // Window split commands
+    // Window split & layout commands
     if (trimmed === ':sp' || trimmed === ':split') {
-      return { handled: true, feedback: 'Horizontal split created.', action: 'split' };
+      this.engine.actionsExecuted.add('split');
+      this.engine.actionsExecuted.add('window_cmd');
+      return { handled: true, feedback: 'Horizontal split created (:sp)', action: 'split' };
     }
     if (trimmed === ':vs' || trimmed === ':vsplit') {
-      return { handled: true, feedback: 'Vertical split created.', action: 'vsplit' };
+      this.engine.actionsExecuted.add('vsplit');
+      this.engine.actionsExecuted.add('window_cmd');
+      return { handled: true, feedback: 'Vertical split created (:vs)', action: 'vsplit' };
+    }
+    if (trimmed === ':on' || trimmed === ':only') {
+      this.engine.actionsExecuted.add('zen');
+      this.engine.actionsExecuted.add('window_cmd');
+      return { handled: true, feedback: 'Zen mode: Only editor buffer (:only)', action: 'zen' };
+    }
+    if (trimmed === ':zen') {
+      this.engine.actionsExecuted.add('zen');
+      return { handled: true, feedback: 'Toggled Zen mode (:zen)', action: 'zen' };
+    }
+    if (trimmed === ':q' || trimmed === ':close' || trimmed === ':clo') {
+      this.engine.actionsExecuted.add('close_window');
+      this.engine.actionsExecuted.add('window_cmd');
+      return { handled: true, feedback: 'Closed split window (:q)', action: 'close_window' };
+    }
+    if (trimmed === ':h' || trimmed === ':help' || trimmed === ':mission') {
+      this.engine.actionsExecuted.add('mission_modal');
+      return { handled: true, feedback: 'Opened Mission floating window (:help)', action: 'mission_modal' };
+    }
+    if (/^:wincmd\s+/i.test(trimmed)) {
+      const arg = trimmed.split(/\s+/)[1];
+      if (arg === 'v') {
+        this.engine.actionsExecuted.add('vsplit');
+        return { handled: true, feedback: 'Vertical split (:wincmd v)', action: 'vsplit' };
+      }
+      if (arg === 's') {
+        this.engine.actionsExecuted.add('split');
+        return { handled: true, feedback: 'Horizontal split (:wincmd s)', action: 'split' };
+      }
+      if (arg === 'o') {
+        this.engine.actionsExecuted.add('zen');
+        return { handled: true, feedback: 'Zen mode (:wincmd o)', action: 'zen' };
+      }
+      if (arg === 'q' || arg === 'c') {
+        this.engine.actionsExecuted.add('close_window');
+        return { handled: true, feedback: 'Closed window (:wincmd q)', action: 'close_window' };
+      }
+      if (arg === '=') {
+        this.engine.actionsExecuted.add('equalize_split');
+        return { handled: true, feedback: 'Windows equalized (:wincmd =)', action: 'equalize_split' };
+      }
+      if (arg === '>') {
+        this.engine.actionsExecuted.add('resize_width_plus');
+        return { handled: true, feedback: 'Expanded width (:wincmd >)', action: 'resize_width_plus' };
+      }
+      if (arg === '<') {
+        this.engine.actionsExecuted.add('resize_width_minus');
+        return { handled: true, feedback: 'Shrunk width (:wincmd <)', action: 'resize_width_minus' };
+      }
+      if (arg === '+') {
+        this.engine.actionsExecuted.add('resize_height_plus');
+        return { handled: true, feedback: 'Expanded height (:wincmd +)', action: 'resize_height_plus' };
+      }
+      if (arg === '-') {
+        this.engine.actionsExecuted.add('resize_height_minus');
+        return { handled: true, feedback: 'Shrunk height (:wincmd -)', action: 'resize_height_minus' };
+      }
+      if (arg === 'r' || arg === 'x') {
+        this.engine.actionsExecuted.add('swap_splits');
+        return { handled: true, feedback: 'Swapped windows (:wincmd r)', action: 'swap_splits' };
+      }
+      if (arg === 'w') {
+        this.engine.actionsExecuted.add('switch_window');
+        return { handled: true, feedback: 'Switched window (:wincmd w)', action: 'switch_window' };
+      }
     }
 
     // Plugin triggers
@@ -1074,6 +1143,7 @@ class VimEngine {
     this.lspHover = null;
     this.jumpList = [];
     this.onStateChange = null;
+    this.pendingWindowCmd = false;
   }
 
   getMode() {
@@ -1278,6 +1348,106 @@ class VimEngine {
    * Handle keystrokes in NORMAL mode
    */
   handleNormalKey(key) {
+    // Pending <C-w> Window Commands (Neovim Window Splits & Management)
+    if (this.pendingWindowCmd) {
+      this.pendingWindowCmd = false;
+      const sub = key.toLowerCase();
+      if (sub === 'v' || key === '|') {
+        this.actionsExecuted.add('vsplit');
+        this.actionsExecuted.add('window_cmd');
+        if (this.onPluginAction) this.onPluginAction('vsplit');
+        return { handled: true, feedback: 'Vertical split (<C-w>v)', action: 'vsplit' };
+      }
+      if (sub === 's' || key === '-') {
+        this.actionsExecuted.add('split');
+        this.actionsExecuted.add('window_cmd');
+        if (this.onPluginAction) this.onPluginAction('split');
+        return { handled: true, feedback: 'Horizontal split (<C-w>s)', action: 'split' };
+      }
+      if (sub === 'o') {
+        this.actionsExecuted.add('zen');
+        this.actionsExecuted.add('window_cmd');
+        if (this.onPluginAction) this.onPluginAction('zen');
+        return { handled: true, feedback: 'Zen mode: Only editor buffer (<C-w>o)', action: 'zen' };
+      }
+      if (sub === 'q' || sub === 'c') {
+        this.actionsExecuted.add('close_window');
+        this.actionsExecuted.add('window_cmd');
+        if (this.onPluginAction) this.onPluginAction('close_window');
+        return { handled: true, feedback: 'Closed split window (<C-w>q)', action: 'close_window' };
+      }
+      if (key === '=') {
+        this.actionsExecuted.add('equalize_split');
+        this.actionsExecuted.add('window_cmd');
+        if (this.onPluginAction) this.onPluginAction('equalize_split');
+        return { handled: true, feedback: 'Windows equalized (<C-w>=)', action: 'equalize_split' };
+      }
+      if (key === '>') {
+        this.actionsExecuted.add('resize_width_plus');
+        this.actionsExecuted.add('window_cmd');
+        if (this.onPluginAction) this.onPluginAction('resize_width_plus');
+        return { handled: true, feedback: 'Expanded split width (<C-w>>)', action: 'resize_width_plus' };
+      }
+      if (key === '<') {
+        this.actionsExecuted.add('resize_width_minus');
+        this.actionsExecuted.add('window_cmd');
+        if (this.onPluginAction) this.onPluginAction('resize_width_minus');
+        return { handled: true, feedback: 'Shrunk split width (<C-w><)', action: 'resize_width_minus' };
+      }
+      if (key === '+') {
+        this.actionsExecuted.add('resize_height_plus');
+        this.actionsExecuted.add('window_cmd');
+        if (this.onPluginAction) this.onPluginAction('resize_height_plus');
+        return { handled: true, feedback: 'Expanded split height (<C-w>+)', action: 'resize_height_plus' };
+      }
+      if (key === '-') {
+        this.actionsExecuted.add('resize_height_minus');
+        this.actionsExecuted.add('window_cmd');
+        if (this.onPluginAction) this.onPluginAction('resize_height_minus');
+        return { handled: true, feedback: 'Shrunk split height (<C-w>-)', action: 'resize_height_minus' };
+      }
+      if (sub === 'r' || sub === 'x') {
+        this.actionsExecuted.add('swap_splits');
+        this.actionsExecuted.add('window_cmd');
+        if (this.onPluginAction) this.onPluginAction('swap_splits');
+        return { handled: true, feedback: 'Swapped window positions (<C-w>r)', action: 'swap_splits' };
+      }
+      if (sub === 'w' || sub === 'p' || key === '<C-w>') {
+        this.actionsExecuted.add('switch_window');
+        this.actionsExecuted.add('window_cmd');
+        if (this.onPluginAction) this.onPluginAction('switch_window');
+        return { handled: true, feedback: 'Switched window focus (<C-w>w)', action: 'switch_window' };
+      }
+      if (sub === 'h') {
+        this.actionsExecuted.add('focus_left');
+        this.actionsExecuted.add('window_cmd');
+        if (this.onPluginAction) this.onPluginAction('focus_left');
+        return { handled: true, feedback: 'Focus left window (<C-w>h)', action: 'focus_left' };
+      }
+      if (sub === 'l') {
+        this.actionsExecuted.add('focus_right');
+        this.actionsExecuted.add('window_cmd');
+        if (this.onPluginAction) this.onPluginAction('focus_right');
+        return { handled: true, feedback: 'Focus right window (<C-w>l)', action: 'focus_right' };
+      }
+      if (sub === 'j') {
+        this.actionsExecuted.add('focus_bottom');
+        this.actionsExecuted.add('window_cmd');
+        if (this.onPluginAction) this.onPluginAction('focus_bottom');
+        return { handled: true, feedback: 'Focus bottom window (<C-w>j)', action: 'focus_bottom' };
+      }
+      if (sub === 'k') {
+        this.actionsExecuted.add('focus_top');
+        this.actionsExecuted.add('window_cmd');
+        if (this.onPluginAction) this.onPluginAction('focus_top');
+        return { handled: true, feedback: 'Focus top window (<C-w>k)', action: 'focus_top' };
+      }
+      if (key === 'Escape') {
+        return { handled: true, feedback: 'Window command cancelled' };
+      }
+      return { handled: false, feedback: `Unknown window command: <C-w>${key}` };
+    }
+
     // Leader Key (<Space>) Handling in LazyVim
     if (this.pendingLeader) {
       if (key === 'Escape') {
@@ -1395,13 +1565,212 @@ class VimEngine {
         if (this.onPluginAction) this.onPluginAction('lazy');
         return { handled: true, feedback: 'LazyVim: Plugin Dashboard', action: 'lazy' };
       }
+      // LazyVim Windows / Splits (<Space>W... or <Space>w...)
+      if (lk === 'wv' || lk === 'Wv' || lk === 'w|' || lk === 'W|') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('vsplit');
+        this.actionsExecuted.add('leader_wv');
+        if (this.onPluginAction) this.onPluginAction('vsplit');
+        return { handled: true, feedback: 'LazyVim: Vertical split (<Space>Wv)', action: 'vsplit' };
+      }
+      if (lk === 'ws' || lk === 'Ws' || lk === 'w-' || lk === 'W-') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('split');
+        this.actionsExecuted.add('leader_ws');
+        if (this.onPluginAction) this.onPluginAction('split');
+        return { handled: true, feedback: 'LazyVim: Horizontal split (<Space>Ws)', action: 'split' };
+      }
+      if (lk === 'wd' || lk === 'Wd' || lk === 'wq' || lk === 'Wq' || lk === 'wc' || lk === 'Wc') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('close_window');
+        this.actionsExecuted.add('leader_wd');
+        if (this.onPluginAction) this.onPluginAction('close_window');
+        return { handled: true, feedback: 'LazyVim: Close window (<Space>Wd)', action: 'close_window' };
+      }
+      if (lk === 'we' || lk === 'We' || lk === 'w=' || lk === 'W=') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('equalize_split');
+        this.actionsExecuted.add('leader_we');
+        if (this.onPluginAction) this.onPluginAction('equalize_split');
+        return { handled: true, feedback: 'LazyVim: Equalize windows (<Space>We)', action: 'equalize_split' };
+      }
+      if (lk === 'wm' || lk === 'Wm' || lk === 'wz' || lk === 'Wz') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('zen');
+        this.actionsExecuted.add('leader_wm');
+        if (this.onPluginAction) this.onPluginAction('zen');
+        return { handled: true, feedback: 'LazyVim: Maximize / Zen mode (<Space>Wm)', action: 'zen' };
+      }
+      if (lk === 'ww' || lk === 'Ww') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('switch_window');
+        this.actionsExecuted.add('leader_ww');
+        if (this.onPluginAction) this.onPluginAction('switch_window');
+        return { handled: true, feedback: 'LazyVim: Switch active window (<Space>Ww)', action: 'switch_window' };
+      }
+      if (lk === 'wr' || lk === 'Wr' || lk === 'wx' || lk === 'Wx') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('swap_splits');
+        this.actionsExecuted.add('leader_wr');
+        if (this.onPluginAction) this.onPluginAction('swap_splits');
+        return { handled: true, feedback: 'LazyVim: Swap window positions (<Space>Wr)', action: 'swap_splits' };
+      }
+      if (lk === 'wh' || lk === 'Wh') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('focus_left');
+        if (this.onPluginAction) this.onPluginAction('focus_left');
+        return { handled: true, feedback: 'LazyVim: Focus left window (<Space>Wh)', action: 'focus_left' };
+      }
+      if (lk === 'wl') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('focus_right');
+        if (this.onPluginAction) this.onPluginAction('focus_right');
+        return { handled: true, feedback: 'LazyVim: Focus right window (<Space>wl)', action: 'focus_right' };
+      }
+      if (lk === 'wj') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('focus_bottom');
+        if (this.onPluginAction) this.onPluginAction('focus_bottom');
+        return { handled: true, feedback: 'LazyVim: Focus bottom window (<Space>wj)', action: 'focus_bottom' };
+      }
+      if (lk === 'wk') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('focus_top');
+        if (this.onPluginAction) this.onPluginAction('focus_top');
+        return { handled: true, feedback: 'LazyVim: Focus top window (<Space>wk)', action: 'focus_top' };
+      }
+
+      // LazyVim UI Toggles (<Space>u...)
+      if (lk === 'uz') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('zen');
+        this.actionsExecuted.add('leader_uz');
+        if (this.onPluginAction) this.onPluginAction('zen');
+        return { handled: true, feedback: 'LazyVim: Toggle Zen Mode (<Space>uz)', action: 'zen' };
+      }
+      if (lk === 'um') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('toggle_mission');
+        this.actionsExecuted.add('leader_um');
+        if (this.onPluginAction) this.onPluginAction('toggle_mission');
+        return { handled: true, feedback: 'LazyVim: Toggle Mission Pane (<Space>um)', action: 'toggle_mission' };
+      }
+      if (lk === 'ud') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('toggle_diff');
+        this.actionsExecuted.add('leader_ud');
+        if (this.onPluginAction) this.onPluginAction('toggle_diff');
+        return { handled: true, feedback: 'LazyVim: Toggle Live Diff (<Space>ud)', action: 'toggle_diff' };
+      }
+      if (lk === 'us') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('toggle_split_orientation');
+        this.actionsExecuted.add('leader_us');
+        if (this.onPluginAction) this.onPluginAction('toggle_split_orientation');
+        return { handled: true, feedback: 'LazyVim: Toggle Split Orientation (<Space>us)', action: 'toggle_split_orientation' };
+      }
+      if (lk === 'ur') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('swap_splits');
+        this.actionsExecuted.add('leader_ur');
+        if (this.onPluginAction) this.onPluginAction('swap_splits');
+        return { handled: true, feedback: 'LazyVim: Swapped Split Positions (<Space>ur)', action: 'swap_splits' };
+      }
+
+      // Mission / Curriculum Shortcuts (<Space>m...)
+      if (lk === 'mm' || lk === 'm') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('mission_modal');
+        this.actionsExecuted.add('leader_m');
+        if (this.onPluginAction) this.onPluginAction('mission_modal');
+        return { handled: true, feedback: 'LazyVim: Mission Floating Window (<Space>m)', action: 'mission_modal' };
+      }
+      if (lk === 'mh') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('hint');
+        if (this.onPluginAction) this.onPluginAction('hint');
+        return { handled: true, feedback: 'Stage Hint (<Space>mh)', action: 'hint' };
+      }
+      if (lk === 'mr') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('reset');
+        if (this.onPluginAction) this.onPluginAction('reset');
+        return { handled: true, feedback: 'Reset Stage (<Space>mr)', action: 'reset' };
+      }
+      if (lk === 'mn') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('next_stage');
+        if (this.onPluginAction) this.onPluginAction('next_stage');
+        return { handled: true, feedback: 'Next Stage (<Space>mn)', action: 'next_stage' };
+      }
+      if (lk === 'mp') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('prev_stage');
+        if (this.onPluginAction) this.onPluginAction('prev_stage');
+        return { handled: true, feedback: 'Previous Stage (<Space>mp)', action: 'prev_stage' };
+      }
+      if (lk === 'ms') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('stage_map');
+        if (this.onPluginAction) this.onPluginAction('stage_map');
+        return { handled: true, feedback: 'Stage Map (<Space>ms)', action: 'stage_map' };
+      }
+
       if (lk === 'w') {
         this.pendingLeader = false;
         this.leaderKeys = '';
         if (this.onLeaderState) this.onLeaderState('', false);
         this.saveSnapshot();
         this.actionsExecuted.add('save');
-        return { handled: true, feedback: 'Saved buffer to disk.', action: 'save' };
+        return { handled: true, feedback: 'Saved buffer to disk (<Space>w).', action: 'save' };
+      }
+      if (lk === 'W') {
+        if (this.onLeaderState) this.onLeaderState('W', true);
+        return { handled: true, feedback: 'Leader <Space>W... (+windows/splits)' };
       }
       if (lk === 'bd') {
         this.pendingLeader = false;
@@ -1428,7 +1797,7 @@ class VimEngine {
       }
 
       // Prefix drill-down
-      if (['f', 's', 'x', 'c', 'g', 'b'].includes(lk)) {
+      if (['f', 's', 'x', 'c', 'g', 'b', 'w', 'u', 'm'].includes(lk)) {
         if (this.onLeaderState) this.onLeaderState(lk, true);
         return { handled: true, feedback: `Leader <Space>${lk}...` };
       }
@@ -1455,6 +1824,12 @@ class VimEngine {
       this.activeOperator = null;
       this.searchMatches = [];
       return { handled: true, feedback: 'Cleared' };
+    }
+
+    // Neovim Window Management Prefix (<C-w>)
+    if (key === '<C-w>') {
+      this.pendingWindowCmd = true;
+      return { handled: true, feedback: '<C-w>... (v: vs, s: sp, o: zen, q: close, =: eq, w: switch, r: swap)' };
     }
 
     // Visual Block Mode (<C-v>)
@@ -2307,27 +2682,32 @@ class VimEngine {
     if (key === 'Escape') {
       this.pendingKeys = '';
       this.flashTargets = [];
+      this.lastFlashQuery = '';
       this.setMode('NORMAL');
-      return { handled: true };
+      return { handled: true, feedback: 'Flash cancelled' };
     }
     if (this.flashTargets.length > 0) {
+      const targetQuery = this.lastFlashQuery || '';
       const jumped = this.flashHandler.jumpToLabel(key, this.flashTargets);
       this.flashTargets = [];
+      this.lastFlashQuery = '';
       this.setMode('NORMAL');
-      return { handled: jumped };
+      return { handled: jumped, feedback: jumped ? `Flash: teleported to "${targetQuery}"!` : 'Invalid flash label' };
     }
 
     this.pendingKeys += key;
     if (this.pendingKeys.length === 2) {
+      this.lastFlashQuery = this.pendingKeys;
       this.flashTargets = this.flashHandler.findTargets(this.pendingKeys);
       this.pendingKeys = '';
       if (this.flashTargets.length === 0) {
         this.setMode('NORMAL');
-        return { handled: true, feedback: 'No flash targets found' };
+        return { handled: true, feedback: `No flash targets found for "${this.lastFlashQuery}"` };
       }
-      return { handled: true, feedback: 'Select flash label' };
+      const firstLabel = this.flashTargets[0]?.label?.toUpperCase() || 'A';
+      return { handled: true, feedback: `Flash targets active: press [${firstLabel}] to teleport` };
     }
-    return { handled: true };
+    return { handled: true, feedback: `Flash query: ${this.pendingKeys}_ (type 1 more character)` };
   }
 
   generateFlashTargets(twoChars) {
@@ -4075,19 +4455,24 @@ function renderBuffer(container, engine, buffer) {
   const mode = engine.getMode();
 
   let html = '';
+  const isFlashMode = mode === 'FLASH';
+  const hasFlashTargets = (engine.flashTargets || []).length > 0;
 
   for (let r = 0; r < lines.length; r++) {
     const isCurrentLine = r === cur.row;
-    const lineClass = isCurrentLine ? 'buffer-line active-line' : 'buffer-line';
+    const lineFlashTargets = (engine.flashTargets || []).filter(t => t.row === r);
+    const hasTargetsOnThisLine = lineFlashTargets.length > 0;
+
+    let lineClass = isCurrentLine ? 'buffer-line active-line' : 'buffer-line';
+    if (isFlashMode && hasFlashTargets) {
+      lineClass += hasTargetsOnThisLine ? ' flash-target-line' : ' flash-dimmed-line';
+    }
 
     // Hybrid line numbers (relative + absolute on current)
     const lineNum = isCurrentLine ? `${r + 1}` : `${Math.abs(r - cur.row)}`;
 
     const rawLine = lines[r];
     let lineRendered = '';
-
-    // Check if line contains flash targets
-    const lineFlashTargets = (engine.flashTargets || []).filter(t => t.row === r);
 
     // Visual selection range calculation
     let isLineSelected = false;
@@ -4124,12 +4509,14 @@ function renderBuffer(container, engine, buffer) {
     }
 
     if (lineFlashTargets.length > 0) {
-      // Render line with flash target labels
+      // Render line with non-destructive flash beacon badges and highlighted target text
       let lastIdx = 0;
       for (const t of lineFlashTargets) {
         lineRendered += escapeHtml(rawLine.slice(lastIdx, t.col));
-        lineRendered += `<span class="flash-label">${escapeHtml(t.label)}</span>`;
-        lastIdx = t.col + 1;
+        const matchLen = 2;
+        const matchedChars = escapeHtml(rawLine.slice(t.col, t.col + matchLen));
+        lineRendered += `<span class="flash-match-wrapper"><span class="flash-label" data-label="${escapeHtml(t.label)}">${escapeHtml(t.label.toUpperCase())}</span><span class="flash-matched-text">${matchedChars}</span></span>`;
+        lastIdx = t.col + matchLen;
       }
       lineRendered += escapeHtml(rawLine.slice(lastIdx));
     } else if (isLineSelected) {
@@ -4149,6 +4536,7 @@ function renderBuffer(container, engine, buffer) {
       let cursorClass = 'vim-cursor cursor-normal';
       if (mode === 'INSERT') cursorClass = 'vim-cursor cursor-insert';
       if (mode === 'VISUAL') cursorClass = 'vim-cursor cursor-visual';
+      if (mode === 'FLASH') cursorClass = 'vim-cursor cursor-flash';
 
       lineRendered = `${before}<span class="${cursorClass}">${escapeHtml(cursorChar)}</span>${after}`;
     } else {
@@ -4158,6 +4546,25 @@ function renderBuffer(container, engine, buffer) {
     html += `<div class="${lineClass}">
       <span class="line-num">${lineNum}</span>
       <span class="line-content">${lineRendered}</span>
+    </div>`;
+  }
+
+  // Floating Flash Prompt Bar inside viewport when in FLASH mode
+  if (isFlashMode) {
+    let flashStatusHtml = '';
+    if (hasFlashTargets) {
+      const q = engine.lastFlashQuery || '';
+      const beaconKey = (engine.flashTargets[0]?.label || 'a').toUpperCase();
+      flashStatusHtml = `<span class="flash-bar-query">Target: <strong>${escapeHtml(q)}</strong></span> <span class="flash-bar-action">▸ Press beacon <kbd class="flash-beacon-key">${beaconKey}</kbd> to jump</span>`;
+    } else if (engine.pendingKeys && engine.pendingKeys.length > 0) {
+      flashStatusHtml = `<span class="flash-bar-query">Query: <strong>${escapeHtml(engine.pendingKeys)}</strong>_</span> <span class="flash-bar-hint">(type 1 more character)</span>`;
+    } else {
+      flashStatusHtml = `<span class="flash-bar-hint">Type 2 search characters to jump · &lt;Esc&gt; to cancel</span>`;
+    }
+
+    html += `<div class="flash-prompt-bar">
+      <div class="flash-prompt-badge">⚡ FLASH</div>
+      <div class="flash-prompt-content">${flashStatusHtml}</div>
     </div>`;
   }
 
@@ -4229,9 +4636,12 @@ function renderStatusline(container, engine, stageInfo = {}) {
     ? `Day ${stageInfo.day}: ${stageInfo.title || 'Practice'}`
     : 'Neovim Mastery Sandbox';
 
+  const splitMode = stageInfo.splitMode || 'vertical';
+  const splitIcon = splitMode === 'horizontal' ? '⬓ horiz' : (splitMode === 'zen' ? '▢ zen' : '◫ vert');
+
   container.innerHTML = `
     <div class="status-left">
-      <div class="status-mode ${mode}">${mode}</div>
+      <div class="status-mode ${mode}">${mode === 'FLASH' ? '⚡ FLASH' : mode}</div>
       <div class="status-item status-branch">
         <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
           <path fill-rule="evenodd" d="M11.75 2.5a.75.75 0 100 1.5.75.75 0 000-1.5zm-2.25.75a2.25 2.25 0 113 2.122V6A2.5 2.5 0 0110 8.5H6a1 1 0 00-1 1v1.128a2.251 2.251 0 11-1.5 0V5.372a2.25 2.25 0 111.5 0v1.836A2.492 2.492 0 016 7h4a1 1 0 001-1v-.628A2.25 2.25 0 019.5 3.25zM4.25 12a.75.75 0 100 1.5.75.75 0 000-1.5zM3.5 3.25a.75.75 0 111.5 0 .75.75 0 01-1.5 0z"/>
@@ -4241,8 +4651,10 @@ function renderStatusline(container, engine, stageInfo = {}) {
       <div class="status-item">${stageLabel}</div>
     </div>
     <div class="status-right">
+      <div class="status-item" style="color: var(--tn-teal);" title="Screen Split Layout">${splitIcon}</div>
+      <div class="status-item" style="color: var(--tn-green);">● 0</div>
       <div class="status-item">utf-8</div>
-      <div class="status-position">${rowDisplay}:${colDisplay} [${posPercent}]</div>
+      <div class="status-position"> ${rowDisplay}:${colDisplay} [${posPercent}]</div>
     </div>
   `;
 }
@@ -4318,24 +4730,41 @@ const KEY_EXPLANATIONS = {
  * @param {string[]} keystrokes
  * @param {number} par
  * @param {string} lastActionMsg
+ * @param {import('../editor/vim-engine.js').VimEngine} [engine]
  */
-function renderHUD(hudEl, keystrokes = [], par = 10, lastActionMsg = '') {
+function renderHUD(hudEl, keystrokes = [], par = 10, lastActionMsg = '', engine = null) {
   if (!hudEl) return;
 
   const count = keystrokes.length;
   const recent = keystrokes.slice(-4).join(' ');
   const fullSeq = keystrokes.slice(-3).join('');
-  const explanation = KEY_EXPLANATIONS[fullSeq] || KEY_EXPLANATIONS[keystrokes[keystrokes.length - 1]] || '';
+  const mode = engine ? engine.getMode() : 'NORMAL';
+
+  let explanation = '';
+  if (mode === 'FLASH') {
+    if (engine.flashTargets && engine.flashTargets.length > 0) {
+      const label = engine.flashTargets[0]?.label?.toUpperCase() || 'A';
+      explanation = `⚡ Flash: Press glowing beacon [${label}] to jump`;
+    } else if (engine.pendingKeys && engine.pendingKeys.length > 0) {
+      explanation = `⚡ Flash search: "${engine.pendingKeys}_" (type 1 more char)`;
+    } else {
+      explanation = '⚡ Flash: Type 2 characters to locate jump targets';
+    }
+  } else if (lastActionMsg && lastActionMsg.startsWith('Flash: teleported')) {
+    explanation = `⚡ Flash Teleported!`;
+  } else {
+    explanation = KEY_EXPLANATIONS[fullSeq] || KEY_EXPLANATIONS[keystrokes[keystrokes.length - 1]] || '';
+  }
 
   hudEl.innerHTML = `
     <div class="hud-keys">
-      <span style="color: var(--tn-comment); font-size: 11px;">KEYS:</span>
+      <span class="hud-label">KEYS:</span>
       <span class="key-badge">${recent ? escapeHtml(recent) : 'Ready'}</span>
       ${explanation ? `<span class="hud-message">${escapeHtml(explanation)}</span>` : ''}
     </div>
-    <div class="hud-stats" style="display: flex; gap: 14px; font-size: 12px;">
-      <span style="color: var(--tn-fg-dark);">${lastActionMsg ? escapeHtml(lastActionMsg) : ''}</span>
-      <span style="color: ${count <= par ? 'var(--tn-green)' : 'var(--tn-yellow)'}; font-weight: 700;">
+    <div class="hud-stats">
+      <span class="hud-action-msg">${lastActionMsg ? escapeHtml(lastActionMsg) : ''}</span>
+      <span class="hud-golf-stat ${count <= par ? 'stat-under-par' : 'stat-over-par'}">
         Strokes: ${count} / Par: ${par}
       </span>
     </div>
@@ -4404,15 +4833,15 @@ function renderDiffViewer(container, currentText, targetText) {
   let html = '';
   lines.forEach((l, idx) => {
     if (l.type === 'match') {
-      html += `<div class="diff-line diff-match">✓ ${escapeHtml(l.target)}</div>`;
+      html += `<div class="diff-line diff-match"><span class="diff-indicator diff-indicator-match">✓</span> <span class="diff-code">${escapeHtml(l.target)}</span></div>`;
     } else if (l.type === 'missing') {
-      html += `<div class="diff-line diff-missing">+ ${escapeHtml(l.target)} (missing)</div>`;
+      html += `<div class="diff-line diff-missing"><span class="diff-indicator diff-indicator-add">+</span> <span class="diff-code">${escapeHtml(l.target)}</span> <span class="diff-badge diff-badge-missing">missing</span></div>`;
     } else if (l.type === 'extra') {
-      html += `<div class="diff-line diff-unwanted">- ${escapeHtml(l.current)} (extra)</div>`;
+      html += `<div class="diff-line diff-unwanted"><span class="diff-indicator diff-indicator-del">-</span> <span class="diff-code">${escapeHtml(l.current)}</span> <span class="diff-badge diff-badge-extra">extra</span></div>`;
     } else {
       html += `<div class="diff-line diff-diff">
-        <span class="diff-unwanted">- ${escapeHtml(l.current)}</span><br>
-        <span class="diff-match">+ ${escapeHtml(l.target)}</span>
+        <div class="diff-subline diff-unwanted"><span class="diff-indicator diff-indicator-del">-</span> <span class="diff-code">${escapeHtml(l.current)}</span></div>
+        <div class="diff-subline diff-match"><span class="diff-indicator diff-indicator-add">+</span> <span class="diff-code">${escapeHtml(l.target)}</span></div>
       </div>`;
     }
   });
@@ -4454,15 +4883,23 @@ const WHICH_KEY_ENTRIES = [
   { key: '.', desc: 'Repeat Last Change' },
   { key: 's', desc: 'Flash 2-char Teleport' },
   { key: '<C-v>', desc: 'Visual Block Column Mode' },
+  { key: '<C-w>v / s', desc: 'Split Window Vert / Horiz' },
+  { key: '<C-w>w / o', desc: 'Switch Window / Zen Mode' },
+  { key: '<C-w>= / q', desc: 'Equalize Splits / Close Window' },
   { key: 'qa ... q / @a', desc: 'Record / Replay Macro' },
   { key: 'gsaw" / gsd"', desc: 'Mini.surround Add / Delete' },
   { key: 'K / gd', desc: 'LSP Hover / Definition' },
-  { key: '<leader>ff / <leader>sg', desc: 'Fzf Find Files / Live Grep' },
-  { key: '<leader>e / <leader>xx', desc: 'Neo-tree / Trouble' },
+  { key: '<leader>w...', desc: 'Windows & Splits Menu' },
+  { key: '<leader>u...', desc: 'UI Toggles (Zen, Diff, Split)' },
+  { key: '<leader>ff / sg', desc: 'Fzf Find Files / Live Grep' },
 ];
 
 const LEADER_GROUPS = {
   '': [
+    { key: 'w', desc: 'Save Buffer (:w)' },
+    { key: 'W', desc: '+windows/splits (v: vsplit, s: split, d: close, e: eq, m: zen)' },
+    { key: 'u', desc: '+ui toggles (z: zen, m: mission, d: diff, s: split dir)' },
+    { key: 'm', desc: '+mission/dojo (m: popup, h: hint, r: reset, n: next, p: prev)' },
     { key: 'f', desc: '+find/file (ff: Files, fb: Buffers)' },
     { key: 's', desc: '+search (sg: Grep, sr: Grug-far)' },
     { key: 'c', desc: '+code (ca: Action, cr: Rename, cf: Format)' },
@@ -4470,10 +4907,43 @@ const LEADER_GROUPS = {
     { key: 'g', desc: '+git (gg: LazyGit)' },
     { key: 'e', desc: 'Neo-tree Explorer' },
     { key: 'l', desc: 'Lazy.nvim Dashboard' },
-    { key: 'w', desc: 'Save Buffer (:w)' },
     { key: 'bd', desc: 'Delete Buffer' },
     { key: '.', desc: 'Snacks Scratchpad' },
     { key: 'ft', desc: 'Floating Terminal' },
+  ],
+  'W': [
+    { key: 'v / |', desc: 'Split Window Vertically (:vsplit, <C-w>v)' },
+    { key: 's / -', desc: 'Split Window Horizontally (:split, <C-w>s)' },
+    { key: 'd / q', desc: 'Close Split Window (:q, <C-w>q)' },
+    { key: 'e / =', desc: 'Equalize Splits (<C-w>=)' },
+    { key: 'm / z', desc: 'Maximize / Toggle Zen (<C-w>o)' },
+    { key: 'w', desc: 'Switch Active Window (<C-w>w)' },
+    { key: 'h/j/k/l', desc: 'Focus Left / Down / Up / Right' },
+  ],
+  'w': [
+    { key: 'v / |', desc: 'Split Window Vertically (:vsplit, <C-w>v)' },
+    { key: 's / -', desc: 'Split Window Horizontally (:split, <C-w>s)' },
+    { key: 'd / q', desc: 'Close Split Window (:q, <C-w>q)' },
+    { key: 'e / =', desc: 'Equalize Splits (<C-w>=)' },
+    { key: 'm / z', desc: 'Maximize / Toggle Zen (<C-w>o)' },
+    { key: 'w', desc: 'Switch Active Window (<C-w>w)' },
+    { key: 'h/j/k/l', desc: 'Focus Left / Down / Up / Right' },
+  ],
+  'u': [
+    { key: 'z', desc: 'Toggle Zen Mode (100% Editor Buffer)' },
+    { key: 'm', desc: 'Toggle Mission / Target Pane' },
+    { key: 'd', desc: 'Toggle Live Diff View' },
+    { key: 's', desc: 'Switch Split Orientation (Vert / Horiz)' },
+    { key: 'r', desc: 'Swap Split Positions (<C-w>r)' },
+    { key: 'l', desc: 'Toggle Line Numbers' },
+  ],
+  'm': [
+    { key: 'm', desc: 'Open Mission Floating Window (:help)' },
+    { key: 'h', desc: 'Stage Hint (:hint)' },
+    { key: 'r', desc: 'Reset Stage (:reset)' },
+    { key: 'n', desc: 'Next Stage' },
+    { key: 'p', desc: 'Previous Stage' },
+    { key: 's', desc: 'Stage Select Map' },
   ],
   'f': [
     { key: 'f', desc: 'Find Files (Fzf / Telescope)' },
@@ -5285,6 +5755,377 @@ class LazyGitModal {
   try { exports.LazyGitModal = LazyGitModal; } catch(e) {}
 });
 
+/* Module: ui/split-manager.js */
+defineModule('ui/split-manager.js', function(exports, require, module) {
+/**
+ * SplitManager: Manages Neovim / LazyVim multi-window layouts.
+ * Supports Vertical Split (:vs, <C-w>v), Horizontal Split (:sp, <C-w>s),
+ * Zen Mode (:only, <C-w>o), Flipped Layout (<C-w>r),
+ * Draggable Split Dividers, Split Winbars, and Floating Mission Help (:help, <Space>m).
+ */
+
+class SplitManager {
+  /**
+   * @param {object} options
+   * @param {import('../state.js').GameState} options.state
+   * @param {HTMLElement} options.workspaceEl
+   * @param {HTMLElement} options.dividerEl
+   * @param {HTMLElement} options.sidepaneEl
+   * @param {Function} [options.onLayoutChange]
+   * @param {Function} [options.onAction]
+   */
+  constructor(options = {}) {
+    const isState = options && typeof options.getStageStars === 'function';
+    const opts = isState ? { state: options } : (options || {});
+
+    this.state = opts.state || {
+      splitMode: 'vertical',
+      splitRatio: 55,
+      splitReversed: false,
+      splitTab: 'diff',
+      activeWindow: 'editor',
+      setSplitMode() {},
+      setSplitRatio() {},
+      toggleSplitReverse() {},
+      setSplitTab() {},
+      toggleZen() {},
+    };
+    this.workspaceEl = opts.workspaceEl || (typeof document !== 'undefined' ? document.getElementById('main-workspace') : null);
+    this.dividerEl = opts.dividerEl || (typeof document !== 'undefined' ? document.getElementById('split-divider') : null);
+    this.sidepaneEl = opts.sidepaneEl || (typeof document !== 'undefined' ? document.getElementById('split-pane') : null);
+    this.onLayoutChange = opts.onLayoutChange;
+    this.onAction = opts.onAction;
+
+    this.isDragging = false;
+    this.activeWindow = 'editor'; // 'editor' | 'split'
+    this.floatingModalEl = null;
+
+    const getEl = id => (typeof document !== 'undefined' ? document.getElementById(id) : null);
+    this.dom = {
+      btnVert: getEl('btn-split-vert'),
+      btnHoriz: getEl('btn-split-horiz'),
+      btnZen: getEl('btn-split-zen'),
+      btnSwap: getEl('btn-split-swap'),
+      btnWinHoriz: getEl('btn-win-horiz'),
+      btnWinVert: getEl('btn-win-vert'),
+      btnWinClose: getEl('btn-split-close'),
+      tabDiff: getEl('split-tab-diff'),
+      tabMission: getEl('split-tab-mission'),
+      tabCheat: getEl('split-tab-cheat'),
+      paneDiff: getEl('diff-view-pane'),
+      paneMission: getEl('mission-view-pane'),
+      paneCheat: getEl('cheat-view-pane'),
+      floatingModal: getEl('mission-floating-modal'),
+    };
+  }
+
+  init() {
+    this.bindEvents();
+    this.applyLayout(this.state.splitMode, this.state.splitRatio, this.state.splitReversed);
+    this.applyTab(this.state.splitTab || 'diff');
+  }
+
+  bindEvents() {
+    // Top Bar Split Layout Buttons
+    this.dom.btnVert?.addEventListener('click', (e) => {
+      e.currentTarget?.blur();
+      this.setMode('vertical');
+    });
+    this.dom.btnHoriz?.addEventListener('click', (e) => {
+      e.currentTarget?.blur();
+      this.setMode('horizontal');
+    });
+    this.dom.btnZen?.addEventListener('click', (e) => {
+      e.currentTarget?.blur();
+      this.setMode('zen');
+    });
+    this.dom.btnSwap?.addEventListener('click', (e) => {
+      e.currentTarget?.blur();
+      this.toggleReverse();
+    });
+
+    // Split Window Winbar Buttons
+    this.dom.btnWinHoriz?.addEventListener('click', (e) => {
+      e.currentTarget?.blur();
+      this.setMode('horizontal');
+    });
+    this.dom.btnWinVert?.addEventListener('click', (e) => {
+      e.currentTarget?.blur();
+      this.setMode('vertical');
+    });
+    this.dom.btnWinClose?.addEventListener('click', (e) => {
+      e.currentTarget?.blur();
+      this.setMode('zen');
+    });
+
+    // Split Window Tabs
+    this.dom.tabDiff?.addEventListener('click', (e) => {
+      e.currentTarget?.blur();
+      this.setTab('diff');
+    });
+    this.dom.tabMission?.addEventListener('click', (e) => {
+      e.currentTarget?.blur();
+      this.setTab('mission');
+    });
+    this.dom.tabCheat?.addEventListener('click', (e) => {
+      e.currentTarget?.blur();
+      this.setTab('cheatsheet');
+    });
+
+    // Draggable Split Divider
+    if (this.dividerEl) {
+      this.dividerEl.addEventListener('mousedown', (e) => this.startDragging(e));
+    }
+    window.addEventListener('mousemove', (e) => this.onDrag(e));
+    window.addEventListener('mouseup', () => this.stopDragging());
+
+    // Window click focus
+    this.sidepaneEl?.addEventListener('click', () => {
+      this.setActiveWindow('split');
+    });
+    const editorViewport = document.getElementById('editor-viewport');
+    editorViewport?.addEventListener('click', () => {
+      this.setActiveWindow('editor');
+    });
+  }
+
+  startDragging(e) {
+    if (this.state.splitMode === 'zen') return;
+    this.isDragging = true;
+    document.body.classList.add('resizing-split');
+    e.preventDefault();
+  }
+
+  onDrag(e) {
+    if (!this.isDragging || !this.workspaceEl) return;
+    const rect = this.workspaceEl.getBoundingClientRect();
+
+    let ratio;
+    if (this.state.splitMode === 'vertical') {
+      const x = e.clientX - rect.left;
+      ratio = (x / rect.width) * 100;
+      if (this.state.splitReversed) {
+        ratio = 100 - ratio;
+      }
+    } else if (this.state.splitMode === 'horizontal') {
+      const y = e.clientY - rect.top;
+      ratio = (y / rect.height) * 100;
+      if (this.state.splitReversed) {
+        ratio = 100 - ratio;
+      }
+    }
+
+    if (ratio !== undefined) {
+      this.setRatio(ratio);
+    }
+  }
+
+  stopDragging() {
+    if (this.isDragging) {
+      this.isDragging = false;
+      document.body.classList.remove('resizing-split');
+    }
+  }
+
+  setMode(mode) {
+    if (!['vertical', 'horizontal', 'zen'].includes(mode)) return;
+    this.state.setSplitMode(mode);
+    this.applyLayout(mode, this.state.splitRatio, this.state.splitReversed);
+    if (this.onLayoutChange) this.onLayoutChange(mode);
+  }
+
+  setRatio(ratio) {
+    this.state.setSplitRatio(ratio);
+    this.applyLayout(this.state.splitMode, this.state.splitRatio, this.state.splitReversed);
+  }
+
+  adjustRatio(delta) {
+    const cur = this.state.splitRatio || 55;
+    this.setRatio(cur + delta);
+  }
+
+  equalize() {
+    this.setRatio(50);
+  }
+
+  toggleReverse() {
+    const rev = this.state.toggleSplitReverse();
+    this.applyLayout(this.state.splitMode, this.state.splitRatio, rev);
+    if (this.onLayoutChange) this.onLayoutChange(this.state.splitMode);
+    return rev;
+  }
+
+  toggleZen() {
+    const newMode = this.state.toggleZen();
+    this.applyLayout(newMode, this.state.splitRatio, this.state.splitReversed);
+    if (this.onLayoutChange) this.onLayoutChange(newMode);
+    return newMode;
+  }
+
+  setTab(tab) {
+    this.state.setSplitTab(tab);
+    this.applyTab(tab);
+  }
+
+  applyLayout(mode, ratio = 55, reversed = false) {
+    if (!this.workspaceEl) return;
+
+    // Remove old classes
+    this.workspaceEl.classList.remove('layout-vertical', 'layout-horizontal', 'layout-zen', 'split-reversed');
+
+    // Update active button indicators
+    this.dom.btnVert?.classList.toggle('active', mode === 'vertical');
+    this.dom.btnHoriz?.classList.toggle('active', mode === 'horizontal');
+    this.dom.btnZen?.classList.toggle('active', mode === 'zen');
+    this.dom.btnSwap?.classList.toggle('active', reversed);
+
+    if (mode === 'zen') {
+      this.workspaceEl.classList.add('layout-zen');
+      this.workspaceEl.style.removeProperty('--editor-split-ratio');
+      if (this.dividerEl) this.dividerEl.style.display = 'none';
+      if (this.sidepaneEl) this.sidepaneEl.style.display = 'none';
+    } else {
+      if (this.dividerEl) this.dividerEl.style.display = '';
+      if (this.sidepaneEl) this.sidepaneEl.style.display = '';
+
+      const modeClass = mode === 'horizontal' ? 'layout-horizontal' : 'layout-vertical';
+      this.workspaceEl.classList.add(modeClass);
+      if (reversed) {
+        this.workspaceEl.classList.add('split-reversed');
+      }
+
+      this.workspaceEl.style.setProperty('--editor-split-ratio', `${ratio}%`);
+
+      if (this.dividerEl) {
+        this.dividerEl.className = `split-divider ${mode === 'horizontal' ? 'horizontal' : 'vertical'}`;
+      }
+    }
+  }
+
+  applyTab(tab) {
+    this.dom.tabDiff?.classList.toggle('active', tab === 'diff');
+    this.dom.tabMission?.classList.toggle('active', tab === 'mission');
+    this.dom.tabCheat?.classList.toggle('active', tab === 'cheatsheet');
+
+    if (this.dom.paneDiff) this.dom.paneDiff.style.display = tab === 'diff' ? 'flex' : 'none';
+    if (this.dom.paneMission) this.dom.paneMission.style.display = tab === 'mission' ? 'block' : 'none';
+    if (this.dom.paneCheat) this.dom.paneCheat.style.display = tab === 'cheatsheet' ? 'block' : 'none';
+  }
+
+  setActiveWindow(target) {
+    this.activeWindow = target;
+    this.workspaceEl?.classList.toggle('active-win-editor', target === 'editor');
+    this.workspaceEl?.classList.toggle('active-win-split', target === 'split');
+    this.sidepaneEl?.classList.toggle('focused-window', target === 'split');
+
+    if (target === 'editor') {
+      document.getElementById('editor-viewport')?.focus();
+    }
+  }
+
+  switchActiveWindow() {
+    const next = this.activeWindow === 'editor' ? 'split' : 'editor';
+    this.setActiveWindow(next);
+    return next;
+  }
+
+  /**
+   * Opens a Snacks.nvim / LazyVim style floating window with mission details
+   */
+  openFloatingMission(stage, onNext, onHint) {
+    if (!stage) return;
+    const modalOverlay = document.getElementById('modal-overlay');
+    if (!modalOverlay) return;
+
+    const stars = this.state.getStageStars(stage.day);
+    const starStr = stars > 0 ? '⭐'.repeat(stars) : '☆☆☆';
+    const hintsList = (stage.hints || []).map((h, i) => `<li><strong>Hint ${i + 1}:</strong> ${escapeHtml(h)}</li>`).join('');
+
+    modalOverlay.innerHTML = `
+      <div class="modal-card floating-mission-window">
+        <div class="modal-header">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span class="stage-badge">${stage.day ? `Day ${stage.day} • Week ${stage.week}` : 'Sandbox'}</span>
+            <span class="modal-title">${escapeHtml(stage.title)}</span>
+          </div>
+          <button class="modal-close-btn" id="floating-mission-close" title="Close (:q, <Esc>)">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="mission-concept" style="font-size: 14px; margin-bottom: 12px; font-weight: 600;">
+            🎯 ${escapeHtml(stage.concept)}
+          </div>
+          <p class="mission-desc" style="font-size: 13px; line-height: 1.6; margin-bottom: 16px;">
+            ${escapeHtml(stage.mission)}
+          </p>
+
+          <div class="stats-card" style="margin-bottom: 16px;">
+            <div>
+              <div class="stat-val">${stage.parKeystrokes || '-'}</div>
+              <div class="stat-lbl">Golf Par</div>
+            </div>
+            <div>
+              <div class="stat-val">${this.state.getBestStrokes(stage.day) || '-'}</div>
+              <div class="stat-lbl">Personal Best</div>
+            </div>
+            <div>
+              <div class="stat-val">${starStr}</div>
+              <div class="stat-lbl">Rating</div>
+            </div>
+          </div>
+
+          ${stage.hints?.length ? `
+            <div class="mission-hints-box" style="background: var(--tn-bg-dark); border: 1px solid var(--tn-bg-highlight); border-radius: 6px; padding: 12px; margin-top: 12px;">
+              <div style="font-size: 11px; font-weight: 700; color: var(--tn-yellow); margin-bottom: 6px;">💡 TACTICAL HINTS</div>
+              <ul style="padding-left: 18px; font-size: 12px; color: var(--tn-fg); line-height: 1.6;">
+                ${hintsList}
+              </ul>
+            </div>
+          ` : ''}
+
+          <div style="margin-top: 16px; font-size: 11px; color: var(--tn-comment); display: flex; gap: 16px; justify-content: space-between;">
+            <span>⌨️ Press <kbd class="key-badge">Esc</kbd> or <kbd class="key-badge">Enter</kbd> to return to editor</span>
+            <span>◫ <kbd class="key-badge">:vs</kbd> vertical | <kbd class="key-badge">:sp</kbd> horizontal</span>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn" id="floating-btn-vert">◫ Vertical Split</button>
+          <button class="btn" id="floating-btn-horiz">⬓ Horizontal Split</button>
+          <button class="btn btn-primary" id="floating-mission-ok">Back to Editor (Esc)</button>
+        </div>
+      </div>
+    `;
+
+    modalOverlay.classList.add('open');
+
+    // Bind modal actions
+    document.getElementById('floating-mission-close')?.addEventListener('click', () => {
+      modalOverlay.classList.remove('open');
+    });
+    document.getElementById('floating-mission-ok')?.addEventListener('click', () => {
+      modalOverlay.classList.remove('open');
+    });
+    document.getElementById('floating-btn-vert')?.addEventListener('click', () => {
+      modalOverlay.classList.remove('open');
+      this.setMode('vertical');
+    });
+    document.getElementById('floating-btn-horiz')?.addEventListener('click', () => {
+      modalOverlay.classList.remove('open');
+      this.setMode('horizontal');
+    });
+  }
+}
+
+function escapeHtml(str) {
+  return (str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+  try { exports.escapeHtml = escapeHtml; } catch(e) {}
+  try { exports.SplitManager = SplitManager; } catch(e) {}
+});
+
 /* Module: ui/audio.js */
 defineModule('ui/audio.js', function(exports, require, module) {
 /**
@@ -5619,6 +6460,11 @@ class GameState {
     this.bestStrokesByDay = {};
     this.isMuted = false;
     this.sandboxMode = false;
+    this.splitMode = 'vertical'; // 'vertical' | 'horizontal' | 'zen'
+    this.splitRatio = 55; // Editor size percentage (20..80)
+    this.splitReversed = false;
+    this.splitTab = 'diff'; // 'diff' | 'mission' | 'cheatsheet'
+    this.activeWindow = 'editor'; // 'editor' | 'split'
     this.load();
   }
 
@@ -5633,6 +6479,10 @@ class GameState {
           this.starsByDay = data.starsByDay || {};
           this.bestStrokesByDay = data.bestStrokesByDay || {};
           this.isMuted = !!data.isMuted;
+          if (data.splitMode) this.splitMode = data.splitMode;
+          if (typeof data.splitRatio === 'number') this.splitRatio = data.splitRatio;
+          if (typeof data.splitReversed === 'boolean') this.splitReversed = data.splitReversed;
+          if (data.splitTab) this.splitTab = data.splitTab;
         }
       }
     } catch {}
@@ -5647,10 +6497,52 @@ class GameState {
           starsByDay: this.starsByDay,
           bestStrokesByDay: this.bestStrokesByDay,
           isMuted: this.isMuted,
+          splitMode: this.splitMode,
+          splitRatio: this.splitRatio,
+          splitReversed: this.splitReversed,
+          splitTab: this.splitTab,
         };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
       }
     } catch {}
+  }
+
+  setSplitMode(mode) {
+    if (['vertical', 'horizontal', 'zen'].includes(mode)) {
+      this.splitMode = mode;
+      this.save();
+    }
+  }
+
+  setSplitRatio(ratio) {
+    const clamped = Math.max(20, Math.min(80, Math.round(ratio)));
+    this.splitRatio = clamped;
+    this.save();
+  }
+
+  toggleSplitReverse() {
+    this.splitReversed = !this.splitReversed;
+    this.save();
+    return this.splitReversed;
+  }
+
+  setSplitTab(tab) {
+    const normalized = tab === 'cheat' ? 'cheatsheet' : tab;
+    if (['diff', 'mission', 'cheatsheet'].includes(normalized)) {
+      this.splitTab = normalized;
+      this.save();
+    }
+  }
+
+  toggleZen() {
+    if (this.splitMode === 'zen') {
+      this.splitMode = this._lastSplitMode || 'vertical';
+    } else {
+      this._lastSplitMode = this.splitMode;
+      this.splitMode = 'zen';
+    }
+    this.save();
+    return this.splitMode;
   }
 
   isDayUnlocked(day) {
@@ -5722,12 +6614,14 @@ const { NeoTreeSidebar } = require('./ui/neo-tree.js');
 const { TroubleDrawer } = require('./ui/trouble.js');
 const { LspPopups } = require('./ui/lsp-popups.js');
 const { LazyGitModal } = require('./ui/lazygit-modal.js');
+const { SplitManager } = require('./ui/split-manager.js');
 
 class App {
   constructor() {
     this.state = new GameState();
     this.sound = new SoundFX();
     this.sound.setMuted(this.state.isMuted);
+    this.splitManager = null;
 
     this.currentStage = null;
     this.buffer = null;
@@ -5770,9 +6664,16 @@ class App {
 
   init() {
     this.initPlugins();
+    this.initSplitManager();
     this.bindEvents();
     this.loadStage(this.state.currentDay);
     this.updateAudioButton();
+  }
+
+  initSplitManager() {
+    if (typeof document === 'undefined') return;
+    this.splitManager = new SplitManager(this.state);
+    this.splitManager.init();
   }
 
   initPlugins() {
@@ -5870,28 +6771,86 @@ class App {
     };
 
     this.engine.onPluginAction = (action) => {
-      if (action === 'fzf_files' && this.fzfModal) {
-        this.fzfModal.open('files');
-      } else if (action === 'fzf_grep' && this.fzfModal) {
-        this.fzfModal.open('grep');
-      } else if (action === 'fzf_buffers' && this.fzfModal) {
-        this.fzfModal.open('buffers');
-      } else if (action === 'neotree' && this.neoTree) {
-        this.neoTree.toggle();
-      } else if (action === 'trouble' && this.troubleDrawer) {
-        this.troubleDrawer.toggle();
-      } else if (action === 'lsp_hover' && this.lspPopups) {
-        const word = this.engine.getWordUnderCursor();
-        this.lspPopups.showHover(word, `(symbol) ${word || 'element'}: unknown`, `LSP documentation for '${word || 'symbol'}'.`);
-      } else if (action === 'lsp_code_action' && this.lspPopups) {
-        this.lspPopups.showAction();
-      } else if (action === 'lsp_rename' && this.lspPopups) {
-        const word = this.engine.getWordUnderCursor();
-        this.lspPopups.showRename(word);
-      } else if (action === 'lazygit' && this.lazygitModal) {
-        this.lazygitModal.open();
-      }
+      this.handleAction(action);
     };
+  }
+
+  handleAction(action) {
+    if (!action) return;
+
+    if (action === 'vsplit') {
+      this.splitManager?.setMode('vertical');
+    } else if (action === 'split') {
+      this.splitManager?.setMode('horizontal');
+    } else if (action === 'zen') {
+      this.splitManager?.toggleZen();
+    } else if (action === 'close_window') {
+      this.splitManager?.setMode('zen');
+    } else if (action === 'equalize_split') {
+      this.splitManager?.equalize();
+    } else if (action === 'resize_width_plus') {
+      this.splitManager?.adjustRatio(5);
+    } else if (action === 'resize_width_minus') {
+      this.splitManager?.adjustRatio(-5);
+    } else if (action === 'resize_height_plus') {
+      this.splitManager?.adjustRatio(5);
+    } else if (action === 'resize_height_minus') {
+      this.splitManager?.adjustRatio(-5);
+    } else if (action === 'swap_splits') {
+      this.splitManager?.toggleReverse();
+    } else if (action === 'switch_window') {
+      this.splitManager?.switchActiveWindow();
+    } else if (action === 'toggle_mission') {
+      this.splitManager?.setTab('mission');
+      if (this.state.splitMode === 'zen') this.splitManager?.setMode('vertical');
+    } else if (action === 'toggle_diff') {
+      this.splitManager?.setTab('diff');
+      if (this.state.splitMode === 'zen') this.splitManager?.setMode('vertical');
+    } else if (action === 'toggle_split_orientation') {
+      const next = this.state.splitMode === 'horizontal' ? 'vertical' : 'horizontal';
+      this.splitManager?.setMode(next);
+    } else if (action === 'mission_modal') {
+      this.splitManager?.openFloatingMission(this.currentStage);
+    } else if (action === 'hint') {
+      this.showHint();
+    } else if (action === 'reset') {
+      this.loadStage(this.currentStage.day || 1);
+    } else if (action === 'next_stage') {
+      if (this.currentStage?.day && this.currentStage.day < STAGES.length) {
+        this.loadStage(this.currentStage.day + 1);
+      }
+    } else if (action === 'prev_stage') {
+      if (this.currentStage?.day && this.currentStage.day > 1) {
+        this.loadStage(this.currentStage.day - 1);
+      }
+    } else if (action === 'stage_map') {
+      renderStageSelectModal(
+        this.dom.modalOverlay,
+        STAGES,
+        this.state,
+        day => this.loadStage(day)
+      );
+    } else if (action === 'fzf_files' || action === 'fzf') {
+      this.fzfModal?.open('files');
+    } else if (action === 'fzf_grep') {
+      this.fzfModal?.open('grep');
+    } else if (action === 'fzf_buffers') {
+      this.fzfModal?.open('buffers');
+    } else if (action === 'neotree') {
+      this.neoTree?.toggle();
+    } else if (action === 'trouble') {
+      this.troubleDrawer?.toggle();
+    } else if (action === 'lsp_hover') {
+      const word = this.engine?.getWordUnderCursor();
+      this.lspPopups?.showHover(word, `(symbol) ${word || 'element'}: unknown`, `LSP documentation for '${word || 'symbol'}'.`);
+    } else if (action === 'lsp_code_action') {
+      this.lspPopups?.showAction();
+    } else if (action === 'lsp_rename') {
+      const word = this.engine?.getWordUnderCursor();
+      this.lspPopups?.showRename(word);
+    } else if (action === 'lazygit') {
+      this.lazygitModal?.open();
+    }
   }
 
   loadStage(dayNumber) {
@@ -5956,10 +6915,52 @@ class App {
     if (this.dom.statStars) {
       this.dom.statStars.textContent = stars > 0 ? '⭐'.repeat(stars) : '☆☆☆';
     }
+
+    const diffMini = document.getElementById('diff-mini-title');
+    if (diffMini) {
+      diffMini.textContent = s.day ? `Day ${s.day}: ${s.title}` : s.title;
+    }
+
+    if (this.dom.tabFilename) {
+      this.dom.tabFilename.textContent = s.day ? `day_${s.day}_exercise.ts` : 'sandbox.ts';
+    }
+
+    const navPillDay = document.getElementById('nav-pill-day');
+    const navPillTitle = document.getElementById('nav-pill-title');
+    if (navPillDay) navPillDay.textContent = s.day ? `Day ${s.day}` : 'Sandbox';
+    if (navPillTitle) navPillTitle.textContent = s.title || 'Practice Session';
+    const missionChap = document.getElementById('mission-chapter');
+    if (missionChap) {
+      missionChap.textContent = s.chapterRef
+        ? '📖 ' + s.chapterRef.split('/')[0].replace(/^\d+-/, '').replace(/-/g, ' ')
+        : '🥋 Neovim Dojo';
+    }
   }
 
   bindEvents() {
     window.addEventListener('keydown', e => this.handleKeydown(e));
+
+    document.getElementById('btn-prev-stage')?.addEventListener('click', (e) => {
+      e.currentTarget?.blur();
+      this.handleAction('prev_stage');
+    });
+    document.getElementById('btn-next-stage')?.addEventListener('click', (e) => {
+      e.currentTarget?.blur();
+      this.handleAction('next_stage');
+    });
+    document.getElementById('nav-stage-pill')?.addEventListener('click', (e) => {
+      e.currentTarget?.blur();
+      this.handleAction('stage_map');
+    });
+
+    document.getElementById('tab-quick-diff')?.addEventListener('click', () => {
+      this.splitManager?.setTab('diff');
+      if (this.state.splitMode === 'zen') this.splitManager?.setMode('vertical');
+    });
+    document.getElementById('tab-quick-mission')?.addEventListener('click', () => {
+      this.splitManager?.setTab('mission');
+      if (this.state.splitMode === 'zen') this.splitManager?.setMode('vertical');
+    });
 
     this.dom.btnHint?.addEventListener('click', (e) => {
       e.currentTarget?.blur();
@@ -6079,6 +7080,9 @@ class App {
       if (result.feedback) {
         this.lastFeedback = result.feedback;
       }
+      if (result.action) {
+        this.handleAction(result.action);
+      }
     } else {
       this.sound.playError();
     }
@@ -6119,9 +7123,9 @@ class App {
 
   render() {
     renderBuffer(this.dom.editorViewport, this.engine, this.buffer);
-    renderStatusline(this.dom.statusline, this.engine, this.currentStage);
+    renderStatusline(this.dom.statusline, this.engine, { ...this.currentStage, splitMode: this.state.splitMode });
     renderCmdline(this.dom.cmdlineBar, this.engine, this.lastFeedback);
-    renderHUD(this.dom.hud, this.keystrokes, this.currentStage.parKeystrokes, this.lastFeedback);
+    renderHUD(this.dom.hud, this.keystrokes, this.currentStage.parKeystrokes, this.lastFeedback, this.engine);
 
     if (this.currentStage.targetText) {
       renderDiffViewer(this.dom.diffBox, this.buffer.getText(), this.currentStage.targetText);

@@ -44,6 +44,7 @@ export class VimEngine {
     this.lspHover = null;
     this.jumpList = [];
     this.onStateChange = null;
+    this.pendingWindowCmd = false;
   }
 
   getMode() {
@@ -248,6 +249,106 @@ export class VimEngine {
    * Handle keystrokes in NORMAL mode
    */
   handleNormalKey(key) {
+    // Pending <C-w> Window Commands (Neovim Window Splits & Management)
+    if (this.pendingWindowCmd) {
+      this.pendingWindowCmd = false;
+      const sub = key.toLowerCase();
+      if (sub === 'v' || key === '|') {
+        this.actionsExecuted.add('vsplit');
+        this.actionsExecuted.add('window_cmd');
+        if (this.onPluginAction) this.onPluginAction('vsplit');
+        return { handled: true, feedback: 'Vertical split (<C-w>v)', action: 'vsplit' };
+      }
+      if (sub === 's' || key === '-') {
+        this.actionsExecuted.add('split');
+        this.actionsExecuted.add('window_cmd');
+        if (this.onPluginAction) this.onPluginAction('split');
+        return { handled: true, feedback: 'Horizontal split (<C-w>s)', action: 'split' };
+      }
+      if (sub === 'o') {
+        this.actionsExecuted.add('zen');
+        this.actionsExecuted.add('window_cmd');
+        if (this.onPluginAction) this.onPluginAction('zen');
+        return { handled: true, feedback: 'Zen mode: Only editor buffer (<C-w>o)', action: 'zen' };
+      }
+      if (sub === 'q' || sub === 'c') {
+        this.actionsExecuted.add('close_window');
+        this.actionsExecuted.add('window_cmd');
+        if (this.onPluginAction) this.onPluginAction('close_window');
+        return { handled: true, feedback: 'Closed split window (<C-w>q)', action: 'close_window' };
+      }
+      if (key === '=') {
+        this.actionsExecuted.add('equalize_split');
+        this.actionsExecuted.add('window_cmd');
+        if (this.onPluginAction) this.onPluginAction('equalize_split');
+        return { handled: true, feedback: 'Windows equalized (<C-w>=)', action: 'equalize_split' };
+      }
+      if (key === '>') {
+        this.actionsExecuted.add('resize_width_plus');
+        this.actionsExecuted.add('window_cmd');
+        if (this.onPluginAction) this.onPluginAction('resize_width_plus');
+        return { handled: true, feedback: 'Expanded split width (<C-w>>)', action: 'resize_width_plus' };
+      }
+      if (key === '<') {
+        this.actionsExecuted.add('resize_width_minus');
+        this.actionsExecuted.add('window_cmd');
+        if (this.onPluginAction) this.onPluginAction('resize_width_minus');
+        return { handled: true, feedback: 'Shrunk split width (<C-w><)', action: 'resize_width_minus' };
+      }
+      if (key === '+') {
+        this.actionsExecuted.add('resize_height_plus');
+        this.actionsExecuted.add('window_cmd');
+        if (this.onPluginAction) this.onPluginAction('resize_height_plus');
+        return { handled: true, feedback: 'Expanded split height (<C-w>+)', action: 'resize_height_plus' };
+      }
+      if (key === '-') {
+        this.actionsExecuted.add('resize_height_minus');
+        this.actionsExecuted.add('window_cmd');
+        if (this.onPluginAction) this.onPluginAction('resize_height_minus');
+        return { handled: true, feedback: 'Shrunk split height (<C-w>-)', action: 'resize_height_minus' };
+      }
+      if (sub === 'r' || sub === 'x') {
+        this.actionsExecuted.add('swap_splits');
+        this.actionsExecuted.add('window_cmd');
+        if (this.onPluginAction) this.onPluginAction('swap_splits');
+        return { handled: true, feedback: 'Swapped window positions (<C-w>r)', action: 'swap_splits' };
+      }
+      if (sub === 'w' || sub === 'p' || key === '<C-w>') {
+        this.actionsExecuted.add('switch_window');
+        this.actionsExecuted.add('window_cmd');
+        if (this.onPluginAction) this.onPluginAction('switch_window');
+        return { handled: true, feedback: 'Switched window focus (<C-w>w)', action: 'switch_window' };
+      }
+      if (sub === 'h') {
+        this.actionsExecuted.add('focus_left');
+        this.actionsExecuted.add('window_cmd');
+        if (this.onPluginAction) this.onPluginAction('focus_left');
+        return { handled: true, feedback: 'Focus left window (<C-w>h)', action: 'focus_left' };
+      }
+      if (sub === 'l') {
+        this.actionsExecuted.add('focus_right');
+        this.actionsExecuted.add('window_cmd');
+        if (this.onPluginAction) this.onPluginAction('focus_right');
+        return { handled: true, feedback: 'Focus right window (<C-w>l)', action: 'focus_right' };
+      }
+      if (sub === 'j') {
+        this.actionsExecuted.add('focus_bottom');
+        this.actionsExecuted.add('window_cmd');
+        if (this.onPluginAction) this.onPluginAction('focus_bottom');
+        return { handled: true, feedback: 'Focus bottom window (<C-w>j)', action: 'focus_bottom' };
+      }
+      if (sub === 'k') {
+        this.actionsExecuted.add('focus_top');
+        this.actionsExecuted.add('window_cmd');
+        if (this.onPluginAction) this.onPluginAction('focus_top');
+        return { handled: true, feedback: 'Focus top window (<C-w>k)', action: 'focus_top' };
+      }
+      if (key === 'Escape') {
+        return { handled: true, feedback: 'Window command cancelled' };
+      }
+      return { handled: false, feedback: `Unknown window command: <C-w>${key}` };
+    }
+
     // Leader Key (<Space>) Handling in LazyVim
     if (this.pendingLeader) {
       if (key === 'Escape') {
@@ -365,13 +466,212 @@ export class VimEngine {
         if (this.onPluginAction) this.onPluginAction('lazy');
         return { handled: true, feedback: 'LazyVim: Plugin Dashboard', action: 'lazy' };
       }
+      // LazyVim Windows / Splits (<Space>W... or <Space>w...)
+      if (lk === 'wv' || lk === 'Wv' || lk === 'w|' || lk === 'W|') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('vsplit');
+        this.actionsExecuted.add('leader_wv');
+        if (this.onPluginAction) this.onPluginAction('vsplit');
+        return { handled: true, feedback: 'LazyVim: Vertical split (<Space>Wv)', action: 'vsplit' };
+      }
+      if (lk === 'ws' || lk === 'Ws' || lk === 'w-' || lk === 'W-') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('split');
+        this.actionsExecuted.add('leader_ws');
+        if (this.onPluginAction) this.onPluginAction('split');
+        return { handled: true, feedback: 'LazyVim: Horizontal split (<Space>Ws)', action: 'split' };
+      }
+      if (lk === 'wd' || lk === 'Wd' || lk === 'wq' || lk === 'Wq' || lk === 'wc' || lk === 'Wc') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('close_window');
+        this.actionsExecuted.add('leader_wd');
+        if (this.onPluginAction) this.onPluginAction('close_window');
+        return { handled: true, feedback: 'LazyVim: Close window (<Space>Wd)', action: 'close_window' };
+      }
+      if (lk === 'we' || lk === 'We' || lk === 'w=' || lk === 'W=') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('equalize_split');
+        this.actionsExecuted.add('leader_we');
+        if (this.onPluginAction) this.onPluginAction('equalize_split');
+        return { handled: true, feedback: 'LazyVim: Equalize windows (<Space>We)', action: 'equalize_split' };
+      }
+      if (lk === 'wm' || lk === 'Wm' || lk === 'wz' || lk === 'Wz') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('zen');
+        this.actionsExecuted.add('leader_wm');
+        if (this.onPluginAction) this.onPluginAction('zen');
+        return { handled: true, feedback: 'LazyVim: Maximize / Zen mode (<Space>Wm)', action: 'zen' };
+      }
+      if (lk === 'ww' || lk === 'Ww') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('switch_window');
+        this.actionsExecuted.add('leader_ww');
+        if (this.onPluginAction) this.onPluginAction('switch_window');
+        return { handled: true, feedback: 'LazyVim: Switch active window (<Space>Ww)', action: 'switch_window' };
+      }
+      if (lk === 'wr' || lk === 'Wr' || lk === 'wx' || lk === 'Wx') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('swap_splits');
+        this.actionsExecuted.add('leader_wr');
+        if (this.onPluginAction) this.onPluginAction('swap_splits');
+        return { handled: true, feedback: 'LazyVim: Swap window positions (<Space>Wr)', action: 'swap_splits' };
+      }
+      if (lk === 'wh' || lk === 'Wh') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('focus_left');
+        if (this.onPluginAction) this.onPluginAction('focus_left');
+        return { handled: true, feedback: 'LazyVim: Focus left window (<Space>Wh)', action: 'focus_left' };
+      }
+      if (lk === 'wl') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('focus_right');
+        if (this.onPluginAction) this.onPluginAction('focus_right');
+        return { handled: true, feedback: 'LazyVim: Focus right window (<Space>wl)', action: 'focus_right' };
+      }
+      if (lk === 'wj') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('focus_bottom');
+        if (this.onPluginAction) this.onPluginAction('focus_bottom');
+        return { handled: true, feedback: 'LazyVim: Focus bottom window (<Space>wj)', action: 'focus_bottom' };
+      }
+      if (lk === 'wk') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('focus_top');
+        if (this.onPluginAction) this.onPluginAction('focus_top');
+        return { handled: true, feedback: 'LazyVim: Focus top window (<Space>wk)', action: 'focus_top' };
+      }
+
+      // LazyVim UI Toggles (<Space>u...)
+      if (lk === 'uz') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('zen');
+        this.actionsExecuted.add('leader_uz');
+        if (this.onPluginAction) this.onPluginAction('zen');
+        return { handled: true, feedback: 'LazyVim: Toggle Zen Mode (<Space>uz)', action: 'zen' };
+      }
+      if (lk === 'um') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('toggle_mission');
+        this.actionsExecuted.add('leader_um');
+        if (this.onPluginAction) this.onPluginAction('toggle_mission');
+        return { handled: true, feedback: 'LazyVim: Toggle Mission Pane (<Space>um)', action: 'toggle_mission' };
+      }
+      if (lk === 'ud') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('toggle_diff');
+        this.actionsExecuted.add('leader_ud');
+        if (this.onPluginAction) this.onPluginAction('toggle_diff');
+        return { handled: true, feedback: 'LazyVim: Toggle Live Diff (<Space>ud)', action: 'toggle_diff' };
+      }
+      if (lk === 'us') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('toggle_split_orientation');
+        this.actionsExecuted.add('leader_us');
+        if (this.onPluginAction) this.onPluginAction('toggle_split_orientation');
+        return { handled: true, feedback: 'LazyVim: Toggle Split Orientation (<Space>us)', action: 'toggle_split_orientation' };
+      }
+      if (lk === 'ur') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('swap_splits');
+        this.actionsExecuted.add('leader_ur');
+        if (this.onPluginAction) this.onPluginAction('swap_splits');
+        return { handled: true, feedback: 'LazyVim: Swapped Split Positions (<Space>ur)', action: 'swap_splits' };
+      }
+
+      // Mission / Curriculum Shortcuts (<Space>m...)
+      if (lk === 'mm' || lk === 'm') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('mission_modal');
+        this.actionsExecuted.add('leader_m');
+        if (this.onPluginAction) this.onPluginAction('mission_modal');
+        return { handled: true, feedback: 'LazyVim: Mission Floating Window (<Space>m)', action: 'mission_modal' };
+      }
+      if (lk === 'mh') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('hint');
+        if (this.onPluginAction) this.onPluginAction('hint');
+        return { handled: true, feedback: 'Stage Hint (<Space>mh)', action: 'hint' };
+      }
+      if (lk === 'mr') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('reset');
+        if (this.onPluginAction) this.onPluginAction('reset');
+        return { handled: true, feedback: 'Reset Stage (<Space>mr)', action: 'reset' };
+      }
+      if (lk === 'mn') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('next_stage');
+        if (this.onPluginAction) this.onPluginAction('next_stage');
+        return { handled: true, feedback: 'Next Stage (<Space>mn)', action: 'next_stage' };
+      }
+      if (lk === 'mp') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('prev_stage');
+        if (this.onPluginAction) this.onPluginAction('prev_stage');
+        return { handled: true, feedback: 'Previous Stage (<Space>mp)', action: 'prev_stage' };
+      }
+      if (lk === 'ms') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('stage_map');
+        if (this.onPluginAction) this.onPluginAction('stage_map');
+        return { handled: true, feedback: 'Stage Map (<Space>ms)', action: 'stage_map' };
+      }
+
       if (lk === 'w') {
         this.pendingLeader = false;
         this.leaderKeys = '';
         if (this.onLeaderState) this.onLeaderState('', false);
         this.saveSnapshot();
         this.actionsExecuted.add('save');
-        return { handled: true, feedback: 'Saved buffer to disk.', action: 'save' };
+        return { handled: true, feedback: 'Saved buffer to disk (<Space>w).', action: 'save' };
+      }
+      if (lk === 'W') {
+        if (this.onLeaderState) this.onLeaderState('W', true);
+        return { handled: true, feedback: 'Leader <Space>W... (+windows/splits)' };
       }
       if (lk === 'bd') {
         this.pendingLeader = false;
@@ -398,7 +698,7 @@ export class VimEngine {
       }
 
       // Prefix drill-down
-      if (['f', 's', 'x', 'c', 'g', 'b'].includes(lk)) {
+      if (['f', 's', 'x', 'c', 'g', 'b', 'w', 'u', 'm'].includes(lk)) {
         if (this.onLeaderState) this.onLeaderState(lk, true);
         return { handled: true, feedback: `Leader <Space>${lk}...` };
       }
@@ -425,6 +725,12 @@ export class VimEngine {
       this.activeOperator = null;
       this.searchMatches = [];
       return { handled: true, feedback: 'Cleared' };
+    }
+
+    // Neovim Window Management Prefix (<C-w>)
+    if (key === '<C-w>') {
+      this.pendingWindowCmd = true;
+      return { handled: true, feedback: '<C-w>... (v: vs, s: sp, o: zen, q: close, =: eq, w: switch, r: swap)' };
     }
 
     // Visual Block Mode (<C-v>)
@@ -1277,27 +1583,32 @@ export class VimEngine {
     if (key === 'Escape') {
       this.pendingKeys = '';
       this.flashTargets = [];
+      this.lastFlashQuery = '';
       this.setMode('NORMAL');
-      return { handled: true };
+      return { handled: true, feedback: 'Flash cancelled' };
     }
     if (this.flashTargets.length > 0) {
+      const targetQuery = this.lastFlashQuery || '';
       const jumped = this.flashHandler.jumpToLabel(key, this.flashTargets);
       this.flashTargets = [];
+      this.lastFlashQuery = '';
       this.setMode('NORMAL');
-      return { handled: jumped };
+      return { handled: jumped, feedback: jumped ? `Flash: teleported to "${targetQuery}"!` : 'Invalid flash label' };
     }
 
     this.pendingKeys += key;
     if (this.pendingKeys.length === 2) {
+      this.lastFlashQuery = this.pendingKeys;
       this.flashTargets = this.flashHandler.findTargets(this.pendingKeys);
       this.pendingKeys = '';
       if (this.flashTargets.length === 0) {
         this.setMode('NORMAL');
-        return { handled: true, feedback: 'No flash targets found' };
+        return { handled: true, feedback: `No flash targets found for "${this.lastFlashQuery}"` };
       }
-      return { handled: true, feedback: 'Select flash label' };
+      const firstLabel = this.flashTargets[0]?.label?.toUpperCase() || 'A';
+      return { handled: true, feedback: `Flash targets active: press [${firstLabel}] to teleport` };
     }
-    return { handled: true };
+    return { handled: true, feedback: `Flash query: ${this.pendingKeys}_ (type 1 more character)` };
   }
 
   generateFlashTargets(twoChars) {
