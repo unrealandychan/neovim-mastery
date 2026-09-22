@@ -139,9 +139,41 @@ How often do you close your editor at the end of the day with 6 splits and 10 ta
 
 ---
 
+## 🔄 8. `nvim-surround`: Universal Delimiter Manipulation
+
+Adding, changing, and deleting quotes, brackets, and HTML/JSX tags is one of the most frequent operations in code editing. **`kylechui/nvim-surround`** implements the universal Tim Pope `surround.vim` grammar:
+
+### Core Surround Syntax:
+- **`ys{motion}{char}`** : **You Surround** (Add)
+  - `ysiw"`: Surround **i**nner **w**ord with `"` (`word` → `"word"`).
+  - `ysiw)`: Surround inner word with parentheses (`word` → `(word)`).
+  - `ys2w]`: Surround next 2 words with brackets.
+  - `ysiw<em>`: Surround inner word with HTML tags (`word` → `<em>word</em>`).
+  - In Visual mode: Highlight any selection, then press `S"` to wrap it in quotes!
+- **`ds{char}`** : **Delete Surround**
+  - `ds"`: Delete surrounding quotes (`"hello"` → `hello`).
+  - `ds)`: Delete surrounding parentheses (`(x + 1)` → `x + 1`).
+- **`cs{old}{new}`** : **Change Surround**
+  - `cs"'`: Change surrounding `"` to `'` (`"hello"` → `'hello'`).
+  - `cs"}`: Change surrounding `"` to braces with spaces (`"hello"` → `{ hello }`).
+
+---
+
+## 📝 9. `render-markdown.nvim`: Live In-Buffer Document Previews
+
+When editing READMEs, design documents, prompt templates, or notes:
+- **`render-markdown.nvim`**: Formats headers with clear level icons (`󰲡`, `󰲣`), formats GitHub markdown tables with crisp Unicode borders, renders checkboxes (`[x]`), and styles callout blocks right inside your normal Neovim buffer without opening a browser.
+- **`<leader>um`**: Toggles live in-buffer markdown rendering.
+- **`<leader>cp`** / **`<leader>mp`**: Opens an interactive live-synced preview in your default browser (`markdown-preview.nvim`).
+- **`<leader>cg`** / **`<leader>mg`**: Opens a fast terminal floating window preview via `glow.nvim`.
+
+---
+
 ## 💡 Key Takeaways
 
 1. Use **`daf`**, **`cif`**, and **`daa`** from `mini.ai` to manipulate functions and arguments at the speed of thought.
-2. Jump across project tasks effortlessly with **`]t`**, **`[t`**, and **`<leader>st`**.
-3. Toggle comments with **`gcc`** without worrying about JSX vs JS syntax.
-4. Restore your exact workspace layout every morning with **`<leader>qs`**.
+2. Master **`ysiw"`**, **`cs"'`**, and **`ds"`** with `nvim-surround` to eliminate manual delimiter editing.
+3. Toggle rich markdown formatting with **`<leader>um`** or browser preview with **`<leader>cp`**.
+4. Jump across project tasks effortlessly with **`]t`**, **`[t`**, and **`<leader>st`**.
+5. Toggle comments with **`gcc`** without worrying about JSX vs JS syntax.
+6. Restore your exact workspace layout every morning with **`<leader>qs`**.

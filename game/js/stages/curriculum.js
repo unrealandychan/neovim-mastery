@@ -810,18 +810,20 @@ export const STAGES = [
   {
     day: 46,
     week: 7,
-    title: 'Snacks Scratchpad Prototyping (<leader>.)',
-    concept: '<Space>. Floating scratchpad',
-    chapterRef: '06-plugin-mastery-and-ecosystem/06-micro-productivity-and-editing-plugins.md',
-    mission: 'Open the Snacks floating scratchpad buffer using "<Space>.".',
-    initialText: '// Press <Space>. to toggle scratchpad',
+    title: 'Google AI Stack: Antigravity Agent (<leader>aa)',
+    concept: '<Space>aa Google Antigravity autonomous agent',
+    chapterRef: '05-advanced-and-customization/02-lazy-extras-and-ai-assistants.md',
+    mission: 'Launch the Google Antigravity agent in a floating terminal using "<Space>aa".',
+    initialText: '// Press <Space>aa to launch Google Antigravity agent (agy)',
     cursorStart: { row: 0, col: 0 },
-    targetText: '// Press <Space>. to toggle scratchpad',
-    requiredAction: 'scratchpad',
-    parKeystrokes: 2,
-    optimalKeys: [' ', '.'],
+    targetText: '// Press <Space>aa to launch Google Antigravity agent (agy)',
+    requiredAction: 'ai_antigravity',
+    parKeystrokes: 3,
+    optimalKeys: [' ', 'a', 'a'],
     hints: [
-      'Press Space, then "." to open scratchpad.'
+      'Press Space to invoke Which-Key.',
+      'Type "a" to open the +ai (Google / Pi / Antigravity) group.',
+      'Type "a" to spawn Google Antigravity.'
     ],
   },
   {

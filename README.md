@@ -62,10 +62,11 @@ Master Vim by playing! This repository includes a complete browser-based, intera
 This repository contains both the complete 30-Day tutorial curriculum **and** Eddie's pre-configured, production-ready Neovim setup located in [`nvim/`](nvim/).
 
 - 🎨 **Aesthetics**: Tokyo Night (`tokyonight-night`) theme with Catppuccin, Gruvbox, and OneDark pre-installed.
-- ⚡ **Multi-Language IDE**: Pre-configured LSP, Treesitter, formatting, and linting for TypeScript/JavaScript, Python, Go, Rust, and Flutter/Dart.
+- 🤖 **Google AI Stack & Agents**: Native non-blocking floating terminal integration for **Google Antigravity** (`<leader>aa`), **Pi Coding Agent** (`<leader>ap`), and **Google Gemini CLI** (`<leader>ag`, `<leader>ae`, `<leader>af`, `<leader>as`).
+- ⚡ **Multi-Language IDE**: Pre-configured LSP, Treesitter, formatting, and linting for TypeScript/JavaScript, Python, Go, Rust, Flutter/Dart, and Protocol Buffers (`proto`).
 - 🛠️ **Modern Tooling**: Snacks.nvim picker & grep, Neo-Tree file explorer, LazyGit floating terminal, Blink.cmp autocomplete, Conform format-on-save, and Trouble diagnostic panel.
-- 🧩 **Plugin Powerhouse & Extensibility**: Deep mastery of lazy.nvim, Flash.nvim teleportation, Grug-Far project find-and-replace, Mini.ai text objects, Todo-comments, and complete plugin maintenance.
-- 🍎 **macOS Integration**: System clipboard sync (`unnamedplus`), ergonomic buffer & window navigation keymaps.
+- 🧩 **Plugin Powerhouse & Extensibility**: `nvim-surround` delimiter grammar (`ysiw"`, `cs"'`, `ds"`), live Markdown suite (`render-markdown`, browser preview, Glow), Flash teleportation, Grug-Far search-and-replace, and Mini.ai text objects.
+- 🍎 **System Integration**: System clipboard sync (`unnamedplus`), ergonomic buffer & window navigation keymaps.
 
 ### 🚀 Quick Start / Setup
 
@@ -166,7 +167,7 @@ All chapters and labs are organized in this repository:
 | └─ [`05-flutter-and-dart-mobile.md`](04-language-specific-playbooks/05-flutter-and-dart-mobile.md) | Flutter-tools, hot reload `<leader>fl`, restart `<leader>fR`, outline `<leader>fo`. | Flutter & Dart |
 | **[`05-advanced-and-customization/`](05-advanced-and-customization/)** | | |
 | ├─ [`01-customizing-your-lazyvim.md`](05-advanced-and-customization/01-customizing-your-lazyvim.md) | How LazyVim options, keymaps, and plugins connect without breaking updates. | Customization |
-| ├─ [`02-lazy-extras-and-ai-assistants.md`](05-advanced-and-customization/02-lazy-extras-and-ai-assistants.md) | Using `:LazyExtras` to toggle Copilot, Avante, Codeium, or extra languages. | AI & Extras |
+| ├─ [`02-lazy-extras-and-ai-assistants.md`](05-advanced-and-customization/02-lazy-extras-and-ai-assistants.md) | Google AI Stack (Pi, Antigravity, Gemini), visual context prompts, and LazyExtras catalog. | AI & Google Stack |
 | ├─ [`03-debugging-with-dap.md`](05-advanced-and-customization/03-debugging-with-dap.md) | Setting breakpoints `<leader>db`, step over `<leader>do`, variable inspection. | Debugging |
 | └─ [`04-30-day-practice-drills.md`](05-advanced-and-customization/04-30-day-practice-drills.md) | Daily 15-minute speed drills, flashcards, and speed challenges. | Muscle Memory |
 | **[`06-plugin-mastery-and-ecosystem/`](06-plugin-mastery-and-ecosystem/)** | | |

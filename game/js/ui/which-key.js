@@ -22,19 +22,23 @@ export const WHICH_KEY_ENTRIES = [
   { key: '<C-w>w / o', desc: 'Switch Window / Zen Mode' },
   { key: '<C-w>= / q', desc: 'Equalize Splits / Close Window' },
   { key: 'qa ... q / @a', desc: 'Record / Replay Macro' },
-  { key: 'gsaw" / gsd"', desc: 'Mini.surround Add / Delete' },
+  { key: 'gsaw" / ysiw"', desc: 'Surround Add Delimiters' },
+  { key: 'cs"\' / ds"', desc: 'Surround Change / Delete Delimiters' },
   { key: 'K / gd', desc: 'LSP Hover / Definition' },
+  { key: '<leader>a...', desc: 'Google AI Stack (Pi, Antigravity, Gemini)' },
   { key: '<leader>w...', desc: 'Windows & Splits Menu' },
   { key: '<leader>u...', desc: 'UI Toggles (Zen, Diff, Split)' },
+  { key: '<leader>um / mp', desc: 'Markdown Buffer Render / Browser Preview' },
   { key: '<leader>ff / sg', desc: 'Fzf Find Files / Live Grep' },
 ];
 
 export const LEADER_GROUPS = {
   '': [
     { key: 'w', desc: 'Save Buffer (:w)' },
+    { key: 'a', desc: '+ai (Google / Pi / Antigravity)' },
     { key: 'W', desc: '+windows/splits (v: vsplit, s: split, d: close, e: eq, m: zen)' },
     { key: 'u', desc: '+ui toggles (z: zen, m: mission, d: diff, s: split dir)' },
-    { key: 'm', desc: '+mission/dojo (m: popup, h: hint, r: reset, n: next, p: prev)' },
+    { key: 'm', desc: '+mission/markdown (m: popup, p: browser, g: glow)' },
     { key: 'f', desc: '+find/file (ff: Files, fb: Buffers)' },
     { key: 's', desc: '+search (sg: Grep, sr: Grug-far)' },
     { key: 'c', desc: '+code (ca: Action, cr: Rename, cf: Format)' },
@@ -45,6 +49,16 @@ export const LEADER_GROUPS = {
     { key: 'bd', desc: 'Delete Buffer' },
     { key: '.', desc: 'Snacks Scratchpad' },
     { key: 'ft', desc: 'Floating Terminal' },
+  ],
+  'a': [
+    { key: 'a', desc: 'Antigravity Agent (agy)' },
+    { key: 'c', desc: 'Antigravity: Resume Session (agy -c)' },
+    { key: 'p', desc: 'Pi Coding Agent (pi)' },
+    { key: 'P', desc: 'Pi: Resume Session (pi -c)' },
+    { key: 'g', desc: 'Google Gemini CLI (gemini)' },
+    { key: 'e', desc: 'Gemini: Explain Selected Code' },
+    { key: 'f', desc: 'Gemini: Fix / Refactor Code' },
+    { key: 's', desc: 'Ask Google AI (with selection context)' },
   ],
   'W': [
     { key: 'v / |', desc: 'Split Window Vertically (:vsplit, <C-w>v)' },

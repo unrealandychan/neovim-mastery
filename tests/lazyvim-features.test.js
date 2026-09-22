@@ -401,3 +401,71 @@ test('SplitManager and GameState Split Persistence', () => {
   assert.equal(state.splitTab, 'cheatsheet');
 });
 
+test('Google Stack & AI Integration (<Space>aa, <Space>ac, <Space>ap, <Space>aP, <Space>ag, <Space>ae, <Space>af, <Space>as)', () => {
+  const buf = new TextBuffer('function calculateMetrics() {\n  return 42;\n}');
+  const engine = new VimEngine(buf);
+
+  // <Space>aa -> Antigravity (agy)
+  engine.handleKey(' ');
+  engine.handleKey('a');
+  const r1 = engine.handleKey('a');
+  assert.equal(r1.action, 'ai_antigravity');
+  assert.equal(engine.actionsExecuted.has('ai_antigravity'), true);
+
+  // <Space>ac -> Antigravity Resume Session
+  engine.handleKey(' ');
+  engine.handleKey('a');
+  const r2 = engine.handleKey('c');
+  assert.equal(r2.action, 'ai_antigravity_continue');
+
+  // <Space>ap -> Pi Coding Agent
+  engine.handleKey(' ');
+  engine.handleKey('a');
+  const r3 = engine.handleKey('p');
+  assert.equal(r3.action, 'ai_pi');
+  assert.equal(engine.actionsExecuted.has('ai_pi'), true);
+
+  // <Space>aP -> Pi Resume Session
+  engine.handleKey(' ');
+  engine.handleKey('a');
+  const r4 = engine.handleKey('P');
+  assert.equal(r4.action, 'ai_pi_continue');
+
+  // <Space>ag -> Google Gemini CLI
+  engine.handleKey(' ');
+  engine.handleKey('a');
+  const r5 = engine.handleKey('g');
+  assert.equal(r5.action, 'ai_gemini');
+  assert.equal(engine.actionsExecuted.has('ai_gemini'), true);
+
+  // <Space>ae -> Gemini Explain Code
+  engine.handleKey(' ');
+  engine.handleKey('a');
+  const r6 = engine.handleKey('e');
+  assert.equal(r6.action, 'ai_explain');
+
+  // <Space>af -> Gemini Fix / Refactor Code
+  engine.handleKey(' ');
+  engine.handleKey('a');
+  const r7 = engine.handleKey('f');
+  assert.equal(r7.action, 'ai_fix');
+
+  // <Space>as -> Ask Google AI with selection context
+  engine.handleKey(' ');
+  engine.handleKey('a');
+  const r8 = engine.handleKey('s');
+  assert.equal(r8.action, 'ai_ask');
+
+  // Markdown Tools: <Space>cp and <Space>cg
+  engine.handleKey(' ');
+  engine.handleKey('c');
+  const r9 = engine.handleKey('p');
+  assert.equal(r9.action, 'markdown_preview');
+
+  engine.handleKey(' ');
+  engine.handleKey('c');
+  const r10 = engine.handleKey('g');
+  assert.equal(r10.action, 'markdown_glow');
+});
+
+

@@ -438,6 +438,24 @@ export class VimEngine {
         this.formatBuffer();
         return { handled: true, feedback: 'LSP: Formatted Document', action: 'format' };
       }
+      if (lk === 'cp') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('markdown_preview');
+        this.actionsExecuted.add('leader_cp');
+        if (this.onPluginAction) this.onPluginAction('markdown_preview');
+        return { handled: true, feedback: 'Markdown: Browser Preview (:MarkdownPreviewToggle)', action: 'markdown_preview' };
+      }
+      if (lk === 'cg') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('markdown_glow');
+        this.actionsExecuted.add('leader_cg');
+        if (this.onPluginAction) this.onPluginAction('markdown_glow');
+        return { handled: true, feedback: 'Markdown: Glow Floating Window (:Glow)', action: 'markdown_glow' };
+      }
       if (lk === 'gg') {
         this.pendingLeader = false;
         this.leaderKeys = '';
@@ -697,8 +715,102 @@ export class VimEngine {
         return { handled: true, feedback: 'Snacks: Floating Terminal', action: 'terminal' };
       }
 
+      // Google Stack & AI Agents (<Space>a...)
+      if (lk === 'aa') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('ai_antigravity');
+        this.actionsExecuted.add('leader_aa');
+        if (this.onPluginAction) this.onPluginAction('ai_antigravity');
+        return { handled: true, feedback: 'Google Stack: Antigravity Agent (agy)', action: 'ai_antigravity' };
+      }
+      if (lk === 'ac') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('ai_antigravity_continue');
+        this.actionsExecuted.add('leader_ac');
+        if (this.onPluginAction) this.onPluginAction('ai_antigravity_continue');
+        return { handled: true, feedback: 'Google Stack: Antigravity (Resume Last Session)', action: 'ai_antigravity_continue' };
+      }
+      if (lk === 'ap') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('ai_pi');
+        this.actionsExecuted.add('leader_ap');
+        if (this.onPluginAction) this.onPluginAction('ai_pi');
+        return { handled: true, feedback: 'Coding Agent: Pi Terminal', action: 'ai_pi' };
+      }
+      if (lk === 'aP') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('ai_pi_continue');
+        this.actionsExecuted.add('leader_aP');
+        if (this.onPluginAction) this.onPluginAction('ai_pi_continue');
+        return { handled: true, feedback: 'Coding Agent: Pi (Resume Last Session)', action: 'ai_pi_continue' };
+      }
+      if (lk === 'ag') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('ai_gemini');
+        this.actionsExecuted.add('leader_ag');
+        if (this.onPluginAction) this.onPluginAction('ai_gemini');
+        return { handled: true, feedback: 'Google Stack: Gemini CLI', action: 'ai_gemini' };
+      }
+      if (lk === 'ae') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('ai_explain');
+        this.actionsExecuted.add('leader_ae');
+        if (this.onPluginAction) this.onPluginAction('ai_explain');
+        return { handled: true, feedback: 'Gemini: Explain Selected Code', action: 'ai_explain' };
+      }
+      if (lk === 'af') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('ai_fix');
+        this.actionsExecuted.add('leader_af');
+        if (this.onPluginAction) this.onPluginAction('ai_fix');
+        return { handled: true, feedback: 'Gemini: Fix / Refactor Code', action: 'ai_fix' };
+      }
+      if (lk === 'as') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('ai_ask');
+        this.actionsExecuted.add('leader_as');
+        if (this.onPluginAction) this.onPluginAction('ai_ask');
+        return { handled: true, feedback: 'Ask Google AI (with selection)', action: 'ai_ask' };
+      }
+
+      // Markdown Tools (<Space>m...)
+      if (lk === 'mp') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('markdown_preview');
+        this.actionsExecuted.add('leader_mp');
+        if (this.onPluginAction) this.onPluginAction('markdown_preview');
+        return { handled: true, feedback: 'Markdown: Browser Preview (:MarkdownPreviewToggle)', action: 'markdown_preview' };
+      }
+      if (lk === 'mg') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('markdown_glow');
+        this.actionsExecuted.add('leader_mg');
+        if (this.onPluginAction) this.onPluginAction('markdown_glow');
+        return { handled: true, feedback: 'Markdown: Glow Floating Window (:Glow)', action: 'markdown_glow' };
+      }
+
       // Prefix drill-down
-      if (['f', 's', 'x', 'c', 'g', 'b', 'w', 'u', 'm'].includes(lk)) {
+      if (['f', 's', 'x', 'c', 'g', 'b', 'w', 'u', 'm', 'a'].includes(lk)) {
         if (this.onLeaderState) this.onLeaderState(lk, true);
         return { handled: true, feedback: `Leader <Space>${lk}...` };
       }

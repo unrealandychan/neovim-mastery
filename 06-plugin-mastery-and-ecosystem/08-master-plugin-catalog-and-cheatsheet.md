@@ -7,14 +7,15 @@
 ## 📑 Quick Navigation Index
 
 1. [Framework & Package Management](#1-framework--package-management)
-2. [Search, Picker & Navigation](#2-search-picker--navigation)
-3. [Language Intelligence & Autocomplete (LSP)](#3-language-intelligence--autocomplete-lsp)
-4. [Formatting, Linting & Diagnostics](#4-formatting-linting--diagnostics)
-5. [Syntax Highlighting & Treesitter](#5-syntax-highlighting--treesitter)
-6. [Micro-Editing & Text Objects](#6-micro-editing--text-objects)
-7. [UI, Statusline & Discovery](#7-ui-statusline--discovery)
-8. [Git Integration & Workspace Sessions](#8-git-integration--workspace-sessions)
-9. [Language-Specific Powerhouses](#9-language-specific-powerhouses)
+2. [Google AI Stack & Coding Agents](#2-google-ai-stack--coding-agents)
+3. [Search, Picker & Navigation](#3-search-picker--navigation)
+4. [Language Intelligence & Autocomplete (LSP)](#4-language-intelligence--autocomplete-lsp)
+5. [Formatting, Linting & Diagnostics](#5-formatting-linting--diagnostics)
+6. [Syntax Highlighting & Treesitter](#6-syntax-highlighting--treesitter)
+7. [Micro-Editing & Text Objects](#7-micro-editing--text-objects)
+8. [UI, Statusline & Discovery](#8-ui-statusline--discovery)
+9. [Git Integration & Workspace Sessions](#9-git-integration--workspace-sessions)
+10. [Language-Specific Powerhouses](#10-language-specific-powerhouses)
 
 ---
 
@@ -41,7 +42,34 @@
 
 ---
 
-## 2. Search, Picker & Navigation
+## 2. Google AI Stack & Coding Agents
+
+### [Google Antigravity](https://github.com/google) (`agy`)
+- **Purpose**: Autonomous agent orchestration in Google's internal & preview environment.
+- **Config**: `lua/plugins/google-ai.lua`
+- **Key Shortcuts**:
+  - `<leader>aa`: Toggle interactive Antigravity CLI floating terminal.
+  - `<leader>ac`: Resume last Antigravity conversation session.
+
+### [Pi Coding Agent](https://github.com/badlogic/pi) (`pi`)
+- **Purpose**: Lightweight coding assistant harness equipped with full filesystem tools, terminal execution, and editing abilities.
+- **Config**: `lua/plugins/google-ai.lua`
+- **Key Shortcuts**:
+  - `<leader>ap`: Toggle Pi coding agent in a floating window.
+  - `<leader>aP`: Continue previous Pi session.
+
+### [Google Gemini CLI](https://github.com/google) (`gemini`)
+- **Purpose**: Ultra-fast terminal-based Gemini model interactions and inline code operations.
+- **Config**: `lua/plugins/google-ai.lua`
+- **Key Shortcuts**:
+  - `<leader>ag`: Launch Gemini interactive CLI terminal.
+  - `<leader>ae` *(Visual)*: Explain selected code with Gemini.
+  - `<leader>af` *(Visual)*: Fix / Refactor selected code with Gemini.
+  - `<leader>as` *(Normal/Visual)*: Prompt Google AI with active buffer or selection context.
+
+---
+
+## 3. Search, Picker & Navigation
 
 ### [snacks.nvim](https://github.com/folke/snacks.nvim)
 - **Purpose**: All-in-one suite powering pickers, floating terminals, scratchpads, reference hopping, and git browsing.
@@ -301,9 +329,25 @@ Keep this card handy while coding:
 │   :Lazy             Open plugin manager                     │
 │   :Mason            Open LSP / tools installer              │
 ├─────────────────────────────────────────────────────────────┤
+│ GOOGLE AI STACK & AGENTS (<leader>a)                        │
+│   <leader>aa        Antigravity Agent (agy)                 │
+│   <leader>ac        Antigravity: Resume Session             │
+│   <leader>ap        Pi Coding Agent (pi)                    │
+│   <leader>aP        Pi: Resume Session                      │
+│   <leader>ag        Google Gemini CLI                       │
+│   <leader>ae        Gemini: Explain Code (Visual)           │
+│   <leader>af        Gemini: Fix / Refactor Code (Visual)    │
+│   <leader>as        Ask Google AI with Selection Context    │
+├─────────────────────────────────────────────────────────────┤
+│ SURROUND DELIMITERS (nvim-surround)                         │
+│   ysiw"             Surround inner word with "              │
+│   cs"'              Change surrounding " to '               │
+│   ds"               Delete surrounding "                    │
+│   S" (Visual)       Wrap highlighted selection in "         │
+├─────────────────────────────────────────────────────────────┤
 │ MARKDOWN & PREVIEWS                                         │
 │   <leader>um        Toggle in-buffer rendered Markdown      │
-│   <leader>mp        Live browser preview (MarkdownPreview)  │
-│   <leader>mg        Floating terminal preview (Glow)        │
+│   <leader>mp / cp   Live browser preview (MarkdownPreview)  │
+│   <leader>mg / cg   Floating terminal preview (Glow)        │
 └─────────────────────────────────────────────────────────────┘
 ```

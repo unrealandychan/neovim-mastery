@@ -1537,6 +1537,24 @@ class VimEngine {
         this.formatBuffer();
         return { handled: true, feedback: 'LSP: Formatted Document', action: 'format' };
       }
+      if (lk === 'cp') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('markdown_preview');
+        this.actionsExecuted.add('leader_cp');
+        if (this.onPluginAction) this.onPluginAction('markdown_preview');
+        return { handled: true, feedback: 'Markdown: Browser Preview (:MarkdownPreviewToggle)', action: 'markdown_preview' };
+      }
+      if (lk === 'cg') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('markdown_glow');
+        this.actionsExecuted.add('leader_cg');
+        if (this.onPluginAction) this.onPluginAction('markdown_glow');
+        return { handled: true, feedback: 'Markdown: Glow Floating Window (:Glow)', action: 'markdown_glow' };
+      }
       if (lk === 'gg') {
         this.pendingLeader = false;
         this.leaderKeys = '';
@@ -1796,8 +1814,102 @@ class VimEngine {
         return { handled: true, feedback: 'Snacks: Floating Terminal', action: 'terminal' };
       }
 
+      // Google Stack & AI Agents (<Space>a...)
+      if (lk === 'aa') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('ai_antigravity');
+        this.actionsExecuted.add('leader_aa');
+        if (this.onPluginAction) this.onPluginAction('ai_antigravity');
+        return { handled: true, feedback: 'Google Stack: Antigravity Agent (agy)', action: 'ai_antigravity' };
+      }
+      if (lk === 'ac') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('ai_antigravity_continue');
+        this.actionsExecuted.add('leader_ac');
+        if (this.onPluginAction) this.onPluginAction('ai_antigravity_continue');
+        return { handled: true, feedback: 'Google Stack: Antigravity (Resume Last Session)', action: 'ai_antigravity_continue' };
+      }
+      if (lk === 'ap') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('ai_pi');
+        this.actionsExecuted.add('leader_ap');
+        if (this.onPluginAction) this.onPluginAction('ai_pi');
+        return { handled: true, feedback: 'Coding Agent: Pi Terminal', action: 'ai_pi' };
+      }
+      if (lk === 'aP') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('ai_pi_continue');
+        this.actionsExecuted.add('leader_aP');
+        if (this.onPluginAction) this.onPluginAction('ai_pi_continue');
+        return { handled: true, feedback: 'Coding Agent: Pi (Resume Last Session)', action: 'ai_pi_continue' };
+      }
+      if (lk === 'ag') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('ai_gemini');
+        this.actionsExecuted.add('leader_ag');
+        if (this.onPluginAction) this.onPluginAction('ai_gemini');
+        return { handled: true, feedback: 'Google Stack: Gemini CLI', action: 'ai_gemini' };
+      }
+      if (lk === 'ae') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('ai_explain');
+        this.actionsExecuted.add('leader_ae');
+        if (this.onPluginAction) this.onPluginAction('ai_explain');
+        return { handled: true, feedback: 'Gemini: Explain Selected Code', action: 'ai_explain' };
+      }
+      if (lk === 'af') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('ai_fix');
+        this.actionsExecuted.add('leader_af');
+        if (this.onPluginAction) this.onPluginAction('ai_fix');
+        return { handled: true, feedback: 'Gemini: Fix / Refactor Code', action: 'ai_fix' };
+      }
+      if (lk === 'as') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('ai_ask');
+        this.actionsExecuted.add('leader_as');
+        if (this.onPluginAction) this.onPluginAction('ai_ask');
+        return { handled: true, feedback: 'Ask Google AI (with selection)', action: 'ai_ask' };
+      }
+
+      // Markdown Tools (<Space>m...)
+      if (lk === 'mp') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('markdown_preview');
+        this.actionsExecuted.add('leader_mp');
+        if (this.onPluginAction) this.onPluginAction('markdown_preview');
+        return { handled: true, feedback: 'Markdown: Browser Preview (:MarkdownPreviewToggle)', action: 'markdown_preview' };
+      }
+      if (lk === 'mg') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('markdown_glow');
+        this.actionsExecuted.add('leader_mg');
+        if (this.onPluginAction) this.onPluginAction('markdown_glow');
+        return { handled: true, feedback: 'Markdown: Glow Floating Window (:Glow)', action: 'markdown_glow' };
+      }
+
       // Prefix drill-down
-      if (['f', 's', 'x', 'c', 'g', 'b', 'w', 'u', 'm'].includes(lk)) {
+      if (['f', 's', 'x', 'c', 'g', 'b', 'w', 'u', 'm', 'a'].includes(lk)) {
         if (this.onLeaderState) this.onLeaderState(lk, true);
         return { handled: true, feedback: `Leader <Space>${lk}...` };
       }
@@ -4041,18 +4153,20 @@ const STAGES = [
   {
     day: 46,
     week: 7,
-    title: 'Snacks Scratchpad Prototyping (<leader>.)',
-    concept: '<Space>. Floating scratchpad',
-    chapterRef: '06-plugin-mastery-and-ecosystem/06-micro-productivity-and-editing-plugins.md',
-    mission: 'Open the Snacks floating scratchpad buffer using "<Space>.".',
-    initialText: '// Press <Space>. to toggle scratchpad',
+    title: 'Google AI Stack: Antigravity Agent (<leader>aa)',
+    concept: '<Space>aa Google Antigravity autonomous agent',
+    chapterRef: '05-advanced-and-customization/02-lazy-extras-and-ai-assistants.md',
+    mission: 'Launch the Google Antigravity agent in a floating terminal using "<Space>aa".',
+    initialText: '// Press <Space>aa to launch Google Antigravity agent (agy)',
     cursorStart: { row: 0, col: 0 },
-    targetText: '// Press <Space>. to toggle scratchpad',
-    requiredAction: 'scratchpad',
-    parKeystrokes: 2,
-    optimalKeys: [' ', '.'],
+    targetText: '// Press <Space>aa to launch Google Antigravity agent (agy)',
+    requiredAction: 'ai_antigravity',
+    parKeystrokes: 3,
+    optimalKeys: [' ', 'a', 'a'],
     hints: [
-      'Press Space, then "." to open scratchpad.'
+      'Press Space to invoke Which-Key.',
+      'Type "a" to open the +ai (Google / Pi / Antigravity) group.',
+      'Type "a" to spawn Google Antigravity.'
     ],
   },
   {
@@ -4887,19 +5001,23 @@ const WHICH_KEY_ENTRIES = [
   { key: '<C-w>w / o', desc: 'Switch Window / Zen Mode' },
   { key: '<C-w>= / q', desc: 'Equalize Splits / Close Window' },
   { key: 'qa ... q / @a', desc: 'Record / Replay Macro' },
-  { key: 'gsaw" / gsd"', desc: 'Mini.surround Add / Delete' },
+  { key: 'gsaw" / ysiw"', desc: 'Surround Add Delimiters' },
+  { key: 'cs"\' / ds"', desc: 'Surround Change / Delete Delimiters' },
   { key: 'K / gd', desc: 'LSP Hover / Definition' },
+  { key: '<leader>a...', desc: 'Google AI Stack (Pi, Antigravity, Gemini)' },
   { key: '<leader>w...', desc: 'Windows & Splits Menu' },
   { key: '<leader>u...', desc: 'UI Toggles (Zen, Diff, Split)' },
+  { key: '<leader>um / mp', desc: 'Markdown Buffer Render / Browser Preview' },
   { key: '<leader>ff / sg', desc: 'Fzf Find Files / Live Grep' },
 ];
 
 const LEADER_GROUPS = {
   '': [
     { key: 'w', desc: 'Save Buffer (:w)' },
+    { key: 'a', desc: '+ai (Google / Pi / Antigravity)' },
     { key: 'W', desc: '+windows/splits (v: vsplit, s: split, d: close, e: eq, m: zen)' },
     { key: 'u', desc: '+ui toggles (z: zen, m: mission, d: diff, s: split dir)' },
-    { key: 'm', desc: '+mission/dojo (m: popup, h: hint, r: reset, n: next, p: prev)' },
+    { key: 'm', desc: '+mission/markdown (m: popup, p: browser, g: glow)' },
     { key: 'f', desc: '+find/file (ff: Files, fb: Buffers)' },
     { key: 's', desc: '+search (sg: Grep, sr: Grug-far)' },
     { key: 'c', desc: '+code (ca: Action, cr: Rename, cf: Format)' },
@@ -4910,6 +5028,16 @@ const LEADER_GROUPS = {
     { key: 'bd', desc: 'Delete Buffer' },
     { key: '.', desc: 'Snacks Scratchpad' },
     { key: 'ft', desc: 'Floating Terminal' },
+  ],
+  'a': [
+    { key: 'a', desc: 'Antigravity Agent (agy)' },
+    { key: 'c', desc: 'Antigravity: Resume Session (agy -c)' },
+    { key: 'p', desc: 'Pi Coding Agent (pi)' },
+    { key: 'P', desc: 'Pi: Resume Session (pi -c)' },
+    { key: 'g', desc: 'Google Gemini CLI (gemini)' },
+    { key: 'e', desc: 'Gemini: Explain Selected Code' },
+    { key: 'f', desc: 'Gemini: Fix / Refactor Code' },
+    { key: 's', desc: 'Ask Google AI (with selection context)' },
   ],
   'W': [
     { key: 'v / |', desc: 'Split Window Vertically (:vsplit, <C-w>v)' },
