@@ -72,27 +72,27 @@ function buildBundle(baseDir, files, entryPoint, outputFile, title) {
     let src = fs.readFileSync(fullPath, 'utf8');
 
     // 1. Convert imports: import { a, b } from './path.js';
-    src = src.replace(/import\s*\{\s*([^}]+)\s*\}\s*from\s*['"]([^'"]+)['"];?/g, (m, imports, impPath) => {
+    src = src.replace(/^import\s*\{\s*([^}]+)\s*\}\s*from\s*['"]([^'"]+)['"];?/gm, (m, imports, impPath) => {
       return `const { ${imports.trim()} } = require('${impPath}');`;
     });
     // import * as foo from '...'
-    src = src.replace(/import\s*\*\s*as\s+(\w+)\s+from\s*['"]([^'"]+)['"];?/g, (m, alias, impPath) => {
+    src = src.replace(/^import\s*\*\s*as\s+(\w+)\s+from\s*['"]([^'"]+)['"];?/gm, (m, alias, impPath) => {
       return `const ${alias} = require('${impPath}');`;
     });
 
     // 2. Convert export function / class
-    src = src.replace(/export\s+function\s+([a-zA-Z0-9_$]+)/g, 'function $1');
-    src = src.replace(/export\s+class\s+([a-zA-Z0-9_$]+)/g, 'class $1');
+    src = src.replace(/^export\s+function\s+([a-zA-Z0-9_$]+)/gm, 'function $1');
+    src = src.replace(/^export\s+class\s+([a-zA-Z0-9_$]+)/gm, 'class $1');
 
     // 3. Convert export const / let
     const exportedVars = [];
-    src = src.replace(/export\s+(const|let|var)\s+([a-zA-Z0-9_$]+)/g, (m, decl, varName) => {
+    src = src.replace(/^export\s+(const|let|var)\s+([a-zA-Z0-9_$]+)/gm, (m, decl, varName) => {
       exportedVars.push(varName);
       return `${decl} ${varName}`;
     });
 
     // 4. Convert export { a, b, c }
-    src = src.replace(/export\s*\{\s*([^}]+)\s*\};?/g, (m, exportsList) => {
+    src = src.replace(/^export\s*\{\s*([^}]+)\s*\};?/gm, (m, exportsList) => {
       const names = exportsList.split(',').map(s => s.trim()).filter(Boolean);
       const mappings = names.map(n => {
         if (n.includes(' as ')) {
@@ -145,6 +145,11 @@ const dojoFiles = [
   'ui/hud.js',
   'ui/diff-viewer.js',
   'ui/which-key.js',
+  'ui/fzf-modal.js',
+  'ui/neo-tree.js',
+  'ui/trouble.js',
+  'ui/lsp-popups.js',
+  'ui/lazygit-modal.js',
   'ui/audio.js',
   'ui/modal.js',
   'state.js',

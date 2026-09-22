@@ -73,6 +73,11 @@ function normalizeKey(key) {
   if (/^<c-s>$/i.test(key)) return '<C-s>';
   if (/^<c-d>$/i.test(key)) return '<C-d>';
   if (/^<c-u>$/i.test(key)) return '<C-u>';
+  if (/^<c-v>$/i.test(key)) return '<C-v>';
+  if (/^<c-o>$/i.test(key)) return '<C-o>';
+  if (/^<c-w>$/i.test(key)) return '<C-w>';
+  if (/^<c-j>$/i.test(key)) return '<C-j>';
+  if (/^<c-k>$/i.test(key)) return '<C-k>';
   return key;
 }
 
@@ -295,6 +300,35 @@ function findTextObjectRange(buffer, cursor, isInner, type) {
       start: { row: startRow, col: 0 },
       end: { row: endRow, col: lines[endRow].length },
     };
+  }
+
+  // 6. Tag text object: it, at (<tag>...</tag>)
+  if (type === 't') {
+    const openTagRegex = /<([a-zA-Z0-9_-]+)[^>]*>/g;
+    let match;
+    while ((match = openTagRegex.exec(line)) !== null) {
+      const tagName = match[1];
+      const openStart = match.index;
+      const openEnd = match.index + match[0].length;
+      const closeTagStr = `</${tagName}>`;
+      const closeStart = line.indexOf(closeTagStr, openEnd);
+      if (closeStart !== -1) {
+        const closeEnd = closeStart + closeTagStr.length;
+        if (cursor.col >= openStart && cursor.col <= closeEnd) {
+          if (isInner) {
+            return {
+              start: { row, col: openEnd },
+              end: { row, col: closeStart },
+            };
+          } else {
+            return {
+              start: { row, col: openStart },
+              end: { row, col: closeEnd },
+            };
+          }
+        }
+      }
+    }
   }
 
   return null;
@@ -525,6 +559,65 @@ class CommandModeHandler {
       return { handled: true, feedback: 'Vertical split created.', action: 'vsplit' };
     }
 
+    // Plugin triggers
+    if (/^:Lazy$/i.test(trimmed)) {
+      return { handled: true, feedback: 'Opened Lazy.nvim Dashboard', action: 'lazy' };
+    }
+    if (/^:Trouble/i.test(trimmed)) {
+      return { handled: true, feedback: 'Toggled Trouble Diagnostics', action: 'trouble' };
+    }
+    if (/^:(FzfLua|Telescope)/i.test(trimmed)) {
+      return { handled: true, feedback: 'Opened Fzf File Picker', action: 'fzf' };
+    }
+    if (/^:Neo-?tree/i.test(trimmed)) {
+      return { handled: true, feedback: 'Toggled Neo-tree Explorer', action: 'neotree' };
+    }
+
+    // Global line delete: :g/pattern/d or :v/pattern/d
+    const gDelete = trimmed.match(/^:([gv])\/(.*?)\/d$/);
+    if (gDelete) {
+      this.engine.saveSnapshot();
+      const [, mode, pattern] = gDelete;
+      try {
+        const regex = new RegExp(pattern);
+        const lines = this.buffer.getLines();
+        const filtered = lines.filter(l => (mode === 'g' ? !regex.test(l) : regex.test(l)));
+        this.buffer.setText(filtered.join('\n'));
+        this.buffer.clampCursor('NORMAL');
+        return {
+          handled: true,
+          feedback: `${mode === 'g' ? 'Filtered out' : 'Retained'} lines matching /${pattern}/`,
+          action: 'global_delete',
+        };
+      } catch (e) {
+        return { handled: false, feedback: `Invalid regex: ${e.message}` };
+      }
+    }
+
+    // Range substitution: :1,3s/old/new/g
+    const rangeSub = trimmed.match(/^:(\d+),(\d+)s\/(.*?)\/(.*?)\/?([gI]*)$/);
+    if (rangeSub) {
+      this.engine.saveSnapshot();
+      const [, startStr, endStr, pattern, replacement, flags] = rangeSub;
+      const startLine = Math.max(0, parseInt(startStr, 10) - 1);
+      const endLine = Math.min(this.buffer.getLines().length - 1, parseInt(endStr, 10) - 1);
+      try {
+        const regex = new RegExp(pattern, flags.includes('g') ? 'g' : '');
+        const lines = this.buffer.getLines();
+        for (let r = startLine; r <= endLine; r++) {
+          lines[r] = lines[r].replace(regex, replacement);
+        }
+        this.buffer.setText(lines.join('\n'));
+        return {
+          handled: true,
+          feedback: `Replaced in lines ${startStr}-${endStr}: "${pattern}" -> "${replacement}"`,
+          action: 'substitute',
+        };
+      } catch (e) {
+        return { handled: false, feedback: `Invalid regex: ${e.message}` };
+      }
+    }
+
     // Global substitution: :%s/old/new/g
     const globalSub = trimmed.match(/^:%s\/(.*?)\/(.*?)\/?([gI]*)$/);
     if (globalSub) {
@@ -562,6 +655,45 @@ class CommandModeHandler {
       } catch (e) {
         return { handled: false, feedback: `Invalid regex: ${e.message}` };
       }
+    }
+
+    // Normal command execution: :%norm <keys> or :norm <keys>
+    const normCmd = cmd.trimStart().match(/^:(%|\d+,\d+)?norm\s+(.*)$/);
+    if (normCmd) {
+      this.engine.saveSnapshot();
+      const [, range, normKeys] = normCmd;
+      let startLine = 0;
+      let endLine = this.buffer.getLines().length - 1;
+      if (range && range.includes(',')) {
+        const [s, e] = range.split(',');
+        startLine = Math.max(0, parseInt(s, 10) - 1);
+        endLine = Math.min(this.buffer.getLines().length - 1, parseInt(e, 10) - 1);
+      } else if (!range) {
+        startLine = this.buffer.getCursor().row;
+        endLine = startLine;
+      }
+      for (let r = startLine; r <= endLine; r++) {
+        this.buffer.setCursor(r, 0);
+        if (normKeys.startsWith('I')) {
+          const insertText = normKeys.slice(1);
+          const line = this.buffer.getLine(r);
+          const firstNonBlank = line.search(/\S|$/);
+          this.buffer.setLine(r, line.slice(0, firstNonBlank) + insertText + line.slice(firstNonBlank));
+        } else if (normKeys.startsWith('A')) {
+          const appendText = normKeys.slice(1);
+          const line = this.buffer.getLine(r);
+          this.buffer.setLine(r, line + appendText);
+        } else {
+          for (const ch of normKeys) {
+            this.engine.handleKey(ch);
+          }
+          if (this.engine.getMode() === 'INSERT') {
+            this.engine.handleKey('Escape');
+          }
+        }
+      }
+      this.buffer.clampCursor('NORMAL');
+      return { handled: true, feedback: 'Executed normal command across range', action: 'norm' };
     }
 
     return { handled: false, feedback: `E492: Not an editor command: ${cmd}` };
@@ -927,6 +1059,20 @@ class VimEngine {
     this.lastChange = null;
     this.flashTargets = []; // for flash teleportation
     this.actionsExecuted = new Set(); // tracks executed actions like 'save', 'bnext'
+    this.pendingLeader = false;
+    this.leaderKeys = '';
+    this.recordingMacro = null;
+    this.macros = {};
+    this.lastMacro = null;
+    this.marks = {};
+    this.isBlockInsert = false;
+    this.blockInsertCol = 0;
+    this.blockInsertRows = [0, 0];
+    this.blockInsertedText = '';
+    this.onLeaderState = null;
+    this.onPluginAction = null;
+    this.lspHover = null;
+    this.jumpList = [];
     this.onStateChange = null;
   }
 
@@ -1000,6 +1146,18 @@ class VimEngine {
   handleKey(rawKey) {
     const key = normalizeKey(rawKey);
 
+    // Record keystrokes if macro recording is active
+    if (this.recordingMacro) {
+      if (this.mode === 'NORMAL' && (rawKey === 'q' || key === 'q')) {
+        const reg = this.recordingMacro;
+        this.recordingMacro = null;
+        this.actionsExecuted.add('macro_record');
+        return { handled: true, feedback: `Recorded macro @${reg}` };
+      }
+      this.macros[this.recordingMacro] = this.macros[this.recordingMacro] || [];
+      this.macros[this.recordingMacro].push(rawKey);
+    }
+
     if (this.mode === 'INSERT') {
       return this.handleInsertKey(key);
     }
@@ -1009,7 +1167,7 @@ class VimEngine {
     if (this.mode === 'FLASH') {
       return this.handleFlashKey(key);
     }
-    if (this.mode === 'VISUAL' || this.mode === 'VISUAL_LINE') {
+    if (this.mode === 'VISUAL' || this.mode === 'VISUAL_LINE' || this.mode === 'VISUAL_BLOCK') {
       return this.handleVisualKey(key);
     }
 
@@ -1020,6 +1178,43 @@ class VimEngine {
    * Handle keystrokes in INSERT mode
    */
   handleInsertKey(key) {
+    // Visual block multi-line column insertion completion
+    if (this.isBlockInsert) {
+      if (key === 'Escape') {
+        const textToInsert = this.blockInsertedText;
+        const col = this.blockInsertCol;
+        const [startRow, endRow] = this.blockInsertRows;
+        for (let r = startRow + 1; r <= endRow; r++) {
+          const line = this.buffer.getLine(r);
+          const safeCol = Math.min(line.length, col);
+          const newLine = line.slice(0, safeCol) + textToInsert + line.slice(safeCol);
+          this.buffer.setLine(r, newLine);
+        }
+        this.isBlockInsert = false;
+        this.blockInsertedText = '';
+        this.setMode('NORMAL');
+        this.actionsExecuted.add('visual_block');
+        return { handled: true };
+      }
+      if (key === 'Backspace') {
+        this.saveSnapshot();
+        this.blockInsertedText = this.blockInsertedText.slice(0, -1);
+        this.buffer.deleteChar(true);
+        return { handled: true };
+      }
+      if (key === 'Enter') {
+        this.saveSnapshot();
+        this.buffer.insertText('\n');
+        return { handled: true };
+      }
+      if (key.length === 1) {
+        this.saveSnapshot();
+        this.blockInsertedText += key;
+        this.buffer.insertText(key);
+        return { handled: true };
+      }
+    }
+
     if (key === 'Escape') {
       this.setMode('NORMAL');
       const cur = this.buffer.getCursor();
@@ -1083,6 +1278,176 @@ class VimEngine {
    * Handle keystrokes in NORMAL mode
    */
   handleNormalKey(key) {
+    // Leader Key (<Space>) Handling in LazyVim
+    if (this.pendingLeader) {
+      if (key === 'Escape') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        return { handled: true, feedback: 'Leader cancelled' };
+      }
+      if (key === ' ') {
+        return { handled: true };
+      }
+
+      this.leaderKeys += key;
+      const lk = this.leaderKeys;
+
+      // Direct LazyVim leader key actions
+      if (lk === 'ff') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('fzf');
+        this.actionsExecuted.add('leader_ff');
+        if (this.onPluginAction) this.onPluginAction('fzf_files');
+        return { handled: true, feedback: 'LazyVim: Find Files (Fzf/Telescope)', action: 'fzf_files' };
+      }
+      if (lk === 'sg' || lk === '/') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('grep');
+        this.actionsExecuted.add('fzf');
+        this.actionsExecuted.add('leader_sg');
+        if (this.onPluginAction) this.onPluginAction('fzf_grep');
+        return { handled: true, feedback: 'LazyVim: Live Grep (Fzf/Snacks)', action: 'fzf_grep' };
+      }
+      if (lk === 'fb') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('buffers');
+        this.actionsExecuted.add('fzf');
+        this.actionsExecuted.add('leader_fb');
+        if (this.onPluginAction) this.onPluginAction('fzf_buffers');
+        return { handled: true, feedback: 'LazyVim: Buffers (Fzf)', action: 'fzf_buffers' };
+      }
+      if (lk === 'e') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('neotree');
+        this.actionsExecuted.add('leader_e');
+        if (this.onPluginAction) this.onPluginAction('neotree');
+        return { handled: true, feedback: 'LazyVim: Toggle Neo-tree Explorer', action: 'neotree' };
+      }
+      if (lk === 'xx') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('trouble');
+        this.actionsExecuted.add('leader_xx');
+        if (this.onPluginAction) this.onPluginAction('trouble');
+        return { handled: true, feedback: 'LazyVim: Trouble Diagnostics', action: 'trouble' };
+      }
+      if (lk === 'ca') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('lsp_code_action');
+        this.actionsExecuted.add('leader_ca');
+        if (this.onPluginAction) this.onPluginAction('lsp_code_action');
+        return { handled: true, feedback: 'LSP: Code Actions', action: 'lsp_code_action' };
+      }
+      if (lk === 'cr') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('lsp_rename');
+        this.actionsExecuted.add('leader_cr');
+        if (this.onPluginAction) this.onPluginAction('lsp_rename');
+        return { handled: true, feedback: 'LSP: Symbol Rename', action: 'lsp_rename' };
+      }
+      if (lk === 'cf') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('format');
+        this.formatBuffer();
+        return { handled: true, feedback: 'LSP: Formatted Document', action: 'format' };
+      }
+      if (lk === 'gg') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('lazygit');
+        this.actionsExecuted.add('leader_gg');
+        if (this.onPluginAction) this.onPluginAction('lazygit');
+        return { handled: true, feedback: 'LazyVim: LazyGit Dashboard', action: 'lazygit' };
+      }
+      if (lk === 'sr') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('grug_far');
+        this.actionsExecuted.add('leader_sr');
+        if (this.onPluginAction) this.onPluginAction('grug_far');
+        return { handled: true, feedback: 'LazyVim: Grug-Far Search & Replace', action: 'grug_far' };
+      }
+      if (lk === 'l') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('lazy');
+        this.actionsExecuted.add('lazy_home');
+        this.actionsExecuted.add('leader_l');
+        if (this.onPluginAction) this.onPluginAction('lazy');
+        return { handled: true, feedback: 'LazyVim: Plugin Dashboard', action: 'lazy' };
+      }
+      if (lk === 'w') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.saveSnapshot();
+        this.actionsExecuted.add('save');
+        return { handled: true, feedback: 'Saved buffer to disk.', action: 'save' };
+      }
+      if (lk === 'bd') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('bdelete');
+        return { handled: true, feedback: 'Closed buffer.', action: 'bdelete' };
+      }
+      if (lk === '.') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('scratchpad');
+        if (this.onPluginAction) this.onPluginAction('scratchpad');
+        return { handled: true, feedback: 'Snacks: Floating Scratchpad', action: 'scratchpad' };
+      }
+      if (lk === 'ft') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('terminal');
+        if (this.onPluginAction) this.onPluginAction('terminal');
+        return { handled: true, feedback: 'Snacks: Floating Terminal', action: 'terminal' };
+      }
+
+      // Prefix drill-down
+      if (['f', 's', 'x', 'c', 'g', 'b'].includes(lk)) {
+        if (this.onLeaderState) this.onLeaderState(lk, true);
+        return { handled: true, feedback: `Leader <Space>${lk}...` };
+      }
+
+      // Unrecognized sequence
+      this.pendingLeader = false;
+      this.leaderKeys = '';
+      if (this.onLeaderState) this.onLeaderState('', false);
+      return { handled: false, feedback: 'Leader cancelled' };
+    }
+
+    // Trigger Leader mode with <Space> or <leader>
+    if (key === ' ' && !this.pendingKeys && !this.activeOperator) {
+      this.pendingLeader = true;
+      this.leaderKeys = '';
+      if (this.onLeaderState) this.onLeaderState('', true);
+      return { handled: true, feedback: 'Leader <Space> active (Which-Key)' };
+    }
+
     // Escape clears pending sequence and hlsearch
     if (key === 'Escape') {
       this.pendingKeys = '';
@@ -1090,6 +1455,33 @@ class VimEngine {
       this.activeOperator = null;
       this.searchMatches = [];
       return { handled: true, feedback: 'Cleared' };
+    }
+
+    // Visual Block Mode (<C-v>)
+    if (key === '<C-v>') {
+      this.visualStart = this.buffer.getCursor();
+      this.setMode('VISUAL_BLOCK');
+      this.actionsExecuted.add('visual_block');
+      return { handled: true, feedback: '-- VISUAL BLOCK --' };
+    }
+
+    // Jumplist (<C-o>)
+    if (key === '<C-o>') {
+      if (this.jumpList.length > 0) {
+        const last = this.jumpList.pop();
+        this.buffer.setCursor(last.row, last.col);
+        this.actionsExecuted.add('jumplist');
+        return { handled: true, feedback: 'Jumped back in jumplist (<C-o>)' };
+      }
+      return { handled: true, feedback: 'Jumplist empty' };
+    }
+
+    // LSP Hover Documentation (K)
+    if (key === 'K' && !this.pendingKeys && !this.activeOperator) {
+      const word = this.getWordUnderCursor();
+      this.actionsExecuted.add('lsp_hover');
+      if (this.onPluginAction) this.onPluginAction('lsp_hover');
+      return { handled: true, feedback: `LSP: Hover Documentation for '${word || 'symbol'}' (K)`, action: 'lsp_hover' };
     }
 
     // Number prefixes for counts (e.g., 3w, 5j)
@@ -1106,6 +1498,124 @@ class VimEngine {
 
     // Buffer pending keys (for multi-key commands like gg, ciw, da", f{ch}, etc.)
     const seq = this.pendingKeys + key;
+
+    // Macro recording: q{reg} to start, q to stop
+    if (this.pendingKeys === 'q') {
+      this.pendingKeys = '';
+      if (/^[a-zA-Z]$/.test(key)) {
+        const reg = key.toLowerCase();
+        this.recordingMacro = reg;
+        this.macros[reg] = [];
+        return { handled: true, feedback: `Recording @${reg} (press q to finish)` };
+      }
+      return { handled: false };
+    }
+    if (key === 'q' && !this.activeOperator && !this.recordingMacro && !this.pendingKeys) {
+      this.pendingKeys = 'q';
+      return { handled: true, feedback: 'Record macro to register (a-z)' };
+    }
+
+    // Macro replay: @{reg} or @@
+    if (this.pendingKeys === '@') {
+      this.pendingKeys = '';
+      const reg = key === '@' ? this.lastMacro : key.toLowerCase();
+      if (reg && this.macros[reg] && this.macros[reg].length > 0) {
+        this.lastMacro = reg;
+        this.actionsExecuted.add('macro');
+        const macroSeq = [...this.macros[reg]];
+        for (let i = 0; i < count; i++) {
+          for (const k of macroSeq) {
+            this.handleKey(k);
+          }
+        }
+        return { handled: true, feedback: `Replayed macro @${reg}` };
+      }
+      return { handled: false, feedback: `Macro @${reg || key} is empty` };
+    }
+    if (key === '@' && !this.activeOperator && !this.pendingKeys) {
+      this.pendingKeys = '@';
+      return { handled: true, feedback: 'Replay macro (a-z or @)' };
+    }
+
+    // Mark setting: m{char}
+    if (this.pendingKeys === 'm') {
+      this.pendingKeys = '';
+      if (/^[a-zA-Z]$/.test(key)) {
+        this.marks[key] = { ...this.buffer.getCursor() };
+        this.actionsExecuted.add('mark');
+        return { handled: true, feedback: `Mark '${key}' set` };
+      }
+      return { handled: false };
+    }
+    if (key === 'm' && !this.activeOperator && !this.pendingKeys) {
+      this.pendingKeys = 'm';
+      return { handled: true, feedback: 'Set mark (a-z)' };
+    }
+
+    // Mark jump: '{char} or `{char}
+    if (this.pendingKeys === "'" || this.pendingKeys === '`') {
+      const isExact = this.pendingKeys === '`';
+      this.pendingKeys = '';
+      if (this.marks[key]) {
+        const pos = this.marks[key];
+        this.buffer.setCursor(pos.row, isExact ? pos.col : 0);
+        this.actionsExecuted.add('mark_jump');
+        return { handled: true, feedback: `Jumped to mark '${key}'` };
+      }
+      return { handled: false, feedback: `Mark '${key}' not set` };
+    }
+    if ((key === "'" || key === '`') && !this.activeOperator && !this.pendingKeys) {
+      this.pendingKeys = key;
+      return { handled: true, feedback: 'Jump to mark (a-z)' };
+    }
+
+    // Mini.surround / surround operators:
+    if (this.pendingKeys === 'gs') {
+      if (key === 'a') {
+        this.pendingKeys = 'gsa';
+        return { handled: true, feedback: 'Surround add (target motion/object)' };
+      }
+      if (key === 'd') {
+        this.pendingKeys = 'gsd';
+        return { handled: true, feedback: 'Surround delete (delimiter)' };
+      }
+      if (key === 'r') {
+        this.pendingKeys = 'gsr';
+        return { handled: true, feedback: 'Surround replace (old delimiter)' };
+      }
+      this.pendingKeys = '';
+      return { handled: false };
+    }
+
+    if (this.pendingKeys.startsWith('gsa') || this.pendingKeys.startsWith('ys')) {
+      this.pendingKeys += key;
+      const isGsa = this.pendingKeys.startsWith('gsa');
+      const targetLen = isGsa ? 5 : 4; // e.g. gsaw" or ysw"
+      if (this.pendingKeys.length >= targetLen) {
+        const delim = key;
+        this.pendingKeys = '';
+        const success = this.executeSurroundAdd('w', delim);
+        return { handled: success, feedback: `Surrounded with ${delim}` };
+      }
+      return { handled: true, feedback: `Surround: enter delimiter` };
+    }
+    if (this.pendingKeys === 'gsd' || this.pendingKeys === 'ds') {
+      this.pendingKeys = '';
+      const success = this.executeSurroundDelete(key);
+      return { handled: success, feedback: `Deleted surrounding ${key}` };
+    }
+    if (this.pendingKeys === 'gsr' || this.pendingKeys === 'cs') {
+      this.pendingKeys += key;
+      return { handled: true, feedback: `Replace ${key} with delimiter...` };
+    }
+    if (this.pendingKeys.startsWith('gsr') || this.pendingKeys.startsWith('cs')) {
+      const isGsr = this.pendingKeys.startsWith('gsr');
+      const oldChar = isGsr ? this.pendingKeys[3] : this.pendingKeys[2];
+      const newChar = key;
+      this.pendingKeys = '';
+      const success = this.executeSurroundReplace(oldChar, newChar);
+      return { handled: success, feedback: `Replaced surrounding ${oldChar} with ${newChar}` };
+    }
 
     // Register selection: "a, "+, etc.
     if (this.pendingKeys.startsWith('"')) {
@@ -1128,7 +1638,7 @@ class VimEngine {
       this.executeSeek(type, key, count);
       return { handled: true };
     }
-    if (/^[fFtT]$/.test(key)) {
+    if (/^[fFtT]$/.test(key) && !this.pendingKeys) {
       this.pendingKeys = key;
       return { handled: true };
     }
@@ -1144,7 +1654,7 @@ class VimEngine {
       }
       return { handled: true };
     }
-    if (key === 'r') {
+    if (key === 'r' && !this.pendingKeys) {
       this.pendingKeys = 'r';
       return { handled: true };
     }
@@ -1166,10 +1676,28 @@ class VimEngine {
         return { handled: true };
       }
       if (key === 'd') {
-        return { handled: true, feedback: 'Jump to definition (LSP)' };
+        const word = this.getWordUnderCursor();
+        if (word) {
+          this.jumpList.push({ ...this.buffer.getCursor() });
+          const lines = this.buffer.getLines();
+          const defRegex = new RegExp(`\\b(function|const|let|var|type|interface|class|def)\\s+${word}\\b`);
+          for (let r = 0; r < lines.length; r++) {
+            if (defRegex.test(lines[r])) {
+              this.buffer.setCursor(r, lines[r].indexOf(word));
+              break;
+            }
+          }
+        }
+        this.actionsExecuted.add('lsp_definition');
+        return { handled: true, feedback: 'Jump to definition (LSP)', action: 'lsp_definition' };
       }
       if (key === 'r') {
-        return { handled: true, feedback: 'Jump to references (LSP)' };
+        this.actionsExecuted.add('lsp_references');
+        return { handled: true, feedback: 'Jump to references (LSP)', action: 'lsp_references' };
+      }
+      if (key === 's') {
+        this.pendingKeys = 'gs';
+        return { handled: true, feedback: 'mini.surround (a: add, d: delete, r: replace)' };
       }
       return { handled: false };
     }
@@ -1445,11 +1973,23 @@ class VimEngine {
   handleOperatorPending(seq, count) {
     const op = this.activeOperator;
 
+    // Surround aliases (ys, ds, cs)
+    if (seq === 'ys' || seq === 'ds' || seq === 'cs') {
+      this.activeOperator = null;
+      this.pendingKeys = seq;
+      return { handled: true, feedback: `Surround: ${seq}` };
+    }
+
     // Line doubling: dd, cc, yy, >>, <<
     if (seq === op + op) {
       this.operatorHandler.executeLineOp(op, count);
       this.activeOperator = null;
       this.pendingKeys = '';
+      if (op === 'd') {
+        this.lastChange = () => {
+          this.operatorHandler.executeLineOp('d', 1);
+        };
+      }
       return { handled: true };
     }
 
@@ -1466,6 +2006,32 @@ class VimEngine {
     // Text object prefix: di, ca, yi...
     if (/^[dcy][ia]$/.test(seq)) {
       this.pendingKeys = seq;
+      return { handled: true };
+    }
+
+    // Seeking motion prefix: df, dt, dF, dT, cf, ct...
+    if (/^[dcy][fFtT]$/.test(seq)) {
+      this.pendingKeys = seq;
+      return { handled: true };
+    }
+    // Seeking motion with char: df), dt), etc.
+    if (/^[dcy][fFtT].$/.test(seq)) {
+      const seekType = seq[1];
+      const targetChar = seq[2];
+      this.saveSnapshot();
+      const start = { ...this.buffer.getCursor() };
+      this.executeSeek(seekType, targetChar, count);
+      const end = { ...this.buffer.getCursor() };
+      end.col += 1;
+      const deleted = this.buffer.deleteRange(start, end);
+      this.registers[this.activeRegister] = { text: deleted, linewise: false };
+      if (op === 'c') {
+        this.setMode('INSERT');
+      } else {
+        this.buffer.clampCursor('NORMAL');
+      }
+      this.activeOperator = null;
+      this.pendingKeys = '';
       return { handled: true };
     }
 
@@ -1521,7 +2087,7 @@ class VimEngine {
   }
 
   handleVisualKey(key) {
-    if (key === 'Escape' || key === 'v' || key === 'V') {
+    if (key === 'Escape' || key === 'v' || key === 'V' || key === '<C-v>') {
       this.visualStart = null;
       this.countPrefix = '';
       this.setMode('NORMAL');
@@ -1540,6 +2106,57 @@ class VimEngine {
 
     const count = this.countPrefix ? parseInt(this.countPrefix, 10) : 1;
     this.countPrefix = '';
+
+    // Visual Block Mode operations (<C-v>)
+    if (this.mode === 'VISUAL_BLOCK') {
+      const cur = this.buffer.getCursor();
+      const start = this.visualStart || cur;
+      const minRow = Math.min(start.row, cur.row);
+      const maxRow = Math.max(start.row, cur.row);
+      const minCol = Math.min(start.col, cur.col);
+      const maxCol = Math.max(start.col, cur.col);
+
+      if (key === 'I') {
+        this.isBlockInsert = true;
+        this.blockInsertCol = minCol;
+        this.blockInsertRows = [minRow, maxRow];
+        this.blockInsertedText = '';
+        this.buffer.setCursor(minRow, minCol);
+        this.setMode('INSERT');
+        return { handled: true };
+      }
+      if (key === 'A') {
+        this.isBlockInsert = true;
+        this.blockInsertCol = maxCol + 1;
+        this.blockInsertRows = [minRow, maxRow];
+        this.blockInsertedText = '';
+        this.buffer.setCursor(minRow, maxCol + 1);
+        this.setMode('INSERT');
+        return { handled: true };
+      }
+      if (key === 'd' || key === 'x' || key === 'c') {
+        this.saveSnapshot();
+        for (let r = minRow; r <= maxRow; r++) {
+          const l = this.buffer.getLine(r);
+          if (l.length >= minCol) {
+            this.buffer.setLine(r, l.slice(0, minCol) + l.slice(maxCol + 1));
+          }
+        }
+        this.visualStart = null;
+        this.buffer.setCursor(minRow, minCol);
+        this.actionsExecuted.add('visual_block');
+        if (key === 'c') {
+          this.isBlockInsert = true;
+          this.blockInsertCol = minCol;
+          this.blockInsertRows = [minRow, maxRow];
+          this.blockInsertedText = '';
+          this.setMode('INSERT');
+        } else {
+          this.setMode('NORMAL');
+        }
+        return { handled: true };
+      }
+    }
 
     // Indent in visual mode: > or <
     if (key === '>') {
@@ -1623,12 +2240,30 @@ class VimEngine {
     }
 
     // Navigation while in visual mode
+    if (key === 'o' && this.visualStart) {
+      const cur = this.buffer.getCursor();
+      const temp = { ...cur };
+      this.buffer.setCursor(this.visualStart.row, this.visualStart.col);
+      this.visualStart = temp;
+      return { handled: true };
+    }
+    if (/^[fFtT]$/.test(this.pendingKeys)) {
+      const type = this.pendingKeys;
+      this.pendingKeys = '';
+      this.executeSeek(type, key, count);
+      return { handled: true };
+    }
+    if (/^[fFtT]$/.test(key)) {
+      this.pendingKeys = key;
+      return { handled: true };
+    }
     if (key === 'h') this.moveLeft(count);
     if (key === 'l') this.moveRight(count);
     if (key === 'j') this.moveDown(count);
     if (key === 'k') this.moveUp(count);
     if (key === 'w') this.moveW(count);
     if (key === 'b') this.moveB(count);
+    if (key === 'e') this.moveE(count);
     if (key === '$') this.moveDollar();
     if (key === '0') this.move0();
     return { handled: true };
@@ -2094,6 +2729,118 @@ class VimEngine {
         }
       }
     }
+    this.actionsExecuted.add('diagnostic_jump');
+  }
+
+  getWordUnderCursor() {
+    const cur = this.buffer.getCursor();
+    const line = this.buffer.getLine(cur.row);
+    if (!line) return '';
+    let start = cur.col;
+    let end = cur.col;
+    while (start > 0 && /\w/.test(line[start - 1])) start--;
+    while (end < line.length && /\w/.test(line[end])) end++;
+    return line.slice(start, end);
+  }
+
+  formatBuffer() {
+    this.saveSnapshot();
+    const lines = this.buffer.getLines();
+    let indentLevel = 0;
+    const formatted = lines.map(line => {
+      const trimmed = line.trim();
+      if (!trimmed) return '';
+      if (trimmed.startsWith('}') || trimmed.startsWith(']') || trimmed.startsWith(')')) {
+        indentLevel = Math.max(0, indentLevel - 1);
+      }
+      const indentedLine = '  '.repeat(indentLevel) + trimmed;
+      if (trimmed.endsWith('{') || trimmed.endsWith('[') || trimmed.endsWith('(')) {
+        indentLevel++;
+      }
+      return indentedLine;
+    });
+    this.buffer.setText(formatted.join('\n'));
+    this.actionsExecuted.add('format');
+  }
+
+  executeSurroundAdd(target, delim) {
+    this.saveSnapshot();
+    const cur = this.buffer.getCursor();
+    const line = this.buffer.getLine(cur.row);
+    const pairs = {
+      '(': ['(', ')'], ')': ['(', ')'],
+      '[': ['[', ']'], ']': ['[', ']'],
+      '{': ['{', '}'], '}': ['{', '}'],
+      '"': ['"', '"'], "'": ["'", "'"], '`': ['`', '`'],
+    };
+    const [open, close] = pairs[delim] || [delim, delim];
+
+    let start = cur.col;
+    let end = cur.col;
+    while (start > 0 && /\w/.test(line[start - 1])) start--;
+    while (end < line.length && /\w/.test(line[end])) end++;
+    if (start === end && line.length > 0) {
+      const match = line.match(/\w+/);
+      if (match) {
+        start = match.index;
+        end = start + match[0].length;
+      }
+    }
+    const word = line.slice(start, end);
+    const newLine = line.slice(0, start) + open + word + close + line.slice(end);
+    this.buffer.setLine(cur.row, newLine);
+    this.actionsExecuted.add('surround');
+    return true;
+  }
+
+  executeSurroundDelete(delim) {
+    this.saveSnapshot();
+    const cur = this.buffer.getCursor();
+    const line = this.buffer.getLine(cur.row);
+    const pairs = {
+      '(': ['(', ')'], ')': ['(', ')'],
+      '[': ['[', ']'], ']': ['[', ']'],
+      '{': ['{', '}'], '}': ['{', '}'],
+      '"': ['"', '"'], "'": ["'", "'"], '`': ['`', '`'],
+    };
+    const [open, close] = pairs[delim] || [delim, delim];
+
+    let openIdx = line.lastIndexOf(open, cur.col);
+    if (openIdx === -1) openIdx = line.indexOf(open);
+    const closeIdx = openIdx !== -1 ? line.indexOf(close, openIdx + 1) : -1;
+    if (openIdx !== -1 && closeIdx !== -1) {
+      const newLine = line.slice(0, openIdx) + line.slice(openIdx + 1, closeIdx) + line.slice(closeIdx + 1);
+      this.buffer.setLine(cur.row, newLine);
+      this.actionsExecuted.add('surround');
+      return true;
+    }
+    return false;
+  }
+
+  executeSurroundReplace(oldDelim, newDelim) {
+    this.saveSnapshot();
+    const cur = this.buffer.getCursor();
+    const line = this.buffer.getLine(cur.row);
+    const pairs = {
+      '(': ['(', ')'], ')': ['(', ')'],
+      '[': ['[', ']'], ']': ['[', ']'],
+      '{': ['{', '}'], '}': ['{', '}'],
+      '"': ['"', '"'], "'": ["'", "'"], '`': ['`', '`'],
+    };
+    const [oldOpen, oldClose] = pairs[oldDelim] || [oldDelim, oldDelim];
+    const [newOpen, newClose] = pairs[newDelim] || [newDelim, newDelim];
+
+    let openIdx = line.lastIndexOf(oldOpen, cur.col);
+    if (openIdx === -1) openIdx = line.indexOf(oldOpen);
+    const closeIdx = openIdx !== -1 ? line.indexOf(oldClose, openIdx + 1) : -1;
+    if (openIdx !== -1 && closeIdx !== -1) {
+      const inner = line.slice(openIdx + 1, closeIdx);
+      const newLine = line.slice(0, openIdx) + newOpen + inner + newClose + line.slice(closeIdx + 1);
+      this.buffer.setLine(cur.row, newLine);
+      this.actionsExecuted.add('surround');
+      return true;
+    }
+    return false;
   }
 }
 
@@ -2103,14 +2850,14 @@ class VimEngine {
 /* Module: stages/curriculum.js */
 defineModule('stages/curriculum.js', function(exports, require, module) {
 /**
- * Complete 30-Day Neovim Mastery Game Curriculum.
- * Mapped to repository markdown chapters and pre-configured lazyvim settings.
+ * Complete 60-Stage Neovim Mastery & LazyVim IDE Dojo Curriculum.
+ * Mapped to repository markdown chapters and modern LazyVim workflow.
  */
 
 const STAGES = [
-  // ==========================================
-  // WEEK 1: The Grammar of Vim Motions
-  // ==========================================
+  // =========================================================================
+  // WEEK 1: Precision Motions & The Grammar of Code (Days 1–7)
+  // =========================================================================
   {
     day: 1,
     week: 1,
@@ -2134,193 +2881,187 @@ const STAGES = [
   {
     day: 2,
     week: 1,
-    title: 'Arrowless Navigation',
-    concept: 'h, j, k, l with Counts',
+    title: 'Counted Motions & Word Navigation',
+    concept: '2j, f, and ciw',
     chapterRef: '01-vim-grammar-and-motions/03-movement-mastery.md',
-    mission: 'Navigate without arrow keys! Use count motions (3j, 2l) to land on BUG and delete it with "x" 3 times.',
-    initialText: 'line 1: safe\nline 2: safe\nline 3: safe\nline 4: BUGclean',
+    mission: 'Navigate the config file! Drop down 2 lines with "2j", seek to 3000 with "f3", and replace with 8080 using "cw8080<Esc>".',
+    initialText: 'const config = {\n  host: "localhost",\n  port: 3000,\n  retries: 3,\n};',
     cursorStart: { row: 0, col: 0 },
-    targetText: 'line 1: safe\nline 2: safe\nline 3: safe\nline 4: clean',
-    parKeystrokes: 9,
-    optimalKeys: ['3', 'j', '8', 'l', 'x', 'x', 'x'],
+    targetText: 'const config = {\n  host: "localhost",\n  port: 8080,\n  retries: 3,\n};',
+    parKeystrokes: 11,
+    optimalKeys: ['2', 'j', 'f', '3', 'c', 'w', '8', '0', '8', '0', 'Escape'],
     hints: [
-      'Press "3j" to jump directly down to line 4.',
-      'Press "8l" (or "w") to navigate to "BUG".',
-      'Press "x" three times to delete "B", "U", "G".'
+      'Press "2j" to jump directly to line 3.',
+      'Type "f3" to seek to the port number.',
+      'Type "cw8080<Esc>" to change the port.'
     ],
   },
   {
     day: 3,
     week: 1,
-    title: 'Word Motions & Line Boundaries',
-    concept: 'w, b, e, ge, 0, ^, $',
+    title: 'Inline Seeking Precision: f, t, F, T & ;',
+    concept: 'Horizontal line snipers with repeat (;)',
     chapterRef: '01-vim-grammar-and-motions/03-movement-mastery.md',
-    mission: 'Jump by words! Use "w" to reach WRONG and replace it using "cw" -> "correct" <Esc>.',
-    initialText: 'const status = WRONG;',
+    mission: 'Seek inside the SQL query using "f\'", then change inside single quotes with "ci\'active<Esc>".',
+    initialText: 'const query = "SELECT id FROM users WHERE status = \'pending\';";',
     cursorStart: { row: 0, col: 0 },
-    targetText: 'const status = correct;',
-    parKeystrokes: 13,
-    optimalKeys: ['3', 'w', 'c', 'w', 'c', 'o', 'r', 'r', 'e', 'c', 't', 'Escape'],
+    targetText: 'const query = "SELECT id FROM users WHERE status = \'active\';";',
+    parKeystrokes: 12,
+    optimalKeys: ['f', '\'', 'c', 'i', '\'', 'a', 'c', 't', 'i', 'v', 'e', 'Escape'],
     hints: [
-      'Type "3w" to jump to the start of "WRONG".',
-      'Type "cw" to change the word into Insert mode.',
-      'Type "correct" and press <Esc>.'
+      'Type "f\'" to jump cursor directly to the first single quote.',
+      'Type "ci\'" to wipe inside the quotes and enter Insert mode.',
+      'Type "active" and press <Esc>.'
     ],
   },
   {
     day: 4,
     week: 1,
-    title: 'The Grammar of Vim: Verb + Noun',
-    concept: 'Operators (d, c, y) + Motions (w, $, 0)',
-    chapterRef: '01-vim-grammar-and-motions/02-the-grammar-of-vim.md',
-    mission: 'Delete to the end of the line using "d$" to clean up the trailing comment.',
-    initialText: 'const port = 8080; // DELETE_THIS_OBSOLETE_COMMENT',
-    cursorStart: { row: 0, col: 19 },
-    targetText: 'const port = 8080; ',
-    parKeystrokes: 2,
-    optimalKeys: ['d', '$'],
+    title: 'Line Boundaries & Whitespace Navigation: 0, ^, $',
+    concept: 'Inline boundary seeking and line-end deletion (d$)',
+    chapterRef: '01-vim-grammar-and-motions/03-movement-mastery.md',
+    mission: 'Seek to the semicolon with "f;", step right with "l", and delete the trailing comment with "d$".',
+    initialText: '    const endpoint = "/api/v2/auth"; // REMOVE_DEPRECATED_COMMENT',
+    cursorStart: { row: 0, col: 0 },
+    targetText: '    const endpoint = "/api/v2/auth";',
+    parKeystrokes: 5,
+    optimalKeys: ['f', ';', 'l', 'd', '$'],
     hints: [
-      'Position cursor at the start of "//".',
-      'Type "d$" to delete from cursor to end of line.'
+      'Type "f;" to seek to the semicolon.',
+      'Type "l" to step onto the trailing space.',
+      'Type "d$" to delete to the end of the line.'
     ],
   },
   {
     day: 5,
     week: 1,
-    title: 'Inline Seeking Precision',
-    concept: 'f, F, t, T with ; and ,',
-    chapterRef: '01-vim-grammar-and-motions/03-movement-mastery.md',
-    mission: 'Find target characters fast! Use "f(" to jump to paren, then "ci(" to replace parameters with "id: string".',
-    initialText: 'function fetchUser(old_a, old_b, old_c) {',
+    title: 'Buffer Topology Jumps & Traversal: gg, G, {, }',
+    concept: 'File boundaries and line deletion',
+    chapterRef: '02-navigation-and-project-management/01-buffers-windows-tabs.md',
+    mission: 'Teleport to the end of the file with "G", and delete the obsolete debug line with "dd".',
+    initialText: 'import { createApp } from "./app";\n\nconst app = createApp();\napp.listen(3000);\n\nconsole.log(process.env);',
     cursorStart: { row: 0, col: 0 },
-    targetText: 'function fetchUser(id: string) {',
-    parKeystrokes: 16,
-    optimalKeys: ['f', '(', 'c', 'i', '(', 'i', 'd', ':', ' ', 's', 't', 'r', 'i', 'n', 'g', 'Escape'],
+    targetText: 'import { createApp } from "./app";\n\nconst app = createApp();\napp.listen(3000);\n',
+    parKeystrokes: 3,
+    optimalKeys: ['G', 'd', 'd'],
     hints: [
-      'Type "f(" to seek directly to the opening parenthesis.',
-      'Type "ci(" to change inside parentheses.',
-      'Type "id: string" and exit with <Esc>.'
+      'Press "G" to jump straight to the last line.',
+      'Press "dd" to delete the debug line.'
     ],
   },
   {
     day: 6,
     week: 1,
-    title: 'The Superpower of Text Objects',
-    concept: 'ci", di", ca(, da{',
-    chapterRef: '01-vim-grammar-and-motions/02-the-grammar-of-vim.md',
-    mission: 'Change inside quotes without manually seeking! From anywhere inside the line, type "ci"" and enter "Tokyo Night".',
-    initialText: 'const theme = "OLD_THEME_NAME";',
-    cursorStart: { row: 0, col: 17 },
-    targetText: 'const theme = "Tokyo Night";',
-    parKeystrokes: 15,
-    optimalKeys: ['c', 'i', '"', 'T', 'o', 'k', 'y', 'o', ' ', 'N', 'i', 'g', 'h', 't', 'Escape'],
+    title: 'Search As A Motion: /pattern & ciw',
+    concept: 'Surgical search seeking and word replacement',
+    chapterRef: '01-vim-grammar-and-motions/03-movement-mastery.md',
+    mission: 'Search forward for "userOld" with "/userOld<Enter>", then replace with "ciwclient<Esc>".',
+    initialText: 'const userOld = fetchUser();\nconst info = format(userOld);',
+    cursorStart: { row: 0, col: 0 },
+    targetText: 'const client = fetchUser();\nconst info = format(userOld);',
+    parKeystrokes: 19,
+    optimalKeys: ['/', 'u', 's', 'e', 'r', 'O', 'l', 'd', 'Enter', 'c', 'i', 'w', 'c', 'l', 'i', 'e', 'n', 't', 'Escape'],
     hints: [
-      'No need to position cursor on the first quote.',
-      'Type "ci\"" to instantly wipe inside quotes.',
-      'Type "Tokyo Night" and press <Esc>.'
+      'Type "/userOld" and press Enter to search.',
+      'Type "ciwclient<Esc>" to rename the variable.'
     ],
   },
   {
     day: 7,
     week: 1,
-    title: 'Registers & Clipboard Secrets',
-    concept: 'Yanking, Pasting & Repeat (.)',
-    chapterRef: '01-vim-grammar-and-motions/05-registers-and-clipboard.md',
-    mission: 'Duplicate the header line using "yy" then paste below with "p".',
-    initialText: 'const API_URL = "https://api.domain.com";',
+    title: 'Flash.nvim 2-Character Teleportation',
+    concept: 's{c1}{c2} + label',
+    chapterRef: '06-plugin-mastery-and-ecosystem/03-flash-nvim-teleportation-motions.md',
+    mission: 'Teleport across the screen with Flash! Press "s", type "ta", jump with label "a", and change word to "finalVar" with "ciwfinalVar<Esc>".',
+    initialText: 'const alpha = 1;\nconst count = 2;\nconst sum = 3;\nconst targetVar = 999;',
     cursorStart: { row: 0, col: 0 },
-    targetText: 'const API_URL = "https://api.domain.com";\nconst API_URL = "https://api.domain.com";',
-    parKeystrokes: 3,
-    optimalKeys: ['y', 'y', 'p'],
+    targetText: 'const alpha = 1;\nconst count = 2;\nconst sum = 3;\nconst finalVar = 999;',
+    parKeystrokes: 16,
+    optimalKeys: ['s', 't', 'a', 'a', 'c', 'i', 'w', 'f', 'i', 'n', 'a', 'l', 'V', 'a', 'r', 'Escape'],
     hints: [
-      'Type "yy" to yank the entire line.',
-      'Type "p" to paste it right below.'
+      'Type "s" then "ta" to engage Flash search on "targetVar".',
+      'Press the target label "a" to jump.',
+      'Type "ciwfinalVar<Esc>" to rename the variable.'
     ],
   },
 
-  // ==========================================
-  // WEEK 2: Navigation, Buffers, Windows & Git
-  // ==========================================
+  // =========================================================================
+  // WEEK 2: Operators & Deep Text Objects (Days 8–14)
+  // =========================================================================
   {
     day: 8,
     week: 2,
-    title: 'Paragraph & File-Wide Jumps',
-    concept: 'gg, G, {, } Navigation',
-    chapterRef: '02-navigation-and-project-management/01-buffers-windows-tabs.md',
-    mission: 'Jump to the bottom of the file with "G", then delete the deprecated footer line with "dd".',
-    initialText: 'header line\ncontent line 1\ncontent line 2\nDEPRECATED_FOOTER',
+    title: 'String Literal Surgical Strikes: ci", da"',
+    concept: 'Inner and around quote text objects',
+    chapterRef: '01-vim-grammar-and-motions/02-the-grammar-of-vim.md',
+    mission: 'Wipe inside double quotes from anywhere on the line with "ci"" and enter "https://api.v2.io".',
+    initialText: 'export const API_BASE = "https://legacy.internal.staging/api/v1";',
     cursorStart: { row: 0, col: 0 },
-    targetText: 'header line\ncontent line 1\ncontent line 2',
-    parKeystrokes: 3,
-    optimalKeys: ['G', 'd', 'd'],
+    targetText: 'export const API_BASE = "https://api.v2.io";',
+    parKeystrokes: 22,
+    optimalKeys: ['c', 'i', '"', 'h', 't', 't', 'p', 's', ':', '/', '/', 'a', 'p', 'i', '.', 'v', '2', '.', 'i', 'o', 'Escape'],
     hints: [
-      'Press "G" to teleport to the last line.',
-      'Press "dd" to delete the current line.'
+      'Type "ci\"" to instantly clear inside quotes.',
+      'Type "https://api.v2.io" and press <Esc>.'
     ],
   },
   {
     day: 9,
     week: 2,
-    title: 'Visual Block & Multi-Line Edits',
-    concept: 'V line visual and indentation',
-    chapterRef: '01-vim-grammar-and-motions/04-visual-and-block-editing.md',
-    mission: 'Select both lines in Visual Line mode ("V", "j") and indent them right with ">".',
-    initialText: 'const a = 1;\nconst b = 2;',
+    title: 'Parameter & Argument Extraction: ci(, da(',
+    concept: 'Function argument text objects',
+    chapterRef: '01-vim-grammar-and-motions/02-the-grammar-of-vim.md',
+    mission: 'Refactor the signature: replace the 3 cluttered parameters using "ci(opts: UserOptions<Esc>".',
+    initialText: 'export function createUser(name: string, age: number, role: string) {\n  return db.save();\n}',
     cursorStart: { row: 0, col: 0 },
-    targetText: '  const a = 1;\n  const b = 2;',
-    parKeystrokes: 3,
-    optimalKeys: ['V', 'j', '>'],
+    targetText: 'export function createUser(opts: UserOptions) {\n  return db.save();\n}',
+    parKeystrokes: 22,
+    optimalKeys: ['c', 'i', '(', 'o', 'p', 't', 's', ':', ' ', 'U', 's', 'e', 'r', 'O', 'p', 't', 'i', 'o', 'n', 's', 'Escape'],
     hints: [
-      'Press "V" to enter Visual Line mode.',
-      'Press "j" to extend selection to the second line.',
-      'Press ">" to indent the selection by 2 spaces.'
+      'Type "ci(" to wipe inside the parentheses.',
+      'Type "opts: UserOptions" and press <Esc>.'
     ],
   },
   {
     day: 10,
     week: 2,
-    title: 'Undo Trees & Line Joining',
-    concept: 'u, <C-r>, and J',
-    chapterRef: '00-getting-started/03-first-day-survival-guide.md',
-    mission: 'Accidental delete happened! Press "u" to undo, then press "J" to join the two lines into one.',
-    initialText: 'const welcome = ',
+    title: 'Code Block Demolition: ci{, da{',
+    concept: 'Block braces text objects',
+    chapterRef: '01-vim-grammar-and-motions/02-the-grammar-of-vim.md',
+    mission: 'Drop down into the catch block with "3j" and replace its body with "ci{throw err;<Esc>".',
+    initialText: 'try {\n  runTask();\n} catch (err) {\n  console.warn("Retrying...");\n  retry();\n}',
     cursorStart: { row: 0, col: 0 },
-    targetText: 'const welcome = "Hello World";',
-    parKeystrokes: 2,
-    // Note: starts after an accidental delete was snapshot
-    optimalKeys: ['u', 'J'],
+    targetText: 'try {\n  runTask();\n} catch (err) {throw err;}',
+    parKeystrokes: 16,
+    optimalKeys: ['3', 'j', 'c', 'i', '{', 't', 'h', 'r', 'o', 'w', ' ', 'e', 'r', 'r', ';', 'Escape'],
     hints: [
-      'Press "u" to undo the accidental deletion.',
-      'Press "J" to join line 1 and line 2 with a clean space.'
+      'Press "3j" to navigate inside the catch block.',
+      'Type "ci{" to replace inside braces.',
+      'Type "throw err;" and press <Esc>.'
     ],
-    setup(engine) {
-      engine.buffer.setText('const welcome =\n"Hello World";');
-      engine.saveSnapshot();
-      engine.buffer.deleteLine(1);
-    }
   },
   {
     day: 11,
     week: 2,
-    title: 'Pattern Search & Global Replace',
-    concept: ':%s/find/replace/g in Command Mode',
-    chapterRef: '06-plugin-mastery-and-ecosystem/04-grug-far-project-search-and-replace.md',
-    mission: 'Rename all occurrences of "badVar" to "goodVar" using ":%s/badVar/goodVar/g".',
-    initialText: 'let badVar = 10;\nfunction test() { return badVar * 2; }',
-    cursorStart: { row: 0, col: 0 },
-    targetText: 'let goodVar = 10;\nfunction test() { return goodVar * 2; }',
-    parKeystrokes: 23,
-    optimalKeys: [':', '%', 's', '/', 'b', 'a', 'd', 'V', 'a', 'r', '/', 'g', 'o', 'o', 'd', 'V', 'a', 'r', '/', 'g', 'Enter'],
+    title: 'Tagged Template & JSX Objects: cit, dat',
+    concept: 'HTML and JSX tag text objects',
+    chapterRef: '04-language-specific-playbooks/01-typescript-javascript-web.md',
+    mission: 'Change inside the badge element using "citActive Status<Esc>".',
+    initialText: 'export const Badge = () => (\n  <span className="badge">Draft</span>\n);',
+    cursorStart: { row: 1, col: 10 },
+    targetText: 'export const Badge = () => (\n  <span className="badge">Active Status</span>\n);',
+    parKeystrokes: 17,
+    optimalKeys: ['c', 'i', 't', 'A', 'c', 't', 'i', 'v', 'e', ' ', 'S', 't', 'a', 't', 'u', 's', 'Escape'],
     hints: [
-      'Press ":" to enter Command mode.',
-      'Type "%s/badVar/goodVar/g" and press Enter.'
+      'Positioned inside the span tag, type "cit" to change inner content.',
+      'Type "Active Status" and press <Esc>.'
     ],
   },
   {
     day: 12,
     week: 2,
-    title: 'Buffer Navigation & Save Keys',
-    concept: '<C-s>, <leader>w, and :bnext',
+    title: 'Buffer Navigation & Persistence: :w & :bnext',
+    concept: 'Saving and switching buffers',
     chapterRef: '02-navigation-and-project-management/01-buffers-windows-tabs.md',
     mission: 'Save this modified buffer using ":w", then switch to the next buffer using ":bnext".',
     initialText: '// Buffer 1: Ready to save\nconst appConfig = { port: 3000 };',
@@ -2337,28 +3078,27 @@ const STAGES = [
   {
     day: 13,
     week: 2,
-    title: 'Flash.nvim 2-Keystroke Teleportation',
-    concept: 's{char1}{char2} + label',
-    chapterRef: '06-plugin-mastery-and-ecosystem/03-flash-nvim-teleportation-motions.md',
-    mission: 'Teleport across the screen with Flash! Press "s", type "re", then press the label ("a") and delete word with "dw".',
-    initialText: 'const alpha = 1;\nconst beta = 2;\nconst removeMe = 3;',
+    title: 'Linewise Swapping & Transposition: ddp',
+    concept: 'Cutting a line and pasting below',
+    chapterRef: '01-vim-grammar-and-motions/05-registers-and-clipboard.md',
+    mission: 'Swap the two declaration lines in 3 keystrokes using "ddp"!',
+    initialText: 'const SECOND = 2;\nconst FIRST = 1;',
     cursorStart: { row: 0, col: 0 },
-    targetText: 'const alpha = 1;\nconst beta = 2;\nconst = 3;',
-    parKeystrokes: 6,
-    optimalKeys: ['s', 'r', 'e', 'a', 'd', 'w'],
+    targetText: 'const FIRST = 1;\nconst SECOND = 2;',
+    parKeystrokes: 3,
+    optimalKeys: ['d', 'd', 'p'],
     hints: [
-      'Press "s" to trigger Flash teleportation.',
-      'Type "re" to find "removeMe".',
-      'Press the target label "a" to jump instantly, then type "dw".'
+      'Type "dd" to delete and yank line 1.',
+      'Type "p" to paste it right below line 2.'
     ],
   },
   {
     day: 14,
     week: 2,
-    title: 'Dot Repeat Mastery',
-    concept: 'The mighty . key',
+    title: 'The Dot Command (.): Repetitive Automation',
+    concept: 'Replaying linewise deletion across lines',
     chapterRef: '01-vim-grammar-and-motions/02-the-grammar-of-vim.md',
-    mission: 'Delete the first obsolete line with "dd", then use "." twice to repeat and delete the other two obsolete lines.',
+    mission: 'Delete obsolete line 1 with "dd", then use "." twice to repeat and delete obsolete lines 2 and 3.',
     initialText: 'obsolete 1\nobsolete 2\nobsolete 3\nKEEP_ME',
     cursorStart: { row: 0, col: 0 },
     targetText: 'KEEP_ME',
@@ -2371,156 +3111,699 @@ const STAGES = [
     ],
   },
 
-  // ==========================================
-  // WEEK 3: Modern IDE Power Tools
-  // ==========================================
+  // =========================================================================
+  // WEEK 3: Visual Modes & Column Editing (Days 15–21)
+  // =========================================================================
   {
     day: 15,
     week: 3,
-    title: 'Treesitter AST Hopping',
-    concept: ']m and [m Function Hopping',
-    chapterRef: '02-navigation-and-project-management/04-treesitter-code-navigation.md',
-    mission: 'Jump to the next function definition using "]m", then wipe its contents with "ci{".',
-    initialText: 'function first() {\n  return 1;\n}\n\nfunction target() {\n  OBSOLETE_BODY\n}',
-    cursorStart: { row: 0, col: 0 },
-    targetText: 'function first() {\n  return 1;\n}\n\nfunction target() {}',
-    parKeystrokes: 6,
-    optimalKeys: [']', 'm', 'c', 'i', '{', 'Escape'],
+    title: 'Visual Character Mode & Till Motions: vt;c',
+    concept: 'Visual selection till character and change',
+    chapterRef: '01-vim-grammar-and-motions/04-visual-and-block-editing.md',
+    mission: 'Select through the boolean expression with "vt;" and replace with "true<Esc>".',
+    initialText: 'const canAccess = false && isGuest;',
+    cursorStart: { row: 0, col: 18 },
+    targetText: 'const canAccess = true;',
+    parKeystrokes: 9,
+    optimalKeys: ['v', 't', ';', 'c', 't', 'r', 'u', 'e', 'Escape'],
     hints: [
-      'Type "]m" to jump cursor to the next function definition.',
-      'Type "ci{" to change inside the function braces.',
-      'Press <Esc> to finish.'
+      'Cursor starts on "false". Press "v" for Visual mode.',
+      'Type "t;" to select up to the semicolon.',
+      'Type "c" to change selection to "true" and press <Esc>.'
     ],
   },
   {
     day: 16,
     week: 3,
-    title: 'Code Intelligence & Definition Jumps',
-    concept: 'gd, gr, and K',
-    chapterRef: '03-modern-ide-power-tools/02-code-navigation-and-inspection.md',
-    mission: 'Jump to definition using "gd", then change the variable name with "ciw" -> "adminUser".',
-    initialText: 'let user = "Eddie";\n// ... miles away ...\nconsole.log(user);',
-    cursorStart: { row: 2, col: 13 },
-    targetText: 'let adminUser = "Eddie";\n// ... miles away ...\nconsole.log(user);',
-    parKeystrokes: 16,
-    optimalKeys: ['g', 'g', 'w', 'c', 'i', 'w', 'a', 'd', 'm', 'i', 'n', 'U', 's', 'e', 'r', 'Escape'],
+    title: 'Visual Line Mode: Indentation & Joining',
+    concept: 'V, j, >, and J',
+    chapterRef: '01-vim-grammar-and-motions/04-visual-and-block-editing.md',
+    mission: 'Select both function lines in Visual Line mode ("Vj") and indent them right with ">".',
+    initialText: 'const a = 100;\nconst b = 200;',
+    cursorStart: { row: 0, col: 0 },
+    targetText: '  const a = 100;\n  const b = 200;',
+    parKeystrokes: 3,
+    optimalKeys: ['V', 'j', '>'],
     hints: [
-      'Jump to the top definition using "ggw" (or "gd").',
-      'Type "ciw" to change inner word.',
-      'Type "adminUser" and exit with <Esc>.'
+      'Press "V" to enter Visual Line mode.',
+      'Press "j" to select both lines.',
+      'Press ">" to indent.'
     ],
   },
   {
     day: 17,
     week: 3,
-    title: 'Diagnostic Hopping & Trouble',
-    concept: ']d and [d Error Navigation',
-    chapterRef: '03-modern-ide-power-tools/06-diagnostics-and-trouble.md',
-    mission: 'Jump to the syntax error with "]d", delete the error marker with "dd".',
-    initialText: 'const valid = true;\n// ERROR: missing semicolon\nconst port = 3000;',
+    title: 'Visual Block Mode: Multi-Line Prefix Insertion',
+    concept: '<C-v>, j, and I (Column insertion)',
+    chapterRef: '01-vim-grammar-and-motions/04-visual-and-block-editing.md',
+    mission: 'Batch comment 3 lines at once: enter Visual Block mode with "<C-v>", select 2 lines down with "2j", insert "// " with "I// <Esc>".',
+    initialText: 'host: "0.0.0.0"\nport: 8080\nssl: true',
     cursorStart: { row: 0, col: 0 },
-    targetText: 'const valid = true;\nconst port = 3000;',
-    parKeystrokes: 4,
-    optimalKeys: [']', 'd', 'd', 'd'],
+    targetText: '// host: "0.0.0.0"\n// port: 8080\n// ssl: true',
+    parKeystrokes: 8,
+    optimalKeys: ['<C-v>', '2', 'j', 'I', '/', '/', ' ', 'Escape'],
     hints: [
-      'Type "]d" to jump directly to the diagnostic error line.',
-      'Type "dd" to delete the erroneous line.'
+      'Press "<C-v>" to enter VISUAL BLOCK mode.',
+      'Press "2j" to extend down 2 lines.',
+      'Press "I", type "// ", and press <Esc> to apply to all selected lines!'
     ],
   },
   {
     day: 18,
     week: 3,
-    title: 'Code Actions & Quick Refactoring',
-    concept: '<leader>ca and ciw',
-    chapterRef: '03-modern-ide-power-tools/03-refactoring-and-code-actions.md',
-    mission: 'Refactor identifier: use "ciw" on "oldHandler" to rename it to "handleAuth".',
-    initialText: 'function oldHandler(req, res) {}',
-    cursorStart: { row: 0, col: 18 },
-    targetText: 'function handleAuth(req, res) {}',
-    parKeystrokes: 14,
-    optimalKeys: ['c', 'i', 'w', 'h', 'a', 'n', 'd', 'l', 'e', 'A', 'u', 't', 'h', 'Escape'],
+    title: 'Visual Block Mode: Column Deletion',
+    concept: '<C-v>, 2j, 3l, and d',
+    chapterRef: '01-vim-grammar-and-motions/04-visual-and-block-editing.md',
+    mission: 'Strip the line prefix markers: block select 3 lines and 3 columns ("<C-v>2j3l"), then press "d" to slice them off.',
+    initialText: '01: auth\n02: user\n03: cart',
+    cursorStart: { row: 0, col: 0 },
+    targetText: 'auth\nuser\ncart',
+    parKeystrokes: 6,
+    optimalKeys: ['<C-v>', '2', 'j', '3', 'l', 'd'],
     hints: [
-      'Type "ciw" to replace the word under cursor.',
-      'Type "handleAuth" and press <Esc>.'
+      'Press "<C-v>" to enter Visual Block mode.',
+      'Type "2j3l" to cover the "01: " column width.',
+      'Press "d" to delete the column block.'
     ],
   },
   {
     day: 19,
     week: 3,
-    title: 'Mini.ai Text Objects',
-    concept: 'dia / daa (Argument Text Objects)',
+    title: 'Surround Manipulation: mini.surround',
+    concept: 'gsaw" (surround word)',
     chapterRef: '06-plugin-mastery-and-ecosystem/06-micro-productivity-and-editing-plugins.md',
-    mission: 'Delete the second parameter "b: number" with "dia" (delete inside argument).',
-    initialText: 'function sum(a: number, b: number, c: number) {}',
-    cursorStart: { row: 0, col: 25 },
-    targetText: 'function sum(a: number, , c: number) {}',
-    parKeystrokes: 3,
-    optimalKeys: ['d', 'i', 'a'],
+    mission: 'Surround the bare identifier with quotes: type "gsaw"" to wrap "development" in double quotes.',
+    initialText: 'const env = development;',
+    cursorStart: { row: 0, col: 15 },
+    targetText: 'const env = "development";',
+    parKeystrokes: 5,
+    optimalKeys: ['g', 's', 'a', 'w', '"'],
     hints: [
-      'With cursor on "b: number", type "dia" to delete inside argument.'
+      'Position cursor on "development".',
+      'Type "gsaw\"" to surround inner word with double quotes.'
     ],
   },
   {
     day: 20,
     week: 3,
-    title: 'Enclosure & Surround Operations',
-    concept: 'Transforming quotes and delimiters',
-    chapterRef: '06-plugin-mastery-and-ecosystem/06-micro-productivity-and-editing-plugins.md',
-    mission: 'Change inside single quotes with "ci\'" and enter "production".',
-    initialText: 'const env = \'development\';',
-    cursorStart: { row: 0, col: 15 },
-    targetText: 'const env = \'production\';',
-    parKeystrokes: 14,
-    optimalKeys: ['c', 'i', '\'', 'p', 'r', 'o', 'd', 'u', 'c', 't', 'i', 'o', 'n', 'Escape'],
+    title: 'Marks & Spatial Anchors: ma, \'a',
+    concept: 'Setting and leaping between bookmarked lines',
+    chapterRef: '01-vim-grammar-and-motions/03-movement-mastery.md',
+    mission: 'Set mark "a" with "ma", leap to the bottom with "G", then jump back to mark "a" with "\'a", and delete line with "dd".',
+    initialText: 'const TOP_SECRET = "xyz";\n// ... lots of lines ...\nconst FOOTER = "end";',
+    cursorStart: { row: 0, col: 0 },
+    targetText: '// ... lots of lines ...\nconst FOOTER = "end";',
+    parKeystrokes: 7,
+    optimalKeys: ['m', 'a', 'G', '\'', 'a', 'd', 'd'],
     hints: [
-      'Type "ci\'" to change inside single quotes.',
-      'Type "production" and press <Esc>.'
+      'Type "ma" to store mark a.',
+      'Type "G" to teleport to footer.',
+      'Type "\'a" to leap back to mark a, then "dd" to delete.'
     ],
   },
   {
     day: 21,
     week: 3,
-    title: 'Search Across Project (Grep & Grug-Far)',
-    concept: '<leader>/ and :%s',
-    chapterRef: '06-plugin-mastery-and-ecosystem/04-grug-far-project-search-and-replace.md',
-    mission: 'Perform global substitution on all "http:" to "https:" using ":%s/http:/https:/g".',
-    initialText: 'const api = "http://api.com";\nconst cdn = "http://cdn.com";',
-    cursorStart: { row: 0, col: 0 },
-    targetText: 'const api = "https://api.com";\nconst cdn = "https://cdn.com";',
-    parKeystrokes: 22,
-    optimalKeys: [':', '%', 's', '/', 'h', 't', 't', 'p', ':', '/', 'h', 't', 't', 'p', 's', ':', '/', 'g', 'Enter'],
+    title: 'Jumplist Time Travel: gd & Symbol Navigation',
+    concept: 'Code symbol navigation with gd',
+    chapterRef: '03-modern-ide-power-tools/02-code-navigation-and-inspection.md',
+    mission: 'Dive to the definition of "userConfig" with "gd", then change word to "appConfig" with "ciwappConfig<Esc>".',
+    initialText: 'const userConfig = { active: true };\n\nfunction start() {\n  return userConfig;\n}',
+    cursorStart: { row: 3, col: 10 },
+    targetText: 'const appConfig = { active: true };\n\nfunction start() {\n  return userConfig;\n}',
+    parKeystrokes: 15,
+    optimalKeys: ['g', 'd', 'c', 'i', 'w', 'a', 'p', 'p', 'C', 'o', 'n', 'f', 'i', 'g', 'Escape'],
     hints: [
-      'Type ":%s/http:/https:/g" <Enter>.'
+      'Cursor is on "userConfig". Type "gd" to jump to its declaration line.',
+      'Type "ciwappConfig<Esc>" to rename it.'
     ],
   },
 
-  // ==========================================
-  // WEEK 4: Language-Specific Playbooks
-  // ==========================================
+  // =========================================================================
+  // WEEK 4: Ex Commands & Global Stream Editing (Days 22–28)
+  // =========================================================================
   {
     day: 22,
     week: 4,
-    title: 'TypeScript / React Playbook',
-    concept: 'Refactoring Types & Interfaces',
-    chapterRef: '04-language-specific-playbooks/01-typescript-javascript-web.md',
-    mission: 'Change the role string "viewer" to "admin" using "ci"".',
-    initialText: 'const currentUser: UserProfile = {\n  role: "viewer",\n};',
-    cursorStart: { row: 1, col: 11 },
-    targetText: 'const currentUser: UserProfile = {\n  role: "admin",\n};',
-    parKeystrokes: 9,
-    optimalKeys: ['c', 'i', '"', 'a', 'd', 'm', 'i', 'n', 'Escape'],
+    title: 'Global Regex Substitution: :%s/old/new/g',
+    concept: 'Modernizing legacy ES5 var to const across buffer',
+    chapterRef: '06-plugin-mastery-and-ecosystem/04-grug-far-project-search-and-replace.md',
+    mission: 'Modernize all "var " to "const " using ":%s/var /const /g<Enter>".',
+    initialText: 'var a = 1;\nvar b = 2;\nvar c = 3;',
+    cursorStart: { row: 0, col: 0 },
+    targetText: 'const a = 1;\nconst b = 2;\nconst c = 3;',
+    parKeystrokes: 19,
+    optimalKeys: [':', '%', 's', '/', 'v', 'a', 'r', ' ', '/', 'c', 'o', 'n', 's', 't', ' ', '/', 'g', 'Enter'],
     hints: [
-      'Cursor is inside "viewer".',
-      'Type "ci\"" -> "admin" -> <Esc>.'
+      'Type ":%s/var /const /g" and press Enter.'
     ],
   },
   {
     day: 23,
     week: 4,
-    title: 'Python Development Playbook',
-    concept: 'Indentation & Docstrings',
+    title: 'Line Range Substitution: :2,3s/find/replace/g',
+    concept: 'Precision scoped range replacements',
+    chapterRef: '01-vim-grammar-and-motions/02-the-grammar-of-vim.md',
+    mission: 'Replace "DEBUG" with "PROD" only on lines 2 through 3 using ":2,3s/DEBUG/PROD/g<Enter>".',
+    initialText: 'const env1 = "DEBUG";\nconst env2 = "DEBUG";\nconst env3 = "DEBUG";',
+    cursorStart: { row: 0, col: 0 },
+    targetText: 'const env1 = "DEBUG";\nconst env2 = "PROD";\nconst env3 = "PROD";',
+    parKeystrokes: 20,
+    optimalKeys: [':', '2', ',', '3', 's', '/', 'D', 'E', 'B', 'U', 'G', '/', 'P', 'R', 'O', 'D', '/', 'g', 'Enter'],
+    hints: [
+      'Type ":2,3s/DEBUG/PROD/g" and press Enter.'
+    ],
+  },
+  {
+    day: 24,
+    week: 4,
+    title: 'Global Line Deletion: :g/pattern/d',
+    concept: 'Cleaning debug logs with ex command',
+    chapterRef: '01-vim-grammar-and-motions/02-the-grammar-of-vim.md',
+    mission: 'Strip all console.log statements instantly using ":g/console.log/d<Enter>".',
+    initialText: 'function calculate() {\n  console.log("start");\n  const val = 42;\n  console.log("end");\n  return val;\n}',
+    cursorStart: { row: 0, col: 0 },
+    targetText: 'function calculate() {\n  const val = 42;\n  return val;\n}',
+    parKeystrokes: 18,
+    optimalKeys: [':', 'g', '/', 'c', 'o', 'n', 's', 'o', 'l', 'e', '.', 'l', 'o', 'g', '/', 'd', 'Enter'],
+    hints: [
+      'Type ":g/console.log/d" and press Enter.'
+    ],
+  },
+  {
+    day: 25,
+    week: 4,
+    title: 'Inverted Global Filter: :v/pattern/d',
+    concept: 'Isolating public exports with :v',
+    chapterRef: '01-vim-grammar-and-motions/02-the-grammar-of-vim.md',
+    mission: 'Delete all lines that DO NOT contain "export" using ":v/export/d<Enter>".',
+    initialText: 'const internalHelper = 1;\nexport const API_URL = "https://api.com";\nconst cache = {};\nexport const PORT = 8080;',
+    cursorStart: { row: 0, col: 0 },
+    targetText: 'export const API_URL = "https://api.com";\nexport const PORT = 8080;',
+    parKeystrokes: 13,
+    optimalKeys: [':', 'v', '/', 'e', 'x', 'p', 'o', 'r', 't', '/', 'd', 'Enter'],
+    hints: [
+      'Type ":v/export/d" and press Enter to keep only exported lines.'
+    ],
+  },
+  {
+    day: 26,
+    week: 4,
+    title: 'Normal Command Execution: :%norm',
+    concept: 'Batch executing normal mode keystrokes via Ex',
+    chapterRef: '01-vim-grammar-and-motions/02-the-grammar-of-vim.md',
+    mission: 'Prepend "// " to every line in the buffer using ":%norm I// <Enter>".',
+    initialText: 'alpha: 1\nbeta: 2\ngamma: 3',
+    cursorStart: { row: 0, col: 0 },
+    targetText: '// alpha: 1\n// beta: 2\n// gamma: 3',
+    parKeystrokes: 12,
+    optimalKeys: [':', '%', 'n', 'o', 'r', 'm', ' ', 'I', '/', '/', ' ', 'Enter'],
+    hints: [
+      'Type ":%norm I// " and press Enter.'
+    ],
+  },
+  {
+    day: 27,
+    week: 4,
+    title: 'Command Mode Save & Write Verification: :w',
+    concept: 'Validating written disk state',
+    chapterRef: '00-getting-started/03-first-day-survival-guide.md',
+    mission: 'Save the configuration buffer with ":w<Enter>".',
+    initialText: 'export const SERVER_CONFIG = { mode: "production" };',
+    cursorStart: { row: 0, col: 0 },
+    targetText: 'export const SERVER_CONFIG = { mode: "production" };',
+    requiredAction: 'save',
+    parKeystrokes: 3,
+    optimalKeys: [':', 'w', 'Enter'],
+    hints: [
+      'Type ":w" and press Enter.'
+    ],
+  },
+  {
+    day: 28,
+    week: 4,
+    title: 'Macro Recording: The Automation Loop (qa...q, @a)',
+    concept: 'Recording and replaying keyboard macros',
+    chapterRef: '05-advanced-and-customization/04-30-day-practice-drills.md',
+    mission: 'Record macro "a" with "qaA;<Esc>jq" on line 1, then replay it on lines 2 and 3 with "2@a".',
+    initialText: 'const a = 1\nconst b = 2\nconst c = 3',
+    cursorStart: { row: 0, col: 0 },
+    targetText: 'const a = 1;\nconst b = 2;\nconst c = 3;',
+    parKeystrokes: 10,
+    optimalKeys: ['q', 'a', 'A', ';', 'Escape', 'j', 'q', '2', '@', 'a'],
+    hints: [
+      'Type "qa" to start recording to register a.',
+      'Type "A;<Esc>j" then "q" to stop recording.',
+      'Type "2@a" to replay the macro across the remaining 2 lines.'
+    ],
+  },
+
+  // =========================================================================
+  // WEEK 5: LazyVim Discovery & File Navigation (Days 29–35)
+  // =========================================================================
+  {
+    day: 29,
+    week: 5,
+    title: 'LazyVim Fzf: Find Files (<leader>ff)',
+    concept: '<Space>ff Fuzzy finder modal',
+    chapterRef: '02-navigation-and-project-management/02-file-finding-telescope-fzf.md',
+    mission: 'Launch the Fzf file finder modal using "<Space>ff".',
+    initialText: '// Press <Space>ff to find files across the project\nconsole.log("Ready");',
+    cursorStart: { row: 0, col: 0 },
+    targetText: '// Press <Space>ff to find files across the project\nconsole.log("Ready");',
+    requiredAction: 'fzf',
+    parKeystrokes: 3,
+    optimalKeys: [' ', 'f', 'f'],
+    hints: [
+      'Press Space, then "f", then "f" to trigger Fzf Find Files.'
+    ],
+  },
+  {
+    day: 30,
+    week: 5,
+    title: 'LazyVim Fzf: Live Grep (<leader>sg)',
+    concept: '<Space>sg Codebase ripgrep search',
+    chapterRef: '02-navigation-and-project-management/02-file-finding-telescope-fzf.md',
+    mission: 'Launch the live grep search modal using "<Space>sg".',
+    initialText: '// Press <Space>sg to search strings across project files',
+    cursorStart: { row: 0, col: 0 },
+    targetText: '// Press <Space>sg to search strings across project files',
+    requiredAction: 'grep',
+    parKeystrokes: 3,
+    optimalKeys: [' ', 's', 'g'],
+    hints: [
+      'Press Space, then "s", then "g" to open Live Grep.'
+    ],
+  },
+  {
+    day: 31,
+    week: 5,
+    title: 'LazyVim Fzf: Buffer Picker (<leader>fb)',
+    concept: '<Space>fb Active buffer navigation',
+    chapterRef: '02-navigation-and-project-management/01-buffers-windows-tabs.md',
+    mission: 'Open the buffer selector modal with "<Space>fb".',
+    initialText: '// Press <Space>fb to switch between open buffers',
+    cursorStart: { row: 0, col: 0 },
+    targetText: '// Press <Space>fb to switch between open buffers',
+    requiredAction: 'buffers',
+    parKeystrokes: 3,
+    optimalKeys: [' ', 'f', 'b'],
+    hints: [
+      'Press Space, then "f", then "b" to list active buffers.'
+    ],
+  },
+  {
+    day: 32,
+    week: 5,
+    title: 'LazyVim Neo-tree: File Explorer (<leader>e)',
+    concept: '<Space>e Collapsible file sidebar',
+    chapterRef: '02-navigation-and-project-management/03-file-explorers-neotree-oil.md',
+    mission: 'Toggle the Neo-tree sidebar explorer using "<Space>e".',
+    initialText: '// Press <Space>e to toggle Neo-tree sidebar explorer',
+    cursorStart: { row: 0, col: 0 },
+    targetText: '// Press <Space>e to toggle Neo-tree sidebar explorer',
+    requiredAction: 'neotree',
+    parKeystrokes: 2,
+    optimalKeys: [' ', 'e'],
+    hints: [
+      'Press Space, then "e" to toggle Neo-tree.'
+    ],
+  },
+  {
+    day: 33,
+    week: 5,
+    title: 'LazyVim Trouble: Diagnostics Drawer (<leader>xx)',
+    concept: '<Space>xx Workspace type and lint errors',
+    chapterRef: '03-modern-ide-power-tools/06-diagnostics-and-trouble.md',
+    mission: 'Toggle the Trouble diagnostics drawer with "<Space>xx".',
+    initialText: '// Press <Space>xx to toggle Trouble diagnostics panel',
+    cursorStart: { row: 0, col: 0 },
+    targetText: '// Press <Space>xx to toggle Trouble diagnostics panel',
+    requiredAction: 'trouble',
+    parKeystrokes: 3,
+    optimalKeys: [' ', 'x', 'x'],
+    hints: [
+      'Press Space, then "x", then "x" to open Trouble.'
+    ],
+  },
+  {
+    day: 34,
+    week: 5,
+    title: 'Diagnostic Hopping: ]d & Line Removal',
+    concept: ']d Jump to next diagnostic error',
+    chapterRef: '03-modern-ide-power-tools/06-diagnostics-and-trouble.md',
+    mission: 'Jump to the diagnostic error line with "]d" and delete it with "dd".',
+    initialText: 'const valid = true;\n// ERROR: Type mismatch at runtime\nconst port = 3000;',
+    cursorStart: { row: 0, col: 0 },
+    targetText: 'const valid = true;\nconst port = 3000;',
+    parKeystrokes: 4,
+    optimalKeys: [']', 'd', 'd', 'd'],
+    hints: [
+      'Type "]d" to jump directly to the diagnostic error.',
+      'Type "dd" to remove the error line.'
+    ],
+  },
+  {
+    day: 35,
+    week: 5,
+    title: 'LazyVim Which-Key Intuition (<Space>)',
+    concept: '<Space> Leader discovery and fast saving (<Space>w)',
+    chapterRef: '01-vim-grammar-and-motions/01-why-neovim-mental-model.md',
+    mission: 'Use the LazyVim leader key to save the buffer: press "<Space>w".',
+    initialText: 'export const status = "saved_with_leader";',
+    cursorStart: { row: 0, col: 0 },
+    targetText: 'export const status = "saved_with_leader";',
+    requiredAction: 'save',
+    parKeystrokes: 2,
+    optimalKeys: [' ', 'w'],
+    hints: [
+      'Press Space, then "w" to trigger the LazyVim quick save.'
+    ],
+  },
+
+  // =========================================================================
+  // WEEK 6: LSP Code Intelligence & Productivity (Days 36–42)
+  // =========================================================================
+  {
+    day: 36,
+    week: 6,
+    title: 'LSP Hover Documentation (K)',
+    concept: 'K symbol documentation and type inspection',
+    chapterRef: '03-modern-ide-power-tools/02-code-navigation-and-inspection.md',
+    mission: 'Inspect the type signature under cursor by pressing "K".',
+    initialText: 'export interface UserSession {\n  id: string;\n  token: string;\n}',
+    cursorStart: { row: 0, col: 20 },
+    targetText: 'export interface UserSession {\n  id: string;\n  token: string;\n}',
+    requiredAction: 'lsp_hover',
+    parKeystrokes: 1,
+    optimalKeys: ['K'],
+    hints: [
+      'Press uppercase "K" to request LSP hover docs.'
+    ],
+  },
+  {
+    day: 37,
+    week: 6,
+    title: 'LSP Goto Definition (gd)',
+    concept: 'gd jump to declaration',
+    chapterRef: '03-modern-ide-power-tools/02-code-navigation-and-inspection.md',
+    mission: 'Jump to the definition of "createAuthService" using "gd".',
+    initialText: 'function createAuthService() {}\n\nconst auth = createAuthService();',
+    cursorStart: { row: 2, col: 15 },
+    targetText: 'function createAuthService() {}\n\nconst auth = createAuthService();',
+    requiredAction: 'lsp_definition',
+    parKeystrokes: 2,
+    optimalKeys: ['g', 'd'],
+    hints: [
+      'Type "gd" to jump to definition.'
+    ],
+  },
+  {
+    day: 38,
+    week: 6,
+    title: 'LSP References Inspection (gr)',
+    concept: 'gr list all usages across codebase',
+    chapterRef: '03-modern-ide-power-tools/02-code-navigation-and-inspection.md',
+    mission: 'Query all references of the identifier under cursor using "gr".',
+    initialText: 'export const APP_ID = "org.app.v1";',
+    cursorStart: { row: 0, col: 15 },
+    targetText: 'export const APP_ID = "org.app.v1";',
+    requiredAction: 'lsp_references',
+    parKeystrokes: 2,
+    optimalKeys: ['g', 'r'],
+    hints: [
+      'Type "gr" to list references.'
+    ],
+  },
+  {
+    day: 39,
+    week: 6,
+    title: 'LSP Code Actions (<leader>ca)',
+    concept: '<Space>ca quickfix and auto-import menu',
+    chapterRef: '03-modern-ide-power-tools/03-refactoring-and-code-actions.md',
+    mission: 'Trigger the LSP code actions menu using "<Space>ca".',
+    initialText: 'const element = React.createElement("div");',
+    cursorStart: { row: 0, col: 18 },
+    targetText: 'const element = React.createElement("div");',
+    requiredAction: 'lsp_code_action',
+    parKeystrokes: 3,
+    optimalKeys: [' ', 'c', 'a'],
+    hints: [
+      'Press Space, then "c", then "a" to show code actions.'
+    ],
+  },
+  {
+    day: 40,
+    week: 6,
+    title: 'LSP Symbol Rename (<leader>cr)',
+    concept: '<Space>cr safe symbol refactor',
+    chapterRef: '03-modern-ide-power-tools/03-refactoring-and-code-actions.md',
+    mission: 'Open the LSP symbol rename dialog using "<Space>cr".',
+    initialText: 'function oldProcessUser(id: string) {}',
+    cursorStart: { row: 0, col: 12 },
+    targetText: 'function oldProcessUser(id: string) {}',
+    requiredAction: 'lsp_rename',
+    parKeystrokes: 3,
+    optimalKeys: [' ', 'c', 'r'],
+    hints: [
+      'Press Space, then "c", then "r" to trigger LSP rename.'
+    ],
+  },
+  {
+    day: 41,
+    week: 6,
+    title: 'LSP Document Formatting (<leader>cf)',
+    concept: '<Space>cf auto-format document',
+    chapterRef: '03-modern-ide-power-tools/04-formatting-and-linting.md',
+    mission: 'Format this unindented buffer to clean Prettier standards using "<Space>cf".',
+    initialText: 'function calc() {\nconst a = 1;\nreturn a;\n}',
+    cursorStart: { row: 0, col: 0 },
+    targetText: 'function calc() {\n  const a = 1;\n  return a;\n}',
+    requiredAction: 'format',
+    parKeystrokes: 3,
+    optimalKeys: [' ', 'c', 'f'],
+    hints: [
+      'Press Space, then "c", then "f" to format the document.'
+    ],
+  },
+  {
+    day: 42,
+    week: 6,
+    title: 'Treesitter Method Hopping: ]m & [m',
+    concept: 'AST function jump and change inside braces',
+    chapterRef: '02-navigation-and-project-management/04-treesitter-code-navigation.md',
+    mission: 'Jump to the second function with "]m", and wipe its inner contents with "ci{".',
+    initialText: 'function first() {\n  return 1;\n}\n\nfunction target() {\n  OBSOLETE\n}',
+    cursorStart: { row: 0, col: 0 },
+    targetText: 'function first() {\n  return 1;\n}\n\nfunction target() {}',
+    parKeystrokes: 6,
+    optimalKeys: [']', 'm', 'c', 'i', '{', 'Escape'],
+    hints: [
+      'Type "]m" to leap cursor to function target.',
+      'Type "ci{" to clear inside braces and press <Esc>.'
+    ],
+  },
+
+  // =========================================================================
+  // WEEK 7: Git, Search & Plugin Productivity (Days 43–49)
+  // =========================================================================
+  {
+    day: 43,
+    week: 7,
+    title: 'LazyGit Dashboard (<leader>gg)',
+    concept: '<Space>gg Floating terminal git management',
+    chapterRef: '02-navigation-and-project-management/05-git-workflow-and-lazygit.md',
+    mission: 'Open the LazyGit dashboard modal using "<Space>gg".',
+    initialText: '// Press <Space>gg to open LazyGit dashboard',
+    cursorStart: { row: 0, col: 0 },
+    targetText: '// Press <Space>gg to open LazyGit dashboard',
+    requiredAction: 'lazygit',
+    parKeystrokes: 3,
+    optimalKeys: [' ', 'g', 'g'],
+    hints: [
+      'Press Space, then "g", then "g" to open LazyGit.'
+    ],
+  },
+  {
+    day: 44,
+    week: 7,
+    title: 'Grug-Far: Project Search & Replace (<leader>sr)',
+    concept: '<Space>sr Multi-file find and replace',
+    chapterRef: '06-plugin-mastery-and-ecosystem/04-grug-far-project-search-and-replace.md',
+    mission: 'Open Grug-Far project find and replace using "<Space>sr".',
+    initialText: '// Press <Space>sr to trigger project search and replace',
+    cursorStart: { row: 0, col: 0 },
+    targetText: '// Press <Space>sr to trigger project search and replace',
+    requiredAction: 'grug_far',
+    parKeystrokes: 3,
+    optimalKeys: [' ', 's', 'r'],
+    hints: [
+      'Press Space, then "s", then "r" to invoke Grug-Far.'
+    ],
+  },
+  {
+    day: 45,
+    week: 7,
+    title: 'Lazy.nvim Plugin Ecosystem (<leader>l)',
+    concept: '<Space>l Plugin manager status',
+    chapterRef: '06-plugin-mastery-and-ecosystem/01-lazy-nvim-plugin-manager.md',
+    mission: 'Open the Lazy.nvim manager dashboard with "<Space>l".',
+    initialText: '// Press <Space>l to inspect installed Lazy plugins',
+    cursorStart: { row: 0, col: 0 },
+    targetText: '// Press <Space>l to inspect installed Lazy plugins',
+    requiredAction: 'lazy_home',
+    parKeystrokes: 2,
+    optimalKeys: [' ', 'l'],
+    hints: [
+      'Press Space, then "l" to inspect Lazy.nvim.'
+    ],
+  },
+  {
+    day: 46,
+    week: 7,
+    title: 'Snacks Scratchpad Prototyping (<leader>.)',
+    concept: '<Space>. Floating scratchpad',
+    chapterRef: '06-plugin-mastery-and-ecosystem/06-micro-productivity-and-editing-plugins.md',
+    mission: 'Open the Snacks floating scratchpad buffer using "<Space>.".',
+    initialText: '// Press <Space>. to toggle scratchpad',
+    cursorStart: { row: 0, col: 0 },
+    targetText: '// Press <Space>. to toggle scratchpad',
+    requiredAction: 'scratchpad',
+    parKeystrokes: 2,
+    optimalKeys: [' ', '.'],
+    hints: [
+      'Press Space, then "." to open scratchpad.'
+    ],
+  },
+  {
+    day: 47,
+    week: 7,
+    title: 'Floating Terminal Multiplexing (<leader>ft)',
+    concept: '<Space>ft Embedded floating terminal',
+    chapterRef: '02-navigation-and-project-management/01-buffers-windows-tabs.md',
+    mission: 'Toggle the floating terminal with "<Space>ft".',
+    initialText: '// Press <Space>ft to toggle floating terminal',
+    cursorStart: { row: 0, col: 0 },
+    targetText: '// Press <Space>ft to toggle floating terminal',
+    requiredAction: 'terminal',
+    parKeystrokes: 3,
+    optimalKeys: [' ', 'f', 't'],
+    hints: [
+      'Press Space, then "f", then "t" to open the floating terminal.'
+    ],
+  },
+  {
+    day: 48,
+    week: 7,
+    title: 'Vim-Surround Delimiter Replacement: cs"\' & ds"',
+    concept: 'cs"\' replace and ds" delete surround',
+    chapterRef: '06-plugin-mastery-and-ecosystem/06-micro-productivity-and-editing-plugins.md',
+    mission: 'Replace double quotes around "production" with single quotes using "cs"\'".',
+    initialText: 'const env = "production";',
+    cursorStart: { row: 0, col: 15 },
+    targetText: 'const env = \'production\';',
+    parKeystrokes: 4,
+    optimalKeys: ['c', 's', '"', '\''],
+    hints: [
+      'Positioned inside quotes, type "cs\"\'" to replace double quotes with single quotes.'
+    ],
+  },
+  {
+    day: 49,
+    week: 7,
+    title: 'Multi-Count Macro Orchestration: qaIexport <Esc>jq, 2@a',
+    concept: 'Batch exporting private variables with macro',
+    chapterRef: '05-advanced-and-customization/04-30-day-practice-drills.md',
+    mission: 'Record macro "a" on line 1 ("qaIexport <Esc>jq"), then replay across lines 2 and 3 with "2@a".',
+    initialText: 'const USER = "eddie";\nconst ROLE = "admin";\nconst ACCESS = true;',
+    cursorStart: { row: 0, col: 0 },
+    targetText: 'export const USER = "eddie";\nexport const ROLE = "admin";\nexport const ACCESS = true;',
+    parKeystrokes: 16,
+    optimalKeys: ['q', 'a', 'I', 'e', 'x', 'p', 'o', 'r', 't', ' ', 'Escape', 'j', 'q', '2', '@', 'a'],
+    hints: [
+      'Type "qa" to start macro a.',
+      'Type "Iexport <Esc>j" and "q" to stop.',
+      'Type "2@a" to run across remaining lines.'
+    ],
+  },
+
+  // =========================================================================
+  // WEEK 8: The Grandmaster Trials & Polyglot Refactoring (Days 50–60)
+  // =========================================================================
+  {
+    day: 50,
+    week: 8,
+    title: 'TypeScript Refactor: Parameter Pruning (f, dt))',
+    concept: 'Precision seeking and forward slice deletion',
+    chapterRef: '04-language-specific-playbooks/01-typescript-javascript-web.md',
+    mission: 'Prune the deprecated callback parameter: seek to comma with "f,", and delete through closing paren with "dt)".',
+    initialText: 'function getData(url: string, callback: any) {\n  return fetch(url);\n}',
+    cursorStart: { row: 0, col: 0 },
+    targetText: 'function getData(url: string) {\n  return fetch(url);\n}',
+    parKeystrokes: 5,
+    optimalKeys: ['f', ',', 'd', 't', ')'],
+    hints: [
+      'Type "f," to seek to the comma.',
+      'Type "dt)" to delete right up to the closing parenthesis.'
+    ],
+  },
+  {
+    day: 51,
+    week: 8,
+    title: 'React Refactor: Component Name Modernization (ciw)',
+    concept: 'Modern React component identifier renaming',
+    chapterRef: '04-language-specific-playbooks/01-typescript-javascript-web.md',
+    mission: 'Modernize the component name: change "OldHeader" to "AppHeader" using "ciwAppHeader<Esc>".',
+    initialText: 'export const OldHeader = () => {\n  return <h1>Welcome</h1>;\n};',
+    cursorStart: { row: 0, col: 13 },
+    targetText: 'export const AppHeader = () => {\n  return <h1>Welcome</h1>;\n};',
+    parKeystrokes: 13,
+    optimalKeys: ['c', 'i', 'w', 'A', 'p', 'p', 'H', 'e', 'a', 'd', 'e', 'r', 'Escape'],
+    hints: [
+      'Cursor on "OldHeader". Type "ciwAppHeader<Esc>".'
+    ],
+  },
+  {
+    day: 52,
+    week: 8,
+    title: 'SQL Schema to TypeScript Interface Mapping',
+    concept: 'Surround conversions on record fields',
+    chapterRef: '04-language-specific-playbooks/01-typescript-javascript-web.md',
+    mission: 'Enclose the raw column names in double quotes using "gsaw"" on line 1, then "j0gsaw"" on line 2.',
+    initialText: 'email: string;\nstatus: string;',
+    cursorStart: { row: 0, col: 0 },
+    targetText: '"email": string;\n"status": string;',
+    parKeystrokes: 12,
+    optimalKeys: ['g', 's', 'a', 'w', '"', 'j', '0', 'g', 's', 'a', 'w', '"'],
+    hints: [
+      'Type "gsaw\"" to quote email.',
+      'Type "j0gsaw\"" to quote status.'
+    ],
+  },
+  {
+    day: 53,
+    week: 8,
+    title: 'Go Struct Refactor: Updating Struct Tags (ci`)',
+    concept: 'Backtick text object modification',
+    chapterRef: '04-language-specific-playbooks/03-go-development-powerhouse.md',
+    mission: 'Change the struct tag inside backticks to json:"user_id" with "ci`json:"user_id"<Esc>".',
+    initialText: 'type User struct {\n  ID string `json:"old_id"`\n}',
+    cursorStart: { row: 1, col: 14 },
+    targetText: 'type User struct {\n  ID string `json:"user_id"`\n}',
+    parKeystrokes: 19,
+    optimalKeys: ['c', 'i', '`', 'j', 's', 'o', 'n', ':', '"', 'u', 's', 'e', 'r', '_', 'i', 'd', '"', 'Escape'],
+    hints: [
+      'Type "ci`" to clear inside backticks.',
+      'Type json:"user_id" and exit with <Esc>.'
+    ],
+  },
+  {
+    day: 54,
+    week: 8,
+    title: 'Python Workflow: Indentation & Docstrings',
+    concept: 'Visual line indentation and docstring edits',
     chapterRef: '04-language-specific-playbooks/02-python-environment-workflow.md',
-    mission: 'Indent the function body right using "V" and ">".',
+    mission: 'Indent the function body right using "V" then ">".',
     initialText: 'def calculate_metrics():\nreturn 42',
     cursorStart: { row: 1, col: 0 },
     targetText: 'def calculate_metrics():\n  return 42',
@@ -2532,144 +3815,125 @@ const STAGES = [
     ],
   },
   {
-    day: 24,
-    week: 4,
-    title: 'Go Development Powerhouse',
-    concept: 'Struct Tags & Error Handling',
-    chapterRef: '04-language-specific-playbooks/03-go-development-powerhouse.md',
-    mission: 'Change the struct tag inside backticks with "ci`" to `json:"user_id"`.',
-    initialText: 'type User struct {\n  ID string `json:"old_id"`\n}',
-    cursorStart: { row: 1, col: 15 },
-    targetText: 'type User struct {\n  ID string `json:"user_id"`\n}',
-    parKeystrokes: 18,
-    optimalKeys: ['c', 'i', '`', 'j', 's', 'o', 'n', ':', '"', 'u', 's', 'e', 'r', '_', 'i', 'd', '"', 'Escape'],
-    hints: [
-      'Type "ci`" to wipe inside backticks.',
-      'Type json:"user_id" and exit with <Esc>.'
-    ],
-  },
-  {
-    day: 25,
-    week: 4,
-    title: 'Rust Craftsmanship Playbook',
-    concept: 'Match Arms & Option Types',
+    day: 55,
+    week: 8,
+    title: 'Rust Craftsmanship: Match Arms & Option Unwrap',
+    concept: 'Safe error message strings in Rust',
     chapterRef: '04-language-specific-playbooks/04-rust-craftsmanship.md',
-    mission: 'Change the unwrap message inside quotes with "ci"" -> "failed to parse".',
-    initialText: 'let val = config.get().expect("PANIC_HERE");',
-    cursorStart: { row: 0, col: 33 },
-    targetText: 'let val = config.get().expect("failed to parse");',
-    parKeystrokes: 19,
-    optimalKeys: ['c', 'i', '"', 'f', 'a', 'i', 'l', 'e', 'd', ' ', 't', 'o', ' ', 'p', 'a', 'r', 's', 'e', 'Escape'],
+    mission: 'Change the expect message inside quotes with "ci"" -> "connection timeout".',
+    initialText: 'let conn = pool.get().expect("PANIC_HERE");',
+    cursorStart: { row: 0, col: 32 },
+    targetText: 'let conn = pool.get().expect("connection timeout");',
+    parKeystrokes: 22,
+    optimalKeys: ['c', 'i', '"', 'c', 'o', 'n', 'n', 'e', 'c', 't', 'i', 'o', 'n', ' ', 't', 'i', 'm', 'e', 'o', 'u', 't', 'Escape'],
     hints: [
-      'Type "ci\"" -> "failed to parse" -> <Esc>.'
+      'Type "ci\"" to wipe inside quotes.',
+      'Type "connection timeout" and press <Esc>.'
     ],
   },
   {
-    day: 26,
-    week: 4,
-    title: 'Flutter & Dart Mobile Powerhouse',
-    concept: 'Nested Widget Trees',
-    chapterRef: '04-language-specific-playbooks/05-flutter-and-dart-mobile.md',
-    mission: 'Change widget child inside parens with "ci(" -> "Text(\'Hello Eddie\')".',
-    initialText: 'Center(\n  child: Container(),\n)',
-    cursorStart: { row: 1, col: 19 },
-    targetText: 'Center(\n  child: Container(Text(\'Hello Eddie\')),\n)',
-    parKeystrokes: 21,
-    optimalKeys: ['i', 'T', 'e', 'x', 't', '(', '\'', 'H', 'e', 'l', 'l', 'o', ' ', 'E', 'd', 'd', 'i', 'e', '\'', ')', 'Escape'],
-    hints: [
-      'Cursor starts between the parens of Container().',
-      'Press "i" to enter Insert mode.',
-      'Type Text(\'Hello Eddie\') and exit with <Esc>.'
-    ],
-  },
-  {
-    day: 27,
-    week: 4,
-    title: 'Markdown & Documentation Speedrun',
-    concept: 'Rapid list & table manipulation',
+    day: 56,
+    week: 8,
+    title: 'Production Incident: Hotfixing JWT Secret Under Pressure',
+    concept: 'Search, replace inside quotes, and instant save',
     chapterRef: '05-advanced-and-customization/04-30-day-practice-drills.md',
-    mission: 'Change unchecked task "[ ]" to checked "[x]" using "f " then "rx".',
-    initialText: '- [ ] Complete 30-Day Neovim Mastery',
+    mission: 'Production bug! Seek to the compromised secret with "/secret<Enter>", replace with "ci"STRONG_PROD_SECRET<Esc>", and save with ":w<Enter>".',
+    initialText: 'export const JWT_SECRET = "default_dev_secret";\nexport const PORT = 4000;',
     cursorStart: { row: 0, col: 0 },
-    targetText: '- [x] Complete 30-Day Neovim Mastery',
-    parKeystrokes: 4,
-    optimalKeys: ['t', ']', 'r', 'x'],
+    targetText: 'export const JWT_SECRET = "STRONG_PROD_SECRET";\nexport const PORT = 4000;',
+    requiredAction: 'save',
+    parKeystrokes: 33,
+    optimalKeys: ['/', 's', 'e', 'c', 'r', 'e', 't', 'Enter', 'c', 'i', '"', 'S', 'T', 'R', 'O', 'N', 'G', '_', 'P', 'R', 'O', 'D', '_', 'S', 'E', 'C', 'R', 'E', 'T', 'Escape', ':', 'w', 'Enter'],
     hints: [
-      'Press "t]" to seek till right before the closing bracket (the space).',
-      'Type "rx" to replace the space with "x".'
+      'Search for "/secret" <Enter>.',
+      'Type "ci\"" -> "STRONG_PROD_SECRET" -> <Esc>.',
+      'Type ":w" <Enter> to save.'
     ],
   },
   {
-    day: 28,
-    week: 4,
-    title: 'Git Workflow & Merge Resolution',
-    concept: 'Gitsigns & Hunk Edits',
-    chapterRef: '02-navigation-and-project-management/05-git-workflow-and-lazygit.md',
-    mission: 'Clean up git conflict: delete the conflict markers on line 1 and line 3 with "dd".',
-    initialText: '<<<<<<< HEAD\nconst activeBranch = "feature";\n>>>>>>> main',
+    day: 57,
+    week: 8,
+    title: 'Speedrun Golf: Monolith Cleanup in Ex Commands',
+    concept: ':%s and :g compound execution',
+    chapterRef: '05-advanced-and-customization/04-30-day-practice-drills.md',
+    mission: 'Strip all "console.log" lines with ":g/console.log/d<Enter>".',
+    initialText: 'const a = 1;\nconsole.log(a);\nconst b = 2;\nconsole.log(b);',
     cursorStart: { row: 0, col: 0 },
-    targetText: 'const activeBranch = "feature";',
+    targetText: 'const a = 1;\nconst b = 2;',
+    parKeystrokes: 18,
+    optimalKeys: [':', 'g', '/', 'c', 'o', 'n', 's', 'o', 'l', 'e', '.', 'l', 'o', 'g', '/', 'd', 'Enter'],
+    hints: [
+      'Type ":g/console.log/d" and press Enter.'
+    ],
+  },
+  {
+    day: 58,
+    week: 8,
+    title: 'Full LazyVim Integration: Format & Save',
+    concept: '<Space>cf format and <Space>w save pipeline',
+    chapterRef: '06-plugin-mastery-and-ecosystem/01-lazy-nvim-plugin-manager.md',
+    mission: 'Format the messy indentation with "<Space>cf" and save with "<Space>w".',
+    initialText: 'function run() {\nconst ready = true;\nreturn ready;\n}',
+    cursorStart: { row: 0, col: 0 },
+    targetText: 'function run() {\n  const ready = true;\n  return ready;\n}',
+    requiredAction: 'save',
     parKeystrokes: 5,
-    optimalKeys: ['d', 'd', 'j', 'd', 'd'],
+    optimalKeys: [' ', 'c', 'f', ' ', 'w'],
     hints: [
-      'Delete line 1 with "dd".',
-      'Move down with "j", then delete line 2 with "dd".'
+      'Press "<Space>cf" to format.',
+      'Press "<Space>w" to write buffer.'
     ],
   },
-
-  // ==========================================
-  // CAPSTONES: Grandmaster Trials
-  // ==========================================
   {
-    day: 29,
-    week: 'Capstone',
-    title: 'Vim Golf Par Challenge',
-    concept: 'Maximum Efficiency Refactor',
+    day: 59,
+    week: 8,
+    title: 'Vim Golf Gauntlet: The 5-Keystroke Code Surgery',
+    concept: 'V2jcclean<Esc>',
     chapterRef: '05-advanced-and-customization/04-30-day-practice-drills.md',
-    mission: 'Golf Challenge! Transform "bad1\\nbad2\\nbad3" into "good" in under 7 keystrokes using "V2jcgood<Esc>".',
-    initialText: 'bad1\nbad2\nbad3',
+    mission: 'Golf Challenge! Transform the 3 legacy lines into "clean" in under 10 keystrokes using "V2jcclean<Esc>".',
+    initialText: 'broken_1\nbroken_2\nbroken_3',
     cursorStart: { row: 0, col: 0 },
-    targetText: 'good',
-    parKeystrokes: 9,
-    optimalKeys: ['V', '2', 'j', 'c', 'g', 'o', 'o', 'd', 'Escape'],
+    targetText: 'clean',
+    parKeystrokes: 10,
+    optimalKeys: ['V', '2', 'j', 'c', 'c', 'l', 'e', 'a', 'n', 'Escape'],
     hints: [
       'Press "V" for Visual Line.',
       'Press "2j" to select all 3 lines.',
-      'Press "c" to change them into "good" and press <Esc>.'
+      'Press "c" to change them into "clean" and press <Esc>.'
     ],
   },
   {
-    day: 30,
-    week: 'Capstone',
-    title: 'Neovim Grandmaster Boss Gauntlet',
-    concept: 'Full Fluency & Muscle Memory',
+    day: 60,
+    week: 8,
+    title: 'The Neovim Grandmaster Crown: Full-Stack Graduation',
+    concept: 'Ultimate Full-Stack Refactor & Certification',
     chapterRef: '05-advanced-and-customization/04-30-day-practice-drills.md',
-    mission: 'Final Trial: Wipe "BROKEN_PAYLOAD" with "ci"", insert "READY_FOR_DEPLOYMENT", and save with ":w".',
-    initialText: 'const status = "BROKEN_PAYLOAD";',
-    cursorStart: { row: 0, col: 25 },
-    targetText: 'const status = "READY_FOR_DEPLOYMENT";',
+    mission: 'Final Trial: Wipe "IN_PROGRESS" with "ci"", insert "NEOVIM_GRANDMASTER", and save with ":w".',
+    initialText: 'export const CERTIFICATION_STATUS = "IN_PROGRESS";',
+    cursorStart: { row: 0, col: 40 },
+    targetText: 'export const CERTIFICATION_STATUS = "NEOVIM_GRANDMASTER";',
     requiredAction: 'save',
-    parKeystrokes: 27,
-    optimalKeys: ['c', 'i', '"', 'R', 'E', 'A', 'D', 'Y', '_', 'F', 'O', 'R', '_', 'D', 'E', 'P', 'L', 'O', 'Y', 'M', 'E', 'N', 'T', 'Escape', ':', 'w', 'Enter'],
+    parKeystrokes: 26,
+    optimalKeys: ['c', 'i', '"', 'N', 'E', 'O', 'V', 'I', 'M', '_', 'G', 'R', 'A', 'N', 'D', 'M', 'A', 'S', 'T', 'E', 'R', 'Escape', ':', 'w', 'Enter'],
     hints: [
-      'Type "ci\"" to change inside quotes.',
-      'Type "READY_FOR_DEPLOYMENT" and press <Esc>.',
-      'Type ":w" <Enter> to save and achieve Graduation!'
+      'Type "ci\"" to clear inside quotes.',
+      'Type "NEOVIM_GRANDMASTER" and press <Esc>.',
+      'Type ":w" <Enter> to save and claim the Grandmaster Crown!'
     ],
   },
 ];
 
   try { exports.STAGES = STAGES; } catch(e) {}
-  try { exports.API_URL = API_URL; } catch(e) {}
-  try { exports.currentUser = currentUser; } catch(e) {}
-  try { exports.status = status; } catch(e) {}
-  try { exports.fetchUser = fetchUser; } catch(e) {}
-  try { exports.test = test; } catch(e) {}
+  try { exports.createUser = createUser; } catch(e) {}
+  try { exports.start = start; } catch(e) {}
+  try { exports.calculate = calculate; } catch(e) {}
+  try { exports.createAuthService = createAuthService; } catch(e) {}
+  try { exports.oldProcessUser = oldProcessUser; } catch(e) {}
+  try { exports.calc = calc; } catch(e) {}
   try { exports.first = first; } catch(e) {}
   try { exports.target = target; } catch(e) {}
-  try { exports.oldHandler = oldHandler; } catch(e) {}
-  try { exports.handleAuth = handleAuth; } catch(e) {}
-  try { exports.sum = sum; } catch(e) {}
+  try { exports.getData = getData; } catch(e) {}
+  try { exports.run = run; } catch(e) {}
 });
 
 /* Module: stages/evaluator.js */
@@ -3171,7 +4435,7 @@ function escapeHtml(str) {
 /* Module: ui/which-key.js */
 defineModule('ui/which-key.js', function(exports, require, module) {
 /**
- * Which-Key Visual Helper Drawer
+ * Which-Key Visual Helper Drawer (LazyVim Dynamic + Static Cheat Sheet)
  */
 
 const WHICH_KEY_ENTRIES = [
@@ -3189,28 +4453,75 @@ const WHICH_KEY_ENTRIES = [
   { key: 'u / <C-r>', desc: 'Undo / Redo' },
   { key: '.', desc: 'Repeat Last Change' },
   { key: 's', desc: 'Flash 2-char Teleport' },
-  { key: ']m / [m', desc: 'Treesitter AST Hop' },
-  { key: ']d / [d', desc: 'Next / Prev Diagnostic' },
-  { key: ':w / :q', desc: 'Write / Quit' },
-  { key: ':%s/a/b/g', desc: 'Global Substitute' },
+  { key: '<C-v>', desc: 'Visual Block Column Mode' },
+  { key: 'qa ... q / @a', desc: 'Record / Replay Macro' },
+  { key: 'gsaw" / gsd"', desc: 'Mini.surround Add / Delete' },
+  { key: 'K / gd', desc: 'LSP Hover / Definition' },
+  { key: '<leader>ff / <leader>sg', desc: 'Fzf Find Files / Live Grep' },
+  { key: '<leader>e / <leader>xx', desc: 'Neo-tree / Trouble' },
 ];
 
+const LEADER_GROUPS = {
+  '': [
+    { key: 'f', desc: '+find/file (ff: Files, fb: Buffers)' },
+    { key: 's', desc: '+search (sg: Grep, sr: Grug-far)' },
+    { key: 'c', desc: '+code (ca: Action, cr: Rename, cf: Format)' },
+    { key: 'x', desc: '+diagnostics (xx: Trouble)' },
+    { key: 'g', desc: '+git (gg: LazyGit)' },
+    { key: 'e', desc: 'Neo-tree Explorer' },
+    { key: 'l', desc: 'Lazy.nvim Dashboard' },
+    { key: 'w', desc: 'Save Buffer (:w)' },
+    { key: 'bd', desc: 'Delete Buffer' },
+    { key: '.', desc: 'Snacks Scratchpad' },
+    { key: 'ft', desc: 'Floating Terminal' },
+  ],
+  'f': [
+    { key: 'f', desc: 'Find Files (Fzf / Telescope)' },
+    { key: 'b', desc: 'Find Buffers' },
+    { key: 't', desc: 'Floating Terminal' },
+  ],
+  's': [
+    { key: 'g', desc: 'Live Grep (ripgrep / snacks)' },
+    { key: 'r', desc: 'Grug-far Search & Replace' },
+  ],
+  'c': [
+    { key: 'a', desc: 'LSP Code Actions' },
+    { key: 'r', desc: 'LSP Rename Symbol' },
+    { key: 'f', desc: 'Format Document' },
+  ],
+  'x': [
+    { key: 'x', desc: 'Trouble Project Diagnostics' },
+  ],
+  'g': [
+    { key: 'g', desc: 'LazyGit Floating Window' },
+  ],
+};
+
 /**
+ * Render Which-Key drawer in static or leader mode
  * @param {HTMLElement} drawerEl
  * @param {boolean} [show]
+ * @param {string} [prefix]
  */
-function toggleWhichKey(drawerEl, show) {
+function toggleWhichKey(drawerEl, show, prefix = '') {
   if (!drawerEl) return;
   const isVisible = show !== undefined ? show : !drawerEl.classList.contains('visible');
 
   if (isVisible) {
-    let items = WHICH_KEY_ENTRIES.map(
+    const isLeader = prefix !== undefined && prefix !== null && LEADER_GROUPS[prefix] !== undefined;
+    const entries = isLeader ? LEADER_GROUPS[prefix] : WHICH_KEY_ENTRIES;
+    const title = isLeader
+      ? `<div class="which-key-header"><span>Leader &lt;Space&gt;${prefix ? prefix : ''}</span><span class="which-key-sub">Which-Key</span></div>`
+      : '';
+
+    const items = entries.map(
       e => `<div class="which-key-item">
         <span class="which-key-key">${escapeHtml(e.key)}</span>
         <span class="which-key-desc">${escapeHtml(e.desc)}</span>
       </div>`
     ).join('');
-    drawerEl.innerHTML = items;
+
+    drawerEl.innerHTML = title + `<div class="which-key-grid">${items}</div>`;
     drawerEl.classList.add('visible');
   } else {
     drawerEl.classList.remove('visible');
@@ -3225,8 +4536,753 @@ function escapeHtml(str) {
 }
 
   try { exports.WHICH_KEY_ENTRIES = WHICH_KEY_ENTRIES; } catch(e) {}
+  try { exports.LEADER_GROUPS = LEADER_GROUPS; } catch(e) {}
   try { exports.toggleWhichKey = toggleWhichKey; } catch(e) {}
   try { exports.escapeHtml = escapeHtml; } catch(e) {}
+});
+
+/* Module: ui/fzf-modal.js */
+defineModule('ui/fzf-modal.js', function(exports, require, module) {
+/**
+ * Fzf-Lua / Snacks / Telescope Fuzzy Finder Modal Simulation
+ */
+
+const MOCK_PROJECT_FILES = [
+  { path: 'src/auth/jwt.ts', desc: 'JWT token verification and signing', content: 'export function verifyToken(t: string): boolean {\n  return t.startsWith("Bearer ");\n}' },
+  { path: 'src/models/user.model.ts', desc: 'User entity and schema definition', content: 'export interface User {\n  id: string;\n  name: string;\n  role: "admin" | "member";\n}' },
+  { path: 'src/controllers/api.controller.ts', desc: 'REST API routing and handler dispatch', content: 'export class ApiController {\n  async handleLogin(req: Request) {\n    return { status: 200 };\n  }\n}' },
+  { path: 'src/services/database.service.ts', desc: 'PostgreSQL connection pool & queries', content: 'export const db = new DatabaseClient({\n  host: "localhost",\n  port: 5432\n});' },
+  { path: 'config/app.config.json', desc: 'Application runtime configurations', content: '{\n  "port": 3000,\n  "env": "production"\n}' },
+  { path: 'package.json', desc: 'Project dependencies and build scripts', content: '{\n  "name": "neovim-mastery",\n  "version": "2.0.0"\n}' },
+  { path: 'README.md', desc: 'Documentation & onboarding guide', content: '# NeoVim Mastery\nInteractive game for mastering Neovim & LazyVim.' },
+];
+
+class FzfModal {
+  /**
+   * @param {Object} options
+   * @param {HTMLElement} options.containerEl
+   * @param {Function} options.onSelectFile
+   * @param {Function} options.onClose
+   */
+  constructor({ containerEl, onSelectFile, onClose }) {
+    this.containerEl = containerEl;
+    this.onSelectFile = onSelectFile;
+    this.onClose = onClose;
+    this.isOpen = false;
+    this.mode = 'files'; // 'files' | 'grep' | 'buffers'
+    this.query = '';
+    this.selectedIndex = 0;
+    this.filteredItems = [...MOCK_PROJECT_FILES];
+
+    this.render();
+    this.bindEvents();
+  }
+
+  render() {
+    this.modalEl = document.createElement('div');
+    this.modalEl.className = 'fzf-overlay hidden';
+    this.modalEl.innerHTML = `
+      <div class="fzf-window" role="dialog" aria-modal="true" aria-label="Fzf Fuzzy Finder">
+        <div class="fzf-header">
+          <span class="fzf-prompt-icon">🔍</span>
+          <input type="text" class="fzf-input" placeholder="Type to filter..." spellcheck="false" autocomplete="off" />
+          <span class="fzf-mode-badge">Files</span>
+        </div>
+        <div class="fzf-body">
+          <div class="fzf-results" role="listbox"></div>
+          <div class="fzf-preview">
+            <div class="fzf-preview-title">Preview</div>
+            <pre class="fzf-preview-code"></pre>
+          </div>
+        </div>
+        <div class="fzf-footer">
+          <span><kbd>&lt;C-j&gt;</kbd>/<kbd>&lt;C-k&gt;</kbd> Navigate</span>
+          <span><kbd>&lt;Enter&gt;</kbd> Open</span>
+          <span><kbd>&lt;Esc&gt;</kbd> Close</span>
+        </div>
+      </div>
+    `;
+    this.containerEl.appendChild(this.modalEl);
+
+    this.inputEl = this.modalEl.querySelector('.fzf-input');
+    this.resultsEl = this.modalEl.querySelector('.fzf-results');
+    this.previewCodeEl = this.modalEl.querySelector('.fzf-preview-code');
+    this.previewTitleEl = this.modalEl.querySelector('.fzf-preview-title');
+    this.badgeEl = this.modalEl.querySelector('.fzf-mode-badge');
+  }
+
+  bindEvents() {
+    this.inputEl.addEventListener('input', (e) => {
+      this.query = e.target.value.toLowerCase();
+      this.filterItems();
+    });
+
+    this.modalEl.addEventListener('click', (e) => {
+      if (e.target === this.modalEl) {
+        this.close();
+      }
+    });
+
+    this.inputEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' || (e.ctrlKey && e.key === 'c')) {
+        e.preventDefault();
+        this.close();
+      } else if (e.key === 'ArrowDown' || (e.ctrlKey && e.key === 'j')) {
+        e.preventDefault();
+        this.moveSelection(1);
+      } else if (e.key === 'ArrowUp' || (e.ctrlKey && e.key === 'k')) {
+        e.preventDefault();
+        this.moveSelection(-1);
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        this.confirmSelection();
+      }
+    });
+  }
+
+  open(mode = 'files') {
+    this.mode = mode;
+    this.isOpen = true;
+    this.query = '';
+    this.inputEl.value = '';
+    this.badgeEl.textContent = mode === 'grep' ? 'Live Grep' : mode === 'buffers' ? 'Buffers' : 'Find Files';
+    this.inputEl.placeholder = mode === 'grep' ? 'Live grep text in project...' : 'Find file by name...';
+    this.filterItems();
+    this.modalEl.classList.remove('hidden');
+    setTimeout(() => this.inputEl.focus(), 30);
+  }
+
+  close() {
+    this.isOpen = false;
+    this.modalEl.classList.add('hidden');
+    if (this.onClose) this.onClose();
+  }
+
+  filterItems() {
+    if (!this.query) {
+      this.filteredItems = [...MOCK_PROJECT_FILES];
+    } else {
+      this.filteredItems = MOCK_PROJECT_FILES.filter(item => {
+        if (this.mode === 'grep') {
+          return item.content.toLowerCase().includes(this.query) || item.path.toLowerCase().includes(this.query);
+        }
+        return item.path.toLowerCase().includes(this.query) || item.desc.toLowerCase().includes(this.query);
+      });
+    }
+    this.selectedIndex = 0;
+    this.renderResults();
+  }
+
+  renderResults() {
+    if (this.filteredItems.length === 0) {
+      this.resultsEl.innerHTML = `<div class="fzf-empty">No matching ${this.mode} found</div>`;
+      this.previewTitleEl.textContent = 'Preview';
+      this.previewCodeEl.textContent = '';
+      return;
+    }
+
+    this.resultsEl.innerHTML = this.filteredItems.map((item, idx) => `
+      <div class="fzf-item ${idx === this.selectedIndex ? 'selected' : ''}" data-index="${idx}">
+        <span class="fzf-item-icon">${item.path.endsWith('.ts') ? '📄' : item.path.endsWith('.json') ? '⚙️' : '📝'}</span>
+        <span class="fzf-item-path">${escapeHtml(item.path)}</span>
+        <span class="fzf-item-desc">${escapeHtml(item.desc)}</span>
+      </div>
+    `).join('');
+
+    // Update preview
+    const active = this.filteredItems[this.selectedIndex];
+    if (active) {
+      this.previewTitleEl.textContent = active.path;
+      this.previewCodeEl.textContent = active.content;
+    }
+
+    // Bind click
+    this.resultsEl.querySelectorAll('.fzf-item').forEach(el => {
+      el.addEventListener('click', () => {
+        this.selectedIndex = parseInt(el.getAttribute('data-index'), 10);
+        this.confirmSelection();
+      });
+    });
+  }
+
+  moveSelection(delta) {
+    if (this.filteredItems.length === 0) return;
+    this.selectedIndex = (this.selectedIndex + delta + this.filteredItems.length) % this.filteredItems.length;
+    this.renderResults();
+  }
+
+  confirmSelection() {
+    const chosen = this.filteredItems[this.selectedIndex];
+    if (chosen) {
+      if (this.onSelectFile) this.onSelectFile(chosen);
+    }
+    this.close();
+  }
+}
+
+function escapeHtml(str) {
+  return (str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+  try { exports.MOCK_PROJECT_FILES = MOCK_PROJECT_FILES; } catch(e) {}
+  try { exports.verifyToken = verifyToken; } catch(e) {}
+  try { exports.escapeHtml = escapeHtml; } catch(e) {}
+  try { exports.ApiController = ApiController; } catch(e) {}
+  try { exports.FzfModal = FzfModal; } catch(e) {}
+});
+
+/* Module: ui/neo-tree.js */
+defineModule('ui/neo-tree.js', function(exports, require, module) {
+/**
+ * Neo-tree Explorer Sidebar Simulation
+ */
+
+const FILE_TREE = [
+  {
+    name: 'src',
+    type: 'dir',
+    expanded: true,
+    children: [
+      {
+        name: 'auth',
+        type: 'dir',
+        expanded: true,
+        children: [
+          { name: 'jwt.ts', type: 'file', path: 'src/auth/jwt.ts', content: 'export function verifyToken(t: string): boolean {\n  return t.startsWith("Bearer ");\n}' },
+        ],
+      },
+      {
+        name: 'controllers',
+        type: 'dir',
+        expanded: false,
+        children: [
+          { name: 'api.controller.ts', type: 'file', path: 'src/controllers/api.controller.ts', content: 'export class ApiController {\n  async handleLogin() {\n    return { status: 200 };\n  }\n}' },
+        ],
+      },
+      {
+        name: 'models',
+        type: 'dir',
+        expanded: true,
+        children: [
+          { name: 'user.model.ts', type: 'file', path: 'src/models/user.model.ts', content: 'export interface User {\n  id: string;\n  name: string;\n}' },
+        ],
+      },
+      {
+        name: 'services',
+        type: 'dir',
+        expanded: false,
+        children: [
+          { name: 'database.service.ts', type: 'file', path: 'src/services/database.service.ts', content: 'export const db = new DatabaseClient();' },
+        ],
+      },
+    ],
+  },
+  {
+    name: 'config',
+    type: 'dir',
+    expanded: false,
+    children: [
+      { name: 'app.config.json', type: 'file', path: 'config/app.config.json', content: '{\n  "port": 3000\n}' },
+    ],
+  },
+  { name: 'package.json', type: 'file', path: 'package.json', content: '{\n  "name": "neovim-mastery"\n}' },
+  { name: 'README.md', type: 'file', path: 'README.md', content: '# NeoVim Mastery\nInteractive game for mastering Neovim & LazyVim.' },
+];
+
+class NeoTreeSidebar {
+  /**
+   * @param {Object} options
+   * @param {HTMLElement} options.containerEl
+   * @param {Function} options.onSelectFile
+   * @param {Function} options.onToggle
+   */
+  constructor({ containerEl, onSelectFile, onToggle }) {
+    this.containerEl = containerEl;
+    this.onSelectFile = onSelectFile;
+    this.onToggle = onToggle;
+    this.isOpen = false;
+    this.tree = JSON.parse(JSON.stringify(FILE_TREE));
+    this.render();
+  }
+
+  render() {
+    this.sidebarEl = document.createElement('aside');
+    this.sidebarEl.className = 'neo-tree-sidebar hidden';
+    this.sidebarEl.innerHTML = `
+      <div class="neo-tree-header">
+        <span class="neo-tree-title">📁 NEO-TREE (FILES)</span>
+        <button class="neo-tree-close" title="Close (&lt;leader&gt;e or q)">✕</button>
+      </div>
+      <div class="neo-tree-content" role="tree"></div>
+      <div class="neo-tree-footer">
+        <span><kbd>Enter</kbd> Open/Expand</span>
+        <span><kbd>q</kbd> Close</span>
+      </div>
+    `;
+    this.containerEl.appendChild(this.sidebarEl);
+
+    this.contentEl = this.sidebarEl.querySelector('.neo-tree-content');
+    this.sidebarEl.querySelector('.neo-tree-close').addEventListener('click', () => this.toggle(false));
+
+    this.renderNodes();
+  }
+
+  toggle(forceState) {
+    this.isOpen = forceState !== undefined ? forceState : !this.isOpen;
+    if (this.isOpen) {
+      this.sidebarEl.classList.remove('hidden');
+      this.renderNodes();
+    } else {
+      this.sidebarEl.classList.add('hidden');
+    }
+    if (this.onToggle) this.onToggle(this.isOpen);
+  }
+
+  renderNodes() {
+    const buildHtml = (nodes, depth = 0) => {
+      let html = '';
+      for (const node of nodes) {
+        const indent = depth * 14;
+        if (node.type === 'dir') {
+          html += `
+            <div class="neo-tree-node dir ${node.expanded ? 'expanded' : ''}" style="padding-left: ${indent + 8}px" data-path="${node.name}">
+              <span class="neo-tree-icon">${node.expanded ? '📂' : '📁'}</span>
+              <span class="neo-tree-label">${escapeHtml(node.name)}</span>
+            </div>
+          `;
+          if (node.expanded && node.children) {
+            html += buildHtml(node.children, depth + 1);
+          }
+        } else {
+          html += `
+            <div class="neo-tree-node file" style="padding-left: ${indent + 8}px" data-path="${node.path}">
+              <span class="neo-tree-icon">${node.name.endsWith('.ts') ? '📄' : node.name.endsWith('.json') ? '⚙️' : '📝'}</span>
+              <span class="neo-tree-label">${escapeHtml(node.name)}</span>
+            </div>
+          `;
+        }
+      }
+      return html;
+    };
+
+    this.contentEl.innerHTML = buildHtml(this.tree);
+
+    // Bind clicks to nodes
+    this.contentEl.querySelectorAll('.neo-tree-node.dir').forEach(el => {
+      el.addEventListener('click', () => {
+        const name = el.getAttribute('data-path');
+        const dir = this.findDir(this.tree, name);
+        if (dir) {
+          dir.expanded = !dir.expanded;
+          this.renderNodes();
+        }
+      });
+    });
+
+    this.contentEl.querySelectorAll('.neo-tree-node.file').forEach(el => {
+      el.addEventListener('click', () => {
+        const p = el.getAttribute('data-path');
+        const f = this.findFile(this.tree, p);
+        if (f && this.onSelectFile) {
+          this.onSelectFile(f);
+        }
+      });
+    });
+  }
+
+  findDir(nodes, name) {
+    for (const n of nodes) {
+      if (n.type === 'dir') {
+        if (n.name === name) return n;
+        if (n.children) {
+          const res = this.findDir(n.children, name);
+          if (res) return res;
+        }
+      }
+    }
+    return null;
+  }
+
+  findFile(nodes, path) {
+    for (const n of nodes) {
+      if (n.type === 'file' && n.path === path) return n;
+      if (n.type === 'dir' && n.children) {
+        const res = this.findFile(n.children, path);
+        if (res) return res;
+      }
+    }
+    return null;
+  }
+}
+
+function escapeHtml(str) {
+  return (str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+  try { exports.FILE_TREE = FILE_TREE; } catch(e) {}
+  try { exports.verifyToken = verifyToken; } catch(e) {}
+  try { exports.escapeHtml = escapeHtml; } catch(e) {}
+  try { exports.ApiController = ApiController; } catch(e) {}
+  try { exports.NeoTreeSidebar = NeoTreeSidebar; } catch(e) {}
+});
+
+/* Module: ui/trouble.js */
+defineModule('ui/trouble.js', function(exports, require, module) {
+/**
+ * Trouble Diagnostics Drawer Simulation (<leader>xx / :Trouble)
+ */
+
+const MOCK_DIAGNOSTICS = [
+  { severity: 'error', icon: '', file: 'src/auth/jwt.ts', line: 2, col: 10, msg: "Type 'string' is not assignable to type 'boolean'." },
+  { severity: 'warning', icon: '', file: 'src/controllers/api.controller.ts', line: 14, col: 5, msg: 'Missing await on asynchronous database query call.' },
+  { severity: 'hint', icon: '', file: 'src/models/user.model.ts', line: 1, col: 18, msg: 'Interface property name is unused in current scope.' },
+  { severity: 'info', icon: '', file: 'src/services/database.service.ts', line: 8, col: 2, msg: 'TODO: Add connection pool reconnect retry logic.' },
+];
+
+class TroubleDrawer {
+  /**
+   * @param {Object} options
+   * @param {HTMLElement} options.containerEl
+   * @param {Function} options.onSelectDiagnostic
+   * @param {Function} options.onToggle
+   */
+  constructor({ containerEl, onSelectDiagnostic, onToggle }) {
+    this.containerEl = containerEl;
+    this.onSelectDiagnostic = onSelectDiagnostic;
+    this.onToggle = onToggle;
+    this.isOpen = false;
+    this.items = [...MOCK_DIAGNOSTICS];
+    this.render();
+  }
+
+  render() {
+    this.drawerEl = document.createElement('div');
+    this.drawerEl.className = 'trouble-drawer hidden';
+    this.drawerEl.innerHTML = `
+      <div class="trouble-header">
+        <div class="trouble-title">
+          <span class="trouble-icon">💥</span>
+          <span>TROUBLE (PROJECT DIAGNOSTICS)</span>
+          <span class="trouble-counts">1 Error, 1 Warning, 2 Infos</span>
+        </div>
+        <button class="trouble-close" title="Close (&lt;leader&gt;xx or q)">✕</button>
+      </div>
+      <div class="trouble-list" role="listbox"></div>
+      <div class="trouble-footer">
+        <span><kbd>Enter</kbd> Jump to issue</span>
+        <span><kbd>q</kbd> / <kbd>&lt;leader&gt;xx</kbd> Close</span>
+      </div>
+    `;
+    this.containerEl.appendChild(this.drawerEl);
+
+    this.listEl = this.drawerEl.querySelector('.trouble-list');
+    this.drawerEl.querySelector('.trouble-close').addEventListener('click', () => this.toggle(false));
+
+    this.renderItems();
+  }
+
+  toggle(forceState) {
+    this.isOpen = forceState !== undefined ? forceState : !this.isOpen;
+    if (this.isOpen) {
+      this.drawerEl.classList.remove('hidden');
+    } else {
+      this.drawerEl.classList.add('hidden');
+    }
+    if (this.onToggle) this.onToggle(this.isOpen);
+  }
+
+  renderItems() {
+    this.listEl.innerHTML = this.items.map((item, idx) => `
+      <div class="trouble-item ${item.severity}" data-index="${idx}">
+        <span class="trouble-item-icon">${item.icon}</span>
+        <span class="trouble-item-msg">${escapeHtml(item.msg)}</span>
+        <span class="trouble-item-loc">${escapeHtml(item.file)}:${item.line}:${item.col}</span>
+      </div>
+    `).join('');
+
+    this.listEl.querySelectorAll('.trouble-item').forEach(el => {
+      el.addEventListener('click', () => {
+        const idx = parseInt(el.getAttribute('data-index'), 10);
+        const item = this.items[idx];
+        if (item && this.onSelectDiagnostic) {
+          this.onSelectDiagnostic(item);
+        }
+      });
+    });
+  }
+}
+
+function escapeHtml(str) {
+  return (str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+  try { exports.MOCK_DIAGNOSTICS = MOCK_DIAGNOSTICS; } catch(e) {}
+  try { exports.escapeHtml = escapeHtml; } catch(e) {}
+  try { exports.TroubleDrawer = TroubleDrawer; } catch(e) {}
+});
+
+/* Module: ui/lsp-popups.js */
+defineModule('ui/lsp-popups.js', function(exports, require, module) {
+/**
+ * LSP Popups: Hover Documentation (K), Code Actions (<leader>ca), Symbol Rename (<leader>cr)
+ */
+
+class LspPopups {
+  /**
+   * @param {Object} options
+   * @param {HTMLElement} options.containerEl
+   * @param {Function} options.onApplyCodeAction
+   * @param {Function} options.onApplyRename
+   */
+  constructor({ containerEl, onApplyCodeAction, onApplyRename }) {
+    this.containerEl = containerEl;
+    this.onApplyCodeAction = onApplyCodeAction;
+    this.onApplyRename = onApplyRename;
+    this.hoverEl = null;
+    this.actionEl = null;
+    this.renameEl = null;
+    this.render();
+  }
+
+  render() {
+    // Hover Popup
+    this.hoverEl = document.createElement('div');
+    this.hoverEl.className = 'lsp-hover-popup hidden';
+    this.containerEl.appendChild(this.hoverEl);
+
+    // Code Action Modal
+    this.actionEl = document.createElement('div');
+    this.actionEl.className = 'lsp-action-modal hidden';
+    this.actionEl.innerHTML = `
+      <div class="lsp-action-window">
+        <div class="lsp-action-header">
+          <span>💡 LSP Code Actions</span>
+          <button class="lsp-action-close">✕</button>
+        </div>
+        <div class="lsp-action-list"></div>
+      </div>
+    `;
+    this.containerEl.appendChild(this.actionEl);
+    this.actionEl.querySelector('.lsp-action-close').addEventListener('click', () => this.hideAction());
+
+    // Rename Modal
+    this.renameEl = document.createElement('div');
+    this.renameEl.className = 'lsp-rename-modal hidden';
+    this.renameEl.innerHTML = `
+      <div class="lsp-rename-window">
+        <div class="lsp-rename-header">
+          <span>✎ LSP Rename Symbol</span>
+        </div>
+        <div class="lsp-rename-body">
+          <label>New Name:</label>
+          <input type="text" class="lsp-rename-input" spellcheck="false" />
+        </div>
+        <div class="lsp-rename-footer">
+          <span><kbd>Enter</kbd> Confirm</span>
+          <span><kbd>Esc</kbd> Cancel</span>
+        </div>
+      </div>
+    `;
+    this.containerEl.appendChild(this.renameEl);
+
+    const renameInput = this.renameEl.querySelector('.lsp-rename-input');
+    renameInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const val = renameInput.value.trim();
+        if (val && this.onApplyRename) {
+          this.onApplyRename(val);
+        }
+        this.hideRename();
+      } else if (e.key === 'Escape') {
+        this.hideRename();
+      }
+    });
+  }
+
+  showHover(word, signature, doc) {
+    this.hoverEl.innerHTML = `
+      <div class="lsp-hover-header">
+        <span class="lsp-hover-type">${escapeHtml(signature || `function ${word}(): void`)}</span>
+        <button class="lsp-hover-close">✕</button>
+      </div>
+      <div class="lsp-hover-doc">${escapeHtml(doc || `Documentation and type definitions for symbol '${word}'.`)}</div>
+    `;
+    this.hoverEl.classList.remove('hidden');
+    this.hoverEl.querySelector('.lsp-hover-close').addEventListener('click', () => this.hideHover());
+  }
+
+  hideHover() {
+    this.hoverEl.classList.add('hidden');
+  }
+
+  showAction(actions = []) {
+    const list = actions.length > 0 ? actions : [
+      { id: 'import', title: '1. Add missing import declaration' },
+      { id: 'extract', title: '2. Extract into reusable helper function' },
+      { id: 'async', title: '3. Convert enclosing function to async' },
+      { id: 'fix', title: '4. Fix linter warning: explicit return type' },
+    ];
+
+    const listEl = this.actionEl.querySelector('.lsp-action-list');
+    listEl.innerHTML = list.map((a, idx) => `
+      <div class="lsp-action-item" data-id="${a.id}">
+        <span class="lsp-action-num">${idx + 1}</span>
+        <span class="lsp-action-label">${escapeHtml(a.title)}</span>
+      </div>
+    `).join('');
+
+    this.actionEl.classList.remove('hidden');
+
+    listEl.querySelectorAll('.lsp-action-item').forEach(el => {
+      el.addEventListener('click', () => {
+        const id = el.getAttribute('data-id');
+        if (this.onApplyCodeAction) this.onApplyCodeAction(id);
+        this.hideAction();
+      });
+    });
+  }
+
+  hideAction() {
+    this.actionEl.classList.add('hidden');
+  }
+
+  showRename(currentName = '') {
+    const input = this.renameEl.querySelector('.lsp-rename-input');
+    input.value = currentName;
+    this.renameEl.classList.remove('hidden');
+    setTimeout(() => {
+      input.focus();
+      input.select();
+    }, 30);
+  }
+
+  hideRename() {
+    this.renameEl.classList.add('hidden');
+  }
+}
+
+function escapeHtml(str) {
+  return (str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+  try { exports.escapeHtml = escapeHtml; } catch(e) {}
+  try { exports.LspPopups = LspPopups; } catch(e) {}
+});
+
+/* Module: ui/lazygit-modal.js */
+defineModule('ui/lazygit-modal.js', function(exports, require, module) {
+/**
+ * LazyGit Floating Terminal Simulation (<leader>gg)
+ */
+
+class LazyGitModal {
+  /**
+   * @param {Object} options
+   * @param {HTMLElement} options.containerEl
+   * @param {Function} options.onClose
+   */
+  constructor({ containerEl, onClose }) {
+    this.containerEl = containerEl;
+    this.onClose = onClose;
+    this.isOpen = false;
+    this.render();
+  }
+
+  render() {
+    this.modalEl = document.createElement('div');
+    this.modalEl.className = 'lazygit-overlay hidden';
+    this.modalEl.innerHTML = `
+      <div class="lazygit-window">
+        <div class="lazygit-header">
+          <span class="lazygit-title">📦 LazyGit — Git Terminal Dashboard</span>
+          <button class="lazygit-close" title="Close (q or Esc)">✕</button>
+        </div>
+        <div class="lazygit-grid">
+          <div class="lazygit-col-left">
+            <div class="lazygit-panel files">
+              <div class="lazygit-panel-header">1. Files (Status)</div>
+              <div class="lazygit-panel-body">
+                <div class="lazygit-file-item staged">● M  game/js/editor/vim-engine.js</div>
+                <div class="lazygit-file-item modified">○ M  game/js/stages/curriculum.js</div>
+                <div class="lazygit-file-item untracked">○ ?  game/js/ui/fzf-modal.js</div>
+              </div>
+            </div>
+            <div class="lazygit-panel branches">
+              <div class="lazygit-panel-header">2. Branches</div>
+              <div class="lazygit-panel-body">
+                <div class="lazygit-branch-item active">* main (origin/main)</div>
+                <div class="lazygit-branch-item">  feature/lazyvim-curriculum</div>
+              </div>
+            </div>
+            <div class="lazygit-panel commits">
+              <div class="lazygit-panel-header">3. Commits</div>
+              <div class="lazygit-panel-body">
+                <div class="lazygit-commit-item">8f92a1d feat: add 60-stage LazyVim curriculum</div>
+                <div class="lazygit-commit-item">3c11e04 fix: add visual block column parsing</div>
+              </div>
+            </div>
+          </div>
+          <div class="lazygit-col-right">
+            <div class="lazygit-panel diff">
+              <div class="lazygit-panel-header">Diff Preview</div>
+              <pre class="lazygit-diff-code">
+<span class="diff-hunk">@@ -40,7 +40,9 @@</span>
+- const maxDays = 30;
++ const maxDays = 60;
++ export const STAGES = [
++   // 60 Master-Tier Stages
++ ];
+              </pre>
+            </div>
+          </div>
+        </div>
+        <div class="lazygit-footer">
+          <span><kbd>Space</kbd> Stage file</span>
+          <span><kbd>c</kbd> Commit</span>
+          <span><kbd>P</kbd> Push</span>
+          <span><kbd>q</kbd> / <kbd>Esc</kbd> Return to NeoVim</span>
+        </div>
+      </div>
+    `;
+    this.containerEl.appendChild(this.modalEl);
+
+    this.modalEl.querySelector('.lazygit-close').addEventListener('click', () => this.close());
+    this.modalEl.addEventListener('click', (e) => {
+      if (e.target === this.modalEl) this.close();
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (this.isOpen && (e.key === 'q' || e.key === 'Escape')) {
+        this.close();
+      }
+    });
+  }
+
+  open() {
+    this.isOpen = true;
+    this.modalEl.classList.remove('hidden');
+  }
+
+  close() {
+    this.isOpen = false;
+    this.modalEl.classList.add('hidden');
+    if (this.onClose) this.onClose();
+  }
+}
+
+  try { exports.LazyGitModal = LazyGitModal; } catch(e) {}
 });
 
 /* Module: ui/audio.js */
@@ -3442,9 +5498,9 @@ function renderStageSelectModal(container, stages, gameState, onSelectStage) {
   }).join('');
 
   container.innerHTML = `
-    <div class="modal-card" style="max-width: 720px;">
+    <div class="modal-card" style="max-width: 860px; max-height: 85vh; display: flex; flex-direction: column;">
       <div class="modal-header">
-        <div class="modal-title">🗺️ The 30-Day Neovim Dojo Map</div>
+        <div class="modal-title">🗺️ The 60-Stage Neovim & LazyVim Dojo Map</div>
         <button class="btn btn-close" id="modal-close-btn">✕</button>
       </div>
       <div class="modal-body">
@@ -3628,7 +5684,7 @@ class GameState {
     }
 
     // Unlock next day
-    if (day < 30) {
+    if (day < 60) {
       this.unlockDay(day + 1);
     }
 
@@ -3661,6 +5717,11 @@ const { toggleWhichKey } = require('./ui/which-key.js');
 const { SoundFX } = require('./ui/audio.js');
 const { renderStageSelectModal, renderVictoryModal } = require('./ui/modal.js');
 const { GameState } = require('./state.js');
+const { FzfModal } = require('./ui/fzf-modal.js');
+const { NeoTreeSidebar } = require('./ui/neo-tree.js');
+const { TroubleDrawer } = require('./ui/trouble.js');
+const { LspPopups } = require('./ui/lsp-popups.js');
+const { LazyGitModal } = require('./ui/lazygit-modal.js');
 
 class App {
   constructor() {
@@ -3699,12 +5760,138 @@ class App {
       btnAudio: document.getElementById('btn-audio'),
       btnSandbox: document.getElementById('btn-sandbox'),
     };
+
+    this.fzfModal = null;
+    this.neoTree = null;
+    this.troubleDrawer = null;
+    this.lspPopups = null;
+    this.lazygitModal = null;
   }
 
   init() {
+    this.initPlugins();
     this.bindEvents();
     this.loadStage(this.state.currentDay);
     this.updateAudioButton();
+  }
+
+  initPlugins() {
+    if (typeof document === 'undefined') return;
+
+    this.fzfModal = new FzfModal({
+      containerEl: document.body,
+      onSelectFile: (file) => {
+        if (this.buffer && this.engine) {
+          this.buffer.setText(file.content);
+          this.buffer.setCursor(0, 0);
+          this.engine.actionsExecuted.add('fzf');
+          this.lastFeedback = `Fzf: Opened ${file.path}`;
+          const tabEl = document.getElementById('tab-filename');
+          if (tabEl) tabEl.textContent = file.path.split('/').pop();
+          this.render();
+        }
+      },
+      onClose: () => {
+        this.render();
+      },
+    });
+
+    this.neoTree = new NeoTreeSidebar({
+      containerEl: document.querySelector('.main-workspace') || document.body,
+      onSelectFile: (file) => {
+        if (this.buffer && this.engine) {
+          this.buffer.setText(file.content);
+          this.buffer.setCursor(0, 0);
+          this.engine.actionsExecuted.add('neotree');
+          this.lastFeedback = `Neo-tree: Opened ${file.path}`;
+          const tabEl = document.getElementById('tab-filename');
+          if (tabEl) tabEl.textContent = file.name;
+          this.render();
+        }
+      },
+      onToggle: () => {
+        this.render();
+      },
+    });
+
+    this.troubleDrawer = new TroubleDrawer({
+      containerEl: document.querySelector('.editor-pane') || document.body,
+      onSelectDiagnostic: (diag) => {
+        if (this.buffer && this.engine) {
+          this.engine.actionsExecuted.add('trouble');
+          this.buffer.setCursor(Math.max(0, diag.line - 1), diag.col);
+          this.lastFeedback = `Trouble: Jumped to ${diag.file}:${diag.line}`;
+          this.render();
+        }
+      },
+      onToggle: () => {
+        this.render();
+      },
+    });
+
+    this.lspPopups = new LspPopups({
+      containerEl: document.body,
+      onApplyCodeAction: (actionId) => {
+        if (this.engine) {
+          this.engine.actionsExecuted.add('lsp_code_action');
+          this.lastFeedback = `LSP: Applied code action (${actionId})`;
+          this.render();
+        }
+      },
+      onApplyRename: (newName) => {
+        if (this.buffer && this.engine) {
+          const curWord = this.engine.getWordUnderCursor();
+          if (curWord) {
+            const lines = this.buffer.getLines();
+            const regex = new RegExp(`\\b${curWord}\\b`, 'g');
+            const newLines = lines.map(l => l.replace(regex, newName));
+            this.buffer.setText(newLines.join('\n'));
+          }
+          this.engine.actionsExecuted.add('lsp_rename');
+          this.lastFeedback = `LSP: Renamed to '${newName}'`;
+          this.render();
+        }
+      },
+    });
+
+    this.lazygitModal = new LazyGitModal({
+      containerEl: document.body,
+      onClose: () => {
+        this.render();
+      },
+    });
+  }
+
+  setupEngineHooks() {
+    if (!this.engine) return;
+
+    this.engine.onLeaderState = (prefix, active) => {
+      toggleWhichKey(this.dom.whichKeyDrawer, active, prefix);
+    };
+
+    this.engine.onPluginAction = (action) => {
+      if (action === 'fzf_files' && this.fzfModal) {
+        this.fzfModal.open('files');
+      } else if (action === 'fzf_grep' && this.fzfModal) {
+        this.fzfModal.open('grep');
+      } else if (action === 'fzf_buffers' && this.fzfModal) {
+        this.fzfModal.open('buffers');
+      } else if (action === 'neotree' && this.neoTree) {
+        this.neoTree.toggle();
+      } else if (action === 'trouble' && this.troubleDrawer) {
+        this.troubleDrawer.toggle();
+      } else if (action === 'lsp_hover' && this.lspPopups) {
+        const word = this.engine.getWordUnderCursor();
+        this.lspPopups.showHover(word, `(symbol) ${word || 'element'}: unknown`, `LSP documentation for '${word || 'symbol'}'.`);
+      } else if (action === 'lsp_code_action' && this.lspPopups) {
+        this.lspPopups.showAction();
+      } else if (action === 'lsp_rename' && this.lspPopups) {
+        const word = this.engine.getWordUnderCursor();
+        this.lspPopups.showRename(word);
+      } else if (action === 'lazygit' && this.lazygitModal) {
+        this.lazygitModal.open();
+      }
+    };
   }
 
   loadStage(dayNumber) {
@@ -3720,6 +5907,7 @@ class App {
 
     this.buffer = new TextBuffer(stage.initialText);
     this.engine = new VimEngine(this.buffer);
+    this.setupEngineHooks();
 
     if (stage.setup) {
       stage.setup(this.engine);
@@ -3748,6 +5936,7 @@ class App {
     this.stageCompleted = false;
     this.buffer = new TextBuffer(this.currentStage.initialText);
     this.engine = new VimEngine(this.buffer);
+    this.setupEngineHooks();
     this.updateMissionUI();
     this.render();
   }
@@ -3858,7 +6047,7 @@ class App {
 
     // Advance to next day on Enter if current stage was completed and dismissed
     if (this.stageCompleted && e.key === 'Enter' && this.engine.getMode() === 'NORMAL') {
-      if (this.currentStage.day && this.currentStage.day < 30) {
+      if (this.currentStage.day && this.currentStage.day < STAGES.length) {
         this.loadStage(this.currentStage.day + 1);
       } else {
         renderStageSelectModal(
@@ -3910,7 +6099,7 @@ class App {
             this.currentStage,
             evaluation,
             () => {
-              if (this.currentStage.day < 30) {
+              if (this.currentStage.day < STAGES.length) {
                 this.loadStage(this.currentStage.day + 1);
               } else {
                 renderStageSelectModal(

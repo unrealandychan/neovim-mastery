@@ -10,6 +10,11 @@ import { toggleWhichKey } from './ui/which-key.js';
 import { SoundFX } from './ui/audio.js';
 import { renderStageSelectModal, renderVictoryModal } from './ui/modal.js';
 import { GameState } from './state.js';
+import { FzfModal } from './ui/fzf-modal.js';
+import { NeoTreeSidebar } from './ui/neo-tree.js';
+import { TroubleDrawer } from './ui/trouble.js';
+import { LspPopups } from './ui/lsp-popups.js';
+import { LazyGitModal } from './ui/lazygit-modal.js';
 
 export class App {
   constructor() {
@@ -48,12 +53,138 @@ export class App {
       btnAudio: document.getElementById('btn-audio'),
       btnSandbox: document.getElementById('btn-sandbox'),
     };
+
+    this.fzfModal = null;
+    this.neoTree = null;
+    this.troubleDrawer = null;
+    this.lspPopups = null;
+    this.lazygitModal = null;
   }
 
   init() {
+    this.initPlugins();
     this.bindEvents();
     this.loadStage(this.state.currentDay);
     this.updateAudioButton();
+  }
+
+  initPlugins() {
+    if (typeof document === 'undefined') return;
+
+    this.fzfModal = new FzfModal({
+      containerEl: document.body,
+      onSelectFile: (file) => {
+        if (this.buffer && this.engine) {
+          this.buffer.setText(file.content);
+          this.buffer.setCursor(0, 0);
+          this.engine.actionsExecuted.add('fzf');
+          this.lastFeedback = `Fzf: Opened ${file.path}`;
+          const tabEl = document.getElementById('tab-filename');
+          if (tabEl) tabEl.textContent = file.path.split('/').pop();
+          this.render();
+        }
+      },
+      onClose: () => {
+        this.render();
+      },
+    });
+
+    this.neoTree = new NeoTreeSidebar({
+      containerEl: document.querySelector('.main-workspace') || document.body,
+      onSelectFile: (file) => {
+        if (this.buffer && this.engine) {
+          this.buffer.setText(file.content);
+          this.buffer.setCursor(0, 0);
+          this.engine.actionsExecuted.add('neotree');
+          this.lastFeedback = `Neo-tree: Opened ${file.path}`;
+          const tabEl = document.getElementById('tab-filename');
+          if (tabEl) tabEl.textContent = file.name;
+          this.render();
+        }
+      },
+      onToggle: () => {
+        this.render();
+      },
+    });
+
+    this.troubleDrawer = new TroubleDrawer({
+      containerEl: document.querySelector('.editor-pane') || document.body,
+      onSelectDiagnostic: (diag) => {
+        if (this.buffer && this.engine) {
+          this.engine.actionsExecuted.add('trouble');
+          this.buffer.setCursor(Math.max(0, diag.line - 1), diag.col);
+          this.lastFeedback = `Trouble: Jumped to ${diag.file}:${diag.line}`;
+          this.render();
+        }
+      },
+      onToggle: () => {
+        this.render();
+      },
+    });
+
+    this.lspPopups = new LspPopups({
+      containerEl: document.body,
+      onApplyCodeAction: (actionId) => {
+        if (this.engine) {
+          this.engine.actionsExecuted.add('lsp_code_action');
+          this.lastFeedback = `LSP: Applied code action (${actionId})`;
+          this.render();
+        }
+      },
+      onApplyRename: (newName) => {
+        if (this.buffer && this.engine) {
+          const curWord = this.engine.getWordUnderCursor();
+          if (curWord) {
+            const lines = this.buffer.getLines();
+            const regex = new RegExp(`\\b${curWord}\\b`, 'g');
+            const newLines = lines.map(l => l.replace(regex, newName));
+            this.buffer.setText(newLines.join('\n'));
+          }
+          this.engine.actionsExecuted.add('lsp_rename');
+          this.lastFeedback = `LSP: Renamed to '${newName}'`;
+          this.render();
+        }
+      },
+    });
+
+    this.lazygitModal = new LazyGitModal({
+      containerEl: document.body,
+      onClose: () => {
+        this.render();
+      },
+    });
+  }
+
+  setupEngineHooks() {
+    if (!this.engine) return;
+
+    this.engine.onLeaderState = (prefix, active) => {
+      toggleWhichKey(this.dom.whichKeyDrawer, active, prefix);
+    };
+
+    this.engine.onPluginAction = (action) => {
+      if (action === 'fzf_files' && this.fzfModal) {
+        this.fzfModal.open('files');
+      } else if (action === 'fzf_grep' && this.fzfModal) {
+        this.fzfModal.open('grep');
+      } else if (action === 'fzf_buffers' && this.fzfModal) {
+        this.fzfModal.open('buffers');
+      } else if (action === 'neotree' && this.neoTree) {
+        this.neoTree.toggle();
+      } else if (action === 'trouble' && this.troubleDrawer) {
+        this.troubleDrawer.toggle();
+      } else if (action === 'lsp_hover' && this.lspPopups) {
+        const word = this.engine.getWordUnderCursor();
+        this.lspPopups.showHover(word, `(symbol) ${word || 'element'}: unknown`, `LSP documentation for '${word || 'symbol'}'.`);
+      } else if (action === 'lsp_code_action' && this.lspPopups) {
+        this.lspPopups.showAction();
+      } else if (action === 'lsp_rename' && this.lspPopups) {
+        const word = this.engine.getWordUnderCursor();
+        this.lspPopups.showRename(word);
+      } else if (action === 'lazygit' && this.lazygitModal) {
+        this.lazygitModal.open();
+      }
+    };
   }
 
   loadStage(dayNumber) {
@@ -69,6 +200,7 @@ export class App {
 
     this.buffer = new TextBuffer(stage.initialText);
     this.engine = new VimEngine(this.buffer);
+    this.setupEngineHooks();
 
     if (stage.setup) {
       stage.setup(this.engine);
@@ -97,6 +229,7 @@ export class App {
     this.stageCompleted = false;
     this.buffer = new TextBuffer(this.currentStage.initialText);
     this.engine = new VimEngine(this.buffer);
+    this.setupEngineHooks();
     this.updateMissionUI();
     this.render();
   }
@@ -207,7 +340,7 @@ export class App {
 
     // Advance to next day on Enter if current stage was completed and dismissed
     if (this.stageCompleted && e.key === 'Enter' && this.engine.getMode() === 'NORMAL') {
-      if (this.currentStage.day && this.currentStage.day < 30) {
+      if (this.currentStage.day && this.currentStage.day < STAGES.length) {
         this.loadStage(this.currentStage.day + 1);
       } else {
         renderStageSelectModal(
@@ -259,7 +392,7 @@ export class App {
             this.currentStage,
             evaluation,
             () => {
-              if (this.currentStage.day < 30) {
+              if (this.currentStage.day < STAGES.length) {
                 this.loadStage(this.currentStage.day + 1);
               } else {
                 renderStageSelectModal(

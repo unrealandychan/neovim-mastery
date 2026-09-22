@@ -29,6 +29,20 @@ export class VimEngine {
     this.lastChange = null;
     this.flashTargets = []; // for flash teleportation
     this.actionsExecuted = new Set(); // tracks executed actions like 'save', 'bnext'
+    this.pendingLeader = false;
+    this.leaderKeys = '';
+    this.recordingMacro = null;
+    this.macros = {};
+    this.lastMacro = null;
+    this.marks = {};
+    this.isBlockInsert = false;
+    this.blockInsertCol = 0;
+    this.blockInsertRows = [0, 0];
+    this.blockInsertedText = '';
+    this.onLeaderState = null;
+    this.onPluginAction = null;
+    this.lspHover = null;
+    this.jumpList = [];
     this.onStateChange = null;
   }
 
@@ -102,6 +116,18 @@ export class VimEngine {
   handleKey(rawKey) {
     const key = normalizeKey(rawKey);
 
+    // Record keystrokes if macro recording is active
+    if (this.recordingMacro) {
+      if (this.mode === 'NORMAL' && (rawKey === 'q' || key === 'q')) {
+        const reg = this.recordingMacro;
+        this.recordingMacro = null;
+        this.actionsExecuted.add('macro_record');
+        return { handled: true, feedback: `Recorded macro @${reg}` };
+      }
+      this.macros[this.recordingMacro] = this.macros[this.recordingMacro] || [];
+      this.macros[this.recordingMacro].push(rawKey);
+    }
+
     if (this.mode === 'INSERT') {
       return this.handleInsertKey(key);
     }
@@ -111,7 +137,7 @@ export class VimEngine {
     if (this.mode === 'FLASH') {
       return this.handleFlashKey(key);
     }
-    if (this.mode === 'VISUAL' || this.mode === 'VISUAL_LINE') {
+    if (this.mode === 'VISUAL' || this.mode === 'VISUAL_LINE' || this.mode === 'VISUAL_BLOCK') {
       return this.handleVisualKey(key);
     }
 
@@ -122,6 +148,43 @@ export class VimEngine {
    * Handle keystrokes in INSERT mode
    */
   handleInsertKey(key) {
+    // Visual block multi-line column insertion completion
+    if (this.isBlockInsert) {
+      if (key === 'Escape') {
+        const textToInsert = this.blockInsertedText;
+        const col = this.blockInsertCol;
+        const [startRow, endRow] = this.blockInsertRows;
+        for (let r = startRow + 1; r <= endRow; r++) {
+          const line = this.buffer.getLine(r);
+          const safeCol = Math.min(line.length, col);
+          const newLine = line.slice(0, safeCol) + textToInsert + line.slice(safeCol);
+          this.buffer.setLine(r, newLine);
+        }
+        this.isBlockInsert = false;
+        this.blockInsertedText = '';
+        this.setMode('NORMAL');
+        this.actionsExecuted.add('visual_block');
+        return { handled: true };
+      }
+      if (key === 'Backspace') {
+        this.saveSnapshot();
+        this.blockInsertedText = this.blockInsertedText.slice(0, -1);
+        this.buffer.deleteChar(true);
+        return { handled: true };
+      }
+      if (key === 'Enter') {
+        this.saveSnapshot();
+        this.buffer.insertText('\n');
+        return { handled: true };
+      }
+      if (key.length === 1) {
+        this.saveSnapshot();
+        this.blockInsertedText += key;
+        this.buffer.insertText(key);
+        return { handled: true };
+      }
+    }
+
     if (key === 'Escape') {
       this.setMode('NORMAL');
       const cur = this.buffer.getCursor();
@@ -185,6 +248,176 @@ export class VimEngine {
    * Handle keystrokes in NORMAL mode
    */
   handleNormalKey(key) {
+    // Leader Key (<Space>) Handling in LazyVim
+    if (this.pendingLeader) {
+      if (key === 'Escape') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        return { handled: true, feedback: 'Leader cancelled' };
+      }
+      if (key === ' ') {
+        return { handled: true };
+      }
+
+      this.leaderKeys += key;
+      const lk = this.leaderKeys;
+
+      // Direct LazyVim leader key actions
+      if (lk === 'ff') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('fzf');
+        this.actionsExecuted.add('leader_ff');
+        if (this.onPluginAction) this.onPluginAction('fzf_files');
+        return { handled: true, feedback: 'LazyVim: Find Files (Fzf/Telescope)', action: 'fzf_files' };
+      }
+      if (lk === 'sg' || lk === '/') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('grep');
+        this.actionsExecuted.add('fzf');
+        this.actionsExecuted.add('leader_sg');
+        if (this.onPluginAction) this.onPluginAction('fzf_grep');
+        return { handled: true, feedback: 'LazyVim: Live Grep (Fzf/Snacks)', action: 'fzf_grep' };
+      }
+      if (lk === 'fb') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('buffers');
+        this.actionsExecuted.add('fzf');
+        this.actionsExecuted.add('leader_fb');
+        if (this.onPluginAction) this.onPluginAction('fzf_buffers');
+        return { handled: true, feedback: 'LazyVim: Buffers (Fzf)', action: 'fzf_buffers' };
+      }
+      if (lk === 'e') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('neotree');
+        this.actionsExecuted.add('leader_e');
+        if (this.onPluginAction) this.onPluginAction('neotree');
+        return { handled: true, feedback: 'LazyVim: Toggle Neo-tree Explorer', action: 'neotree' };
+      }
+      if (lk === 'xx') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('trouble');
+        this.actionsExecuted.add('leader_xx');
+        if (this.onPluginAction) this.onPluginAction('trouble');
+        return { handled: true, feedback: 'LazyVim: Trouble Diagnostics', action: 'trouble' };
+      }
+      if (lk === 'ca') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('lsp_code_action');
+        this.actionsExecuted.add('leader_ca');
+        if (this.onPluginAction) this.onPluginAction('lsp_code_action');
+        return { handled: true, feedback: 'LSP: Code Actions', action: 'lsp_code_action' };
+      }
+      if (lk === 'cr') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('lsp_rename');
+        this.actionsExecuted.add('leader_cr');
+        if (this.onPluginAction) this.onPluginAction('lsp_rename');
+        return { handled: true, feedback: 'LSP: Symbol Rename', action: 'lsp_rename' };
+      }
+      if (lk === 'cf') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('format');
+        this.formatBuffer();
+        return { handled: true, feedback: 'LSP: Formatted Document', action: 'format' };
+      }
+      if (lk === 'gg') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('lazygit');
+        this.actionsExecuted.add('leader_gg');
+        if (this.onPluginAction) this.onPluginAction('lazygit');
+        return { handled: true, feedback: 'LazyVim: LazyGit Dashboard', action: 'lazygit' };
+      }
+      if (lk === 'sr') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('grug_far');
+        this.actionsExecuted.add('leader_sr');
+        if (this.onPluginAction) this.onPluginAction('grug_far');
+        return { handled: true, feedback: 'LazyVim: Grug-Far Search & Replace', action: 'grug_far' };
+      }
+      if (lk === 'l') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('lazy');
+        this.actionsExecuted.add('lazy_home');
+        this.actionsExecuted.add('leader_l');
+        if (this.onPluginAction) this.onPluginAction('lazy');
+        return { handled: true, feedback: 'LazyVim: Plugin Dashboard', action: 'lazy' };
+      }
+      if (lk === 'w') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.saveSnapshot();
+        this.actionsExecuted.add('save');
+        return { handled: true, feedback: 'Saved buffer to disk.', action: 'save' };
+      }
+      if (lk === 'bd') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('bdelete');
+        return { handled: true, feedback: 'Closed buffer.', action: 'bdelete' };
+      }
+      if (lk === '.') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('scratchpad');
+        if (this.onPluginAction) this.onPluginAction('scratchpad');
+        return { handled: true, feedback: 'Snacks: Floating Scratchpad', action: 'scratchpad' };
+      }
+      if (lk === 'ft') {
+        this.pendingLeader = false;
+        this.leaderKeys = '';
+        if (this.onLeaderState) this.onLeaderState('', false);
+        this.actionsExecuted.add('terminal');
+        if (this.onPluginAction) this.onPluginAction('terminal');
+        return { handled: true, feedback: 'Snacks: Floating Terminal', action: 'terminal' };
+      }
+
+      // Prefix drill-down
+      if (['f', 's', 'x', 'c', 'g', 'b'].includes(lk)) {
+        if (this.onLeaderState) this.onLeaderState(lk, true);
+        return { handled: true, feedback: `Leader <Space>${lk}...` };
+      }
+
+      // Unrecognized sequence
+      this.pendingLeader = false;
+      this.leaderKeys = '';
+      if (this.onLeaderState) this.onLeaderState('', false);
+      return { handled: false, feedback: 'Leader cancelled' };
+    }
+
+    // Trigger Leader mode with <Space> or <leader>
+    if (key === ' ' && !this.pendingKeys && !this.activeOperator) {
+      this.pendingLeader = true;
+      this.leaderKeys = '';
+      if (this.onLeaderState) this.onLeaderState('', true);
+      return { handled: true, feedback: 'Leader <Space> active (Which-Key)' };
+    }
+
     // Escape clears pending sequence and hlsearch
     if (key === 'Escape') {
       this.pendingKeys = '';
@@ -192,6 +425,33 @@ export class VimEngine {
       this.activeOperator = null;
       this.searchMatches = [];
       return { handled: true, feedback: 'Cleared' };
+    }
+
+    // Visual Block Mode (<C-v>)
+    if (key === '<C-v>') {
+      this.visualStart = this.buffer.getCursor();
+      this.setMode('VISUAL_BLOCK');
+      this.actionsExecuted.add('visual_block');
+      return { handled: true, feedback: '-- VISUAL BLOCK --' };
+    }
+
+    // Jumplist (<C-o>)
+    if (key === '<C-o>') {
+      if (this.jumpList.length > 0) {
+        const last = this.jumpList.pop();
+        this.buffer.setCursor(last.row, last.col);
+        this.actionsExecuted.add('jumplist');
+        return { handled: true, feedback: 'Jumped back in jumplist (<C-o>)' };
+      }
+      return { handled: true, feedback: 'Jumplist empty' };
+    }
+
+    // LSP Hover Documentation (K)
+    if (key === 'K' && !this.pendingKeys && !this.activeOperator) {
+      const word = this.getWordUnderCursor();
+      this.actionsExecuted.add('lsp_hover');
+      if (this.onPluginAction) this.onPluginAction('lsp_hover');
+      return { handled: true, feedback: `LSP: Hover Documentation for '${word || 'symbol'}' (K)`, action: 'lsp_hover' };
     }
 
     // Number prefixes for counts (e.g., 3w, 5j)
@@ -208,6 +468,124 @@ export class VimEngine {
 
     // Buffer pending keys (for multi-key commands like gg, ciw, da", f{ch}, etc.)
     const seq = this.pendingKeys + key;
+
+    // Macro recording: q{reg} to start, q to stop
+    if (this.pendingKeys === 'q') {
+      this.pendingKeys = '';
+      if (/^[a-zA-Z]$/.test(key)) {
+        const reg = key.toLowerCase();
+        this.recordingMacro = reg;
+        this.macros[reg] = [];
+        return { handled: true, feedback: `Recording @${reg} (press q to finish)` };
+      }
+      return { handled: false };
+    }
+    if (key === 'q' && !this.activeOperator && !this.recordingMacro && !this.pendingKeys) {
+      this.pendingKeys = 'q';
+      return { handled: true, feedback: 'Record macro to register (a-z)' };
+    }
+
+    // Macro replay: @{reg} or @@
+    if (this.pendingKeys === '@') {
+      this.pendingKeys = '';
+      const reg = key === '@' ? this.lastMacro : key.toLowerCase();
+      if (reg && this.macros[reg] && this.macros[reg].length > 0) {
+        this.lastMacro = reg;
+        this.actionsExecuted.add('macro');
+        const macroSeq = [...this.macros[reg]];
+        for (let i = 0; i < count; i++) {
+          for (const k of macroSeq) {
+            this.handleKey(k);
+          }
+        }
+        return { handled: true, feedback: `Replayed macro @${reg}` };
+      }
+      return { handled: false, feedback: `Macro @${reg || key} is empty` };
+    }
+    if (key === '@' && !this.activeOperator && !this.pendingKeys) {
+      this.pendingKeys = '@';
+      return { handled: true, feedback: 'Replay macro (a-z or @)' };
+    }
+
+    // Mark setting: m{char}
+    if (this.pendingKeys === 'm') {
+      this.pendingKeys = '';
+      if (/^[a-zA-Z]$/.test(key)) {
+        this.marks[key] = { ...this.buffer.getCursor() };
+        this.actionsExecuted.add('mark');
+        return { handled: true, feedback: `Mark '${key}' set` };
+      }
+      return { handled: false };
+    }
+    if (key === 'm' && !this.activeOperator && !this.pendingKeys) {
+      this.pendingKeys = 'm';
+      return { handled: true, feedback: 'Set mark (a-z)' };
+    }
+
+    // Mark jump: '{char} or `{char}
+    if (this.pendingKeys === "'" || this.pendingKeys === '`') {
+      const isExact = this.pendingKeys === '`';
+      this.pendingKeys = '';
+      if (this.marks[key]) {
+        const pos = this.marks[key];
+        this.buffer.setCursor(pos.row, isExact ? pos.col : 0);
+        this.actionsExecuted.add('mark_jump');
+        return { handled: true, feedback: `Jumped to mark '${key}'` };
+      }
+      return { handled: false, feedback: `Mark '${key}' not set` };
+    }
+    if ((key === "'" || key === '`') && !this.activeOperator && !this.pendingKeys) {
+      this.pendingKeys = key;
+      return { handled: true, feedback: 'Jump to mark (a-z)' };
+    }
+
+    // Mini.surround / surround operators:
+    if (this.pendingKeys === 'gs') {
+      if (key === 'a') {
+        this.pendingKeys = 'gsa';
+        return { handled: true, feedback: 'Surround add (target motion/object)' };
+      }
+      if (key === 'd') {
+        this.pendingKeys = 'gsd';
+        return { handled: true, feedback: 'Surround delete (delimiter)' };
+      }
+      if (key === 'r') {
+        this.pendingKeys = 'gsr';
+        return { handled: true, feedback: 'Surround replace (old delimiter)' };
+      }
+      this.pendingKeys = '';
+      return { handled: false };
+    }
+
+    if (this.pendingKeys.startsWith('gsa') || this.pendingKeys.startsWith('ys')) {
+      this.pendingKeys += key;
+      const isGsa = this.pendingKeys.startsWith('gsa');
+      const targetLen = isGsa ? 5 : 4; // e.g. gsaw" or ysw"
+      if (this.pendingKeys.length >= targetLen) {
+        const delim = key;
+        this.pendingKeys = '';
+        const success = this.executeSurroundAdd('w', delim);
+        return { handled: success, feedback: `Surrounded with ${delim}` };
+      }
+      return { handled: true, feedback: `Surround: enter delimiter` };
+    }
+    if (this.pendingKeys === 'gsd' || this.pendingKeys === 'ds') {
+      this.pendingKeys = '';
+      const success = this.executeSurroundDelete(key);
+      return { handled: success, feedback: `Deleted surrounding ${key}` };
+    }
+    if (this.pendingKeys === 'gsr' || this.pendingKeys === 'cs') {
+      this.pendingKeys += key;
+      return { handled: true, feedback: `Replace ${key} with delimiter...` };
+    }
+    if (this.pendingKeys.startsWith('gsr') || this.pendingKeys.startsWith('cs')) {
+      const isGsr = this.pendingKeys.startsWith('gsr');
+      const oldChar = isGsr ? this.pendingKeys[3] : this.pendingKeys[2];
+      const newChar = key;
+      this.pendingKeys = '';
+      const success = this.executeSurroundReplace(oldChar, newChar);
+      return { handled: success, feedback: `Replaced surrounding ${oldChar} with ${newChar}` };
+    }
 
     // Register selection: "a, "+, etc.
     if (this.pendingKeys.startsWith('"')) {
@@ -230,7 +608,7 @@ export class VimEngine {
       this.executeSeek(type, key, count);
       return { handled: true };
     }
-    if (/^[fFtT]$/.test(key)) {
+    if (/^[fFtT]$/.test(key) && !this.pendingKeys) {
       this.pendingKeys = key;
       return { handled: true };
     }
@@ -246,7 +624,7 @@ export class VimEngine {
       }
       return { handled: true };
     }
-    if (key === 'r') {
+    if (key === 'r' && !this.pendingKeys) {
       this.pendingKeys = 'r';
       return { handled: true };
     }
@@ -268,10 +646,28 @@ export class VimEngine {
         return { handled: true };
       }
       if (key === 'd') {
-        return { handled: true, feedback: 'Jump to definition (LSP)' };
+        const word = this.getWordUnderCursor();
+        if (word) {
+          this.jumpList.push({ ...this.buffer.getCursor() });
+          const lines = this.buffer.getLines();
+          const defRegex = new RegExp(`\\b(function|const|let|var|type|interface|class|def)\\s+${word}\\b`);
+          for (let r = 0; r < lines.length; r++) {
+            if (defRegex.test(lines[r])) {
+              this.buffer.setCursor(r, lines[r].indexOf(word));
+              break;
+            }
+          }
+        }
+        this.actionsExecuted.add('lsp_definition');
+        return { handled: true, feedback: 'Jump to definition (LSP)', action: 'lsp_definition' };
       }
       if (key === 'r') {
-        return { handled: true, feedback: 'Jump to references (LSP)' };
+        this.actionsExecuted.add('lsp_references');
+        return { handled: true, feedback: 'Jump to references (LSP)', action: 'lsp_references' };
+      }
+      if (key === 's') {
+        this.pendingKeys = 'gs';
+        return { handled: true, feedback: 'mini.surround (a: add, d: delete, r: replace)' };
       }
       return { handled: false };
     }
@@ -547,11 +943,23 @@ export class VimEngine {
   handleOperatorPending(seq, count) {
     const op = this.activeOperator;
 
+    // Surround aliases (ys, ds, cs)
+    if (seq === 'ys' || seq === 'ds' || seq === 'cs') {
+      this.activeOperator = null;
+      this.pendingKeys = seq;
+      return { handled: true, feedback: `Surround: ${seq}` };
+    }
+
     // Line doubling: dd, cc, yy, >>, <<
     if (seq === op + op) {
       this.operatorHandler.executeLineOp(op, count);
       this.activeOperator = null;
       this.pendingKeys = '';
+      if (op === 'd') {
+        this.lastChange = () => {
+          this.operatorHandler.executeLineOp('d', 1);
+        };
+      }
       return { handled: true };
     }
 
@@ -568,6 +976,32 @@ export class VimEngine {
     // Text object prefix: di, ca, yi...
     if (/^[dcy][ia]$/.test(seq)) {
       this.pendingKeys = seq;
+      return { handled: true };
+    }
+
+    // Seeking motion prefix: df, dt, dF, dT, cf, ct...
+    if (/^[dcy][fFtT]$/.test(seq)) {
+      this.pendingKeys = seq;
+      return { handled: true };
+    }
+    // Seeking motion with char: df), dt), etc.
+    if (/^[dcy][fFtT].$/.test(seq)) {
+      const seekType = seq[1];
+      const targetChar = seq[2];
+      this.saveSnapshot();
+      const start = { ...this.buffer.getCursor() };
+      this.executeSeek(seekType, targetChar, count);
+      const end = { ...this.buffer.getCursor() };
+      end.col += 1;
+      const deleted = this.buffer.deleteRange(start, end);
+      this.registers[this.activeRegister] = { text: deleted, linewise: false };
+      if (op === 'c') {
+        this.setMode('INSERT');
+      } else {
+        this.buffer.clampCursor('NORMAL');
+      }
+      this.activeOperator = null;
+      this.pendingKeys = '';
       return { handled: true };
     }
 
@@ -623,7 +1057,7 @@ export class VimEngine {
   }
 
   handleVisualKey(key) {
-    if (key === 'Escape' || key === 'v' || key === 'V') {
+    if (key === 'Escape' || key === 'v' || key === 'V' || key === '<C-v>') {
       this.visualStart = null;
       this.countPrefix = '';
       this.setMode('NORMAL');
@@ -642,6 +1076,57 @@ export class VimEngine {
 
     const count = this.countPrefix ? parseInt(this.countPrefix, 10) : 1;
     this.countPrefix = '';
+
+    // Visual Block Mode operations (<C-v>)
+    if (this.mode === 'VISUAL_BLOCK') {
+      const cur = this.buffer.getCursor();
+      const start = this.visualStart || cur;
+      const minRow = Math.min(start.row, cur.row);
+      const maxRow = Math.max(start.row, cur.row);
+      const minCol = Math.min(start.col, cur.col);
+      const maxCol = Math.max(start.col, cur.col);
+
+      if (key === 'I') {
+        this.isBlockInsert = true;
+        this.blockInsertCol = minCol;
+        this.blockInsertRows = [minRow, maxRow];
+        this.blockInsertedText = '';
+        this.buffer.setCursor(minRow, minCol);
+        this.setMode('INSERT');
+        return { handled: true };
+      }
+      if (key === 'A') {
+        this.isBlockInsert = true;
+        this.blockInsertCol = maxCol + 1;
+        this.blockInsertRows = [minRow, maxRow];
+        this.blockInsertedText = '';
+        this.buffer.setCursor(minRow, maxCol + 1);
+        this.setMode('INSERT');
+        return { handled: true };
+      }
+      if (key === 'd' || key === 'x' || key === 'c') {
+        this.saveSnapshot();
+        for (let r = minRow; r <= maxRow; r++) {
+          const l = this.buffer.getLine(r);
+          if (l.length >= minCol) {
+            this.buffer.setLine(r, l.slice(0, minCol) + l.slice(maxCol + 1));
+          }
+        }
+        this.visualStart = null;
+        this.buffer.setCursor(minRow, minCol);
+        this.actionsExecuted.add('visual_block');
+        if (key === 'c') {
+          this.isBlockInsert = true;
+          this.blockInsertCol = minCol;
+          this.blockInsertRows = [minRow, maxRow];
+          this.blockInsertedText = '';
+          this.setMode('INSERT');
+        } else {
+          this.setMode('NORMAL');
+        }
+        return { handled: true };
+      }
+    }
 
     // Indent in visual mode: > or <
     if (key === '>') {
@@ -725,12 +1210,30 @@ export class VimEngine {
     }
 
     // Navigation while in visual mode
+    if (key === 'o' && this.visualStart) {
+      const cur = this.buffer.getCursor();
+      const temp = { ...cur };
+      this.buffer.setCursor(this.visualStart.row, this.visualStart.col);
+      this.visualStart = temp;
+      return { handled: true };
+    }
+    if (/^[fFtT]$/.test(this.pendingKeys)) {
+      const type = this.pendingKeys;
+      this.pendingKeys = '';
+      this.executeSeek(type, key, count);
+      return { handled: true };
+    }
+    if (/^[fFtT]$/.test(key)) {
+      this.pendingKeys = key;
+      return { handled: true };
+    }
     if (key === 'h') this.moveLeft(count);
     if (key === 'l') this.moveRight(count);
     if (key === 'j') this.moveDown(count);
     if (key === 'k') this.moveUp(count);
     if (key === 'w') this.moveW(count);
     if (key === 'b') this.moveB(count);
+    if (key === 'e') this.moveE(count);
     if (key === '$') this.moveDollar();
     if (key === '0') this.move0();
     return { handled: true };
@@ -1196,5 +1699,117 @@ export class VimEngine {
         }
       }
     }
+    this.actionsExecuted.add('diagnostic_jump');
+  }
+
+  getWordUnderCursor() {
+    const cur = this.buffer.getCursor();
+    const line = this.buffer.getLine(cur.row);
+    if (!line) return '';
+    let start = cur.col;
+    let end = cur.col;
+    while (start > 0 && /\w/.test(line[start - 1])) start--;
+    while (end < line.length && /\w/.test(line[end])) end++;
+    return line.slice(start, end);
+  }
+
+  formatBuffer() {
+    this.saveSnapshot();
+    const lines = this.buffer.getLines();
+    let indentLevel = 0;
+    const formatted = lines.map(line => {
+      const trimmed = line.trim();
+      if (!trimmed) return '';
+      if (trimmed.startsWith('}') || trimmed.startsWith(']') || trimmed.startsWith(')')) {
+        indentLevel = Math.max(0, indentLevel - 1);
+      }
+      const indentedLine = '  '.repeat(indentLevel) + trimmed;
+      if (trimmed.endsWith('{') || trimmed.endsWith('[') || trimmed.endsWith('(')) {
+        indentLevel++;
+      }
+      return indentedLine;
+    });
+    this.buffer.setText(formatted.join('\n'));
+    this.actionsExecuted.add('format');
+  }
+
+  executeSurroundAdd(target, delim) {
+    this.saveSnapshot();
+    const cur = this.buffer.getCursor();
+    const line = this.buffer.getLine(cur.row);
+    const pairs = {
+      '(': ['(', ')'], ')': ['(', ')'],
+      '[': ['[', ']'], ']': ['[', ']'],
+      '{': ['{', '}'], '}': ['{', '}'],
+      '"': ['"', '"'], "'": ["'", "'"], '`': ['`', '`'],
+    };
+    const [open, close] = pairs[delim] || [delim, delim];
+
+    let start = cur.col;
+    let end = cur.col;
+    while (start > 0 && /\w/.test(line[start - 1])) start--;
+    while (end < line.length && /\w/.test(line[end])) end++;
+    if (start === end && line.length > 0) {
+      const match = line.match(/\w+/);
+      if (match) {
+        start = match.index;
+        end = start + match[0].length;
+      }
+    }
+    const word = line.slice(start, end);
+    const newLine = line.slice(0, start) + open + word + close + line.slice(end);
+    this.buffer.setLine(cur.row, newLine);
+    this.actionsExecuted.add('surround');
+    return true;
+  }
+
+  executeSurroundDelete(delim) {
+    this.saveSnapshot();
+    const cur = this.buffer.getCursor();
+    const line = this.buffer.getLine(cur.row);
+    const pairs = {
+      '(': ['(', ')'], ')': ['(', ')'],
+      '[': ['[', ']'], ']': ['[', ']'],
+      '{': ['{', '}'], '}': ['{', '}'],
+      '"': ['"', '"'], "'": ["'", "'"], '`': ['`', '`'],
+    };
+    const [open, close] = pairs[delim] || [delim, delim];
+
+    let openIdx = line.lastIndexOf(open, cur.col);
+    if (openIdx === -1) openIdx = line.indexOf(open);
+    const closeIdx = openIdx !== -1 ? line.indexOf(close, openIdx + 1) : -1;
+    if (openIdx !== -1 && closeIdx !== -1) {
+      const newLine = line.slice(0, openIdx) + line.slice(openIdx + 1, closeIdx) + line.slice(closeIdx + 1);
+      this.buffer.setLine(cur.row, newLine);
+      this.actionsExecuted.add('surround');
+      return true;
+    }
+    return false;
+  }
+
+  executeSurroundReplace(oldDelim, newDelim) {
+    this.saveSnapshot();
+    const cur = this.buffer.getCursor();
+    const line = this.buffer.getLine(cur.row);
+    const pairs = {
+      '(': ['(', ')'], ')': ['(', ')'],
+      '[': ['[', ']'], ']': ['[', ']'],
+      '{': ['{', '}'], '}': ['{', '}'],
+      '"': ['"', '"'], "'": ["'", "'"], '`': ['`', '`'],
+    };
+    const [oldOpen, oldClose] = pairs[oldDelim] || [oldDelim, oldDelim];
+    const [newOpen, newClose] = pairs[newDelim] || [newDelim, newDelim];
+
+    let openIdx = line.lastIndexOf(oldOpen, cur.col);
+    if (openIdx === -1) openIdx = line.indexOf(oldOpen);
+    const closeIdx = openIdx !== -1 ? line.indexOf(oldClose, openIdx + 1) : -1;
+    if (openIdx !== -1 && closeIdx !== -1) {
+      const inner = line.slice(openIdx + 1, closeIdx);
+      const newLine = line.slice(0, openIdx) + newOpen + inner + newClose + line.slice(closeIdx + 1);
+      this.buffer.setLine(cur.row, newLine);
+      this.actionsExecuted.add('surround');
+      return true;
+    }
+    return false;
   }
 }

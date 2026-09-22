@@ -202,5 +202,34 @@ export function findTextObjectRange(buffer, cursor, isInner, type) {
     };
   }
 
+  // 6. Tag text object: it, at (<tag>...</tag>)
+  if (type === 't') {
+    const openTagRegex = /<([a-zA-Z0-9_-]+)[^>]*>/g;
+    let match;
+    while ((match = openTagRegex.exec(line)) !== null) {
+      const tagName = match[1];
+      const openStart = match.index;
+      const openEnd = match.index + match[0].length;
+      const closeTagStr = `</${tagName}>`;
+      const closeStart = line.indexOf(closeTagStr, openEnd);
+      if (closeStart !== -1) {
+        const closeEnd = closeStart + closeTagStr.length;
+        if (cursor.col >= openStart && cursor.col <= closeEnd) {
+          if (isInner) {
+            return {
+              start: { row, col: openEnd },
+              end: { row, col: closeStart },
+            };
+          } else {
+            return {
+              start: { row, col: openStart },
+              end: { row, col: closeEnd },
+            };
+          }
+        }
+      }
+    }
+  }
+
   return null;
 }

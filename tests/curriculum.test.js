@@ -5,8 +5,8 @@ import { evaluateStage } from '../game/js/stages/evaluator.js';
 import { TextBuffer } from '../game/js/editor/buffer.js';
 import { VimEngine } from '../game/js/editor/vim-engine.js';
 
-test('Curriculum has 30 complete days with required metadata', () => {
-  assert.equal(STAGES.length, 30);
+test('Curriculum has 60 complete days with required metadata', () => {
+  assert.equal(STAGES.length, 60);
   STAGES.forEach((stage, idx) => {
     assert.equal(stage.day, idx + 1, `Stage ${idx + 1} day mismatch`);
     assert.ok(stage.title, `Day ${stage.day} missing title`);

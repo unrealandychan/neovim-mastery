@@ -35,9 +35,9 @@ export function renderStageSelectModal(container, stages, gameState, onSelectSta
   }).join('');
 
   container.innerHTML = `
-    <div class="modal-card" style="max-width: 720px;">
+    <div class="modal-card" style="max-width: 860px; max-height: 85vh; display: flex; flex-direction: column;">
       <div class="modal-header">
-        <div class="modal-title">🗺️ The 30-Day Neovim Dojo Map</div>
+        <div class="modal-title">🗺️ The 60-Stage Neovim & LazyVim Dojo Map</div>
         <button class="btn btn-close" id="modal-close-btn">✕</button>
       </div>
       <div class="modal-body">

@@ -14,6 +14,11 @@ export function normalizeKey(key) {
   if (/^<c-s>$/i.test(key)) return '<C-s>';
   if (/^<c-d>$/i.test(key)) return '<C-d>';
   if (/^<c-u>$/i.test(key)) return '<C-u>';
+  if (/^<c-v>$/i.test(key)) return '<C-v>';
+  if (/^<c-o>$/i.test(key)) return '<C-o>';
+  if (/^<c-w>$/i.test(key)) return '<C-w>';
+  if (/^<c-j>$/i.test(key)) return '<C-j>';
+  if (/^<c-k>$/i.test(key)) return '<C-k>';
   return key;
 }
 

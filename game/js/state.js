@@ -76,7 +76,7 @@ export class GameState {
     }
 
     // Unlock next day
-    if (day < 30) {
+    if (day < 60) {
       this.unlockDay(day + 1);
     }
 

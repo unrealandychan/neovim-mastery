@@ -5,8 +5,8 @@ import { evaluateStage } from '../game/js/stages/evaluator.js';
 import { TextBuffer } from '../game/js/editor/buffer.js';
 import { VimEngine } from '../game/js/editor/vim-engine.js';
 
-test('Full 30-Day Curriculum Simulation: All stages completed with 3 Stars', () => {
-  assert.equal(STAGES.length, 30);
+test('Full 60-Stage Curriculum Simulation: All stages completed with 3 Stars', () => {
+  assert.equal(STAGES.length, 60);
 
   STAGES.forEach(stage => {
     const buf = new TextBuffer(stage.initialText);
