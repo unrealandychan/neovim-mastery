@@ -25,6 +25,15 @@ return {
     },
     keys = {
       { "<leader>um", "<cmd>RenderMarkdown toggle<cr>", desc = "Toggle Markdown Render (Buffer)" },
+      { "<leader>mr", "<cmd>RenderMarkdown toggle<cr>", ft = "markdown", desc = "Toggle In-Buffer Render" },
+      {
+        "<leader>mz",
+        function()
+          Snacks.zen()
+        end,
+        ft = "markdown",
+        desc = "Toggle Zen Reading Mode",
+      },
     },
   },
 
@@ -49,23 +58,14 @@ return {
   },
 
   -- ==========================================================================
-  -- 3. In-Terminal Floating Window Preview via Glow CLI
+  -- 4. Which-key Group Label
   -- ==========================================================================
   {
-    "ellisonleao/glow.nvim",
-    cmd = "Glow",
-    ft = { "markdown" },
+    "folke/which-key.nvim",
     opts = {
-      border = "rounded",
-      style = "dark",
-      pager = false,
-      width = 120,
-      height = 100,
-      width_ratio = 0.85,
-      height_ratio = 0.85,
-    },
-    keys = {
-      { "<leader>mg", "<cmd>Glow<cr>", ft = "markdown", desc = "Markdown Preview (Glow Floating Window)" },
+      spec = {
+        { "<leader>m", group = "markdown" },
+      },
     },
   },
 }

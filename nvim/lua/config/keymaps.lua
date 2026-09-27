@@ -31,3 +31,8 @@ map("n", "<leader>|", "<C-W>v", { desc = "Split window right", remap = true })
 map("n", "<S-h>", "<cmd>bprevious<cr>", { desc = "Prev Buffer" })
 map("n", "<S-l>", "<cmd>bnext<cr>", { desc = "Next Buffer" })
 map("n", "<leader>bd", "<cmd>bdelete<cr>", { desc = "Delete Buffer" })
+
+-- Markdown Preview & Reading Mode
+map("n", "<leader>mr", "<cmd>RenderMarkdown toggle<cr>", { desc = "Toggle Markdown Render (Buffer)" })
+map("n", "<leader>mp", "<cmd>MarkdownPreviewToggle<cr>", { desc = "Toggle Markdown Preview (Browser)" })
+map("n", "<leader>mz", function() Snacks.zen() end, { desc = "Toggle Zen Reading Mode" })
