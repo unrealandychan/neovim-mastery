@@ -304,7 +304,7 @@ export class App {
   updateMissionUI() {
     const s = this.currentStage;
     if (this.dom.missionBadge) {
-      this.dom.missionBadge.textContent = s.day ? `Day ${s.day} • Week ${s.week}` : 'Sandbox';
+      this.dom.missionBadge.textContent = s.day ? `Stage ${s.day} • Week ${s.week}` : 'Sandbox';
     }
     if (this.dom.missionTitle) this.dom.missionTitle.textContent = s.title;
     if (this.dom.missionConcept) this.dom.missionConcept.textContent = `🎯 ${s.concept}`;
@@ -319,16 +319,16 @@ export class App {
 
     const diffMini = document.getElementById('diff-mini-title');
     if (diffMini) {
-      diffMini.textContent = s.day ? `Day ${s.day}: ${s.title}` : s.title;
+      diffMini.textContent = s.day ? `Stage ${s.day}: ${s.title}` : s.title;
     }
 
     if (this.dom.tabFilename) {
-      this.dom.tabFilename.textContent = s.day ? `day_${s.day}_exercise.ts` : 'sandbox.ts';
+      this.dom.tabFilename.textContent = s.day ? `stage_${s.day}_exercise.ts` : 'sandbox.ts';
     }
 
     const navPillDay = document.getElementById('nav-pill-day');
     const navPillTitle = document.getElementById('nav-pill-title');
-    if (navPillDay) navPillDay.textContent = s.day ? `Day ${s.day}` : 'Sandbox';
+    if (navPillDay) navPillDay.textContent = s.day ? `Stage ${s.day}` : 'Sandbox';
     if (navPillTitle) navPillTitle.textContent = s.title || 'Practice Session';
     const missionChap = document.getElementById('mission-chapter');
     if (missionChap) {

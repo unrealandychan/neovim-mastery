@@ -3,7 +3,7 @@
  */
 
 /**
- * Renders the 30-Day Stage Map Modal
+ * Renders the 60-Stage Dojo Map Modal
  */
 export function renderStageSelectModal(container, stages, gameState, onSelectStage) {
   if (!container) return;
@@ -27,7 +27,7 @@ export function renderStageSelectModal(container, stages, gameState, onSelectSta
 
     return `
       <div class="${itemClass}" data-day="${s.day}">
-        <div class="day-label">Day ${s.day}</div>
+        <div class="day-label">Stage ${s.day}</div>
         <div style="font-size: 10px; color: var(--tn-comment); margin: 2px 0;">${escapeHtml(s.title)}</div>
         <div class="stars">${starIcons}</div>
       </div>
@@ -80,7 +80,7 @@ export function renderVictoryModal(container, stage, evaluation, onNext, onRepla
   container.innerHTML = `
     <div class="modal-card" style="max-width: 480px; text-align: center;">
       <div class="modal-header" style="justify-content: center; background: transparent;">
-        <div class="modal-title" style="font-size: 20px;">🎉 Day ${stage.day} Mastered!</div>
+        <div class="modal-title" style="font-size: 20px;">🎉 Stage ${stage.day} Mastered!</div>
       </div>
       <div class="modal-body" style="padding: 10px 24px;">
         <div style="font-size: 38px; margin: 12px 0; letter-spacing: 4px;">${starsDisplay}</div>
@@ -99,7 +99,7 @@ export function renderVictoryModal(container, stage, evaluation, onNext, onRepla
       </div>
         <div style="display: flex; gap: 8px; justify-content: center; width: 100%;">
           <button class="btn" id="victory-replay-btn">🔄 Replay (r)</button>
-          ${stage.day < 30 ? '<button class="btn btn-primary" id="victory-next-btn">Next Day ➔ (Enter)</button>' : '<button class="btn btn-primary" id="victory-next-btn">🏆 View Map (Enter)</button>'}
+          ${stage.day < 60 ? '<button class="btn btn-primary" id="victory-next-btn">Next Stage ➔ (Enter)</button>' : '<button class="btn btn-primary" id="victory-next-btn">🏆 View Map (Enter)</button>'}
         </div>
         <div style="font-size: 11px; color: var(--tn-fg-dark); margin-top: 8px; width: 100%;">
           Press <kbd style="background: var(--tn-bg-highlight); padding: 2px 5px; border-radius: 3px; color: var(--tn-fg);">Enter</kbd> to proceed, <kbd style="background: var(--tn-bg-highlight); padding: 2px 5px; border-radius: 3px; color: var(--tn-fg);">r</kbd> to replay, <kbd style="background: var(--tn-bg-highlight); padding: 2px 5px; border-radius: 3px; color: var(--tn-fg);">Esc</kbd> to close

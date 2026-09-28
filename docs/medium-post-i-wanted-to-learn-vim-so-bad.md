@@ -1,6 +1,6 @@
 # I Wanted to Learn Vim So Bad, So I Built a Game for It
 
-*How obsessing over modal editing, rage-quitting `:wq!`, and missing home-row flow led to building a full 2D retro RPG and an interactive 30-Day Neovim Dojo in pure JavaScript.*
+*How obsessing over modal editing, rage-quitting `:wq!`, and missing home-row flow led to building a full 2D retro RPG and an interactive 60-Stage Neovim Dojo in pure JavaScript.*
 
 ---
 
@@ -26,7 +26,7 @@ When you're writing code under pressure, your prefrontal cortex is occupied with
 
 Cheatsheets fail because your eyes have to leave the screen. `vimtutor` fails because it doesn't give you dopamine. 
 
-So I decided to do what any reasonable, sleep-deprived programmer would do: **I built a full-blown retro RPG and a 30-Day interactive Dojo to force my nervous system into mastering Vim.**
+So I decided to do what any reasonable, sleep-deprived programmer would do: **I built a full-blown retro RPG and a 60-Stage interactive Dojo to force my nervous system into mastering Vim.**
 
 ---
 
@@ -78,12 +78,12 @@ Across 15 handcrafted chapters, you explore:
 - **Chapter 7: The Crypt of Matching Brackets (`%`):** Stand on an opening curly brace `{` and press `%` to teleport across bottomless chasms to its closing mate.
 - **Chapter 9–14: Verbs & Mutations (`x`, `r`, `~`, `*`, `D`):** Cut down thorny brambles with `x`, repair bridge tiles with `r=`, flip magical runic switches with `~`, and obliterate laser barriers with `D`.
 
-### 2. The 30-Day Neovim Dojo (`game/`)
+### 2. The 60-Stage Neovim Dojo (`game/`)
 Once your spatial intuition is locked in, you step out of the dungeon and into the terminal.
 
 The Dojo is a pixel-perfect in-browser Neovim buffer simulation equipped with:
 - A full modal state machine (**NORMAL**, **INSERT**, **VISUAL**, **VISUAL BLOCK**, and **COMMAND-LINE** modes).
-- A 30-day structured curriculum calibrated for 10 minutes of daily deliberate practice.
+- A 60-stage structured curriculum across 8 weeks calibrated for deliberate practice.
 - Authentic hybrid line numbers, relative numbering, statusline, and command buffer.
 - Real operator-pending grammar: verbs (`d`, `c`, `y`) combined with text objects (`iw`, `i"`, `a(`, `it`).
 - Modern Neovim superpowers like `flash.nvim` 2-character jump teleportation (`s`).
@@ -200,7 +200,7 @@ The mystique around Neovim evaporated. Modal editing isn't arcane wizardry reser
 If you’ve been putting off learning Vim because `vimtutor` bored you to tears, or if you keep relapsing to your mouse:
 
 1. **Fire up the 2D Adventure:** Walk the paths, jump the word islands, unlock your keys, and let the muscle memory seep into your fingers.
-2. **Hit the 30-Day Dojo:** Spend 5 to 10 minutes a day completing one daily exercise before opening your morning standup.
+2. **Hit the 60-Stage Dojo:** Spend 5 to 10 minutes completing deliberate practice stages before opening your morning standup.
 3. **Graduate to Neovim:** Take your new reflexes and watch your editor disappear between your thoughts and the screen.
 
 Stop fighting the editor. Turn it into a game.

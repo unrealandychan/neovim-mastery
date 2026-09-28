@@ -40,7 +40,7 @@ echo "=================================================================="
 echo "🥋 Welcome to Neovim Mastery & Vim Adventures!"
 echo "=================================================================="
 echo "⚔️  Vim Adventures RPG:  http://localhost:${PORT}/adventure/"
-echo "🥋 30-Day Dojo Game:    http://localhost:${PORT}/game/"
+echo "🥋 60-Stage Dojo:        http://localhost:${PORT}/game/"
 echo "🏠 Game Hub Portal:     http://localhost:${PORT}/"
 echo "=================================================================="
 

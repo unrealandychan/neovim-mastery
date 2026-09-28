@@ -286,7 +286,7 @@ export class SplitManager {
       <div class="modal-card floating-mission-window">
         <div class="modal-header">
           <div style="display: flex; align-items: center; gap: 8px;">
-            <span class="stage-badge">${stage.day ? `Day ${stage.day} • Week ${stage.week}` : 'Sandbox'}</span>
+            <span class="stage-badge">${stage.day ? `Stage ${stage.day} • Week ${stage.week}` : 'Sandbox'}</span>
             <span class="modal-title">${escapeHtml(stage.title)}</span>
           </div>
           <button class="modal-close-btn" id="floating-mission-close" title="Close (:q, <Esc>)">✕</button>

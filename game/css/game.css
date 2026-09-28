@@ -1207,7 +1207,7 @@ body.resizing-split {
   gap: 10px;
 }
 
-/* Stage Map Grid (30 Days) */
+/* Stage Map Grid (60 Stages) */
 .stage-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));

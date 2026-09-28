@@ -129,7 +129,7 @@ function buildBundle(baseDir, files, entryPoint, outputFile, title) {
   console.log(`Bundle generated successfully at ${outputFile} (${bundleContent.length} bytes)`);
 }
 
-// 1. Bundle 30-Day Dojo
+// 1. Bundle 60-Stage Dojo
 const dojoFiles = [
   'editor/key-parser.js',
   'editor/text-objects.js',
@@ -161,7 +161,7 @@ buildBundle(
   dojoFiles,
   'app.js',
   path.join(rootDir, 'game', 'js', 'bundle.js'),
-  'Neovim Mastery: The 30-Day Dojo'
+  'Neovim Mastery: The 60-Stage Dojo'
 );
 
 // 2. Bundle Adventure RPG

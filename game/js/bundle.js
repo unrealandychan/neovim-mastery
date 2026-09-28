@@ -1,5 +1,5 @@
 /**
- * Neovim Mastery: The 30-Day Dojo - Standalone Offline Bundle
+ * Neovim Mastery: The 60-Stage Dojo - Standalone Offline Bundle
  * Generated automatically. Works seamlessly on both http:// and file:// protocols.
  */
 (function() {
@@ -4747,7 +4747,7 @@ function renderStatusline(container, engine, stageInfo = {}) {
   }
 
   const stageLabel = stageInfo.day
-    ? `Day ${stageInfo.day}: ${stageInfo.title || 'Practice'}`
+    ? `Stage ${stageInfo.day}: ${stageInfo.title || 'Practice'}`
     : 'Neovim Mastery Sandbox';
 
   const splitMode = stageInfo.splitMode || 'vertical';
@@ -6173,7 +6173,7 @@ class SplitManager {
       <div class="modal-card floating-mission-window">
         <div class="modal-header">
           <div style="display: flex; align-items: center; gap: 8px;">
-            <span class="stage-badge">${stage.day ? `Day ${stage.day} • Week ${stage.week}` : 'Sandbox'}</span>
+            <span class="stage-badge">${stage.day ? `Stage ${stage.day} • Week ${stage.week}` : 'Sandbox'}</span>
             <span class="modal-title">${escapeHtml(stage.title)}</span>
           </div>
           <button class="modal-close-btn" id="floating-mission-close" title="Close (:q, <Esc>)">✕</button>
@@ -6435,7 +6435,7 @@ defineModule('ui/modal.js', function(exports, require, module) {
  */
 
 /**
- * Renders the 30-Day Stage Map Modal
+ * Renders the 60-Stage Dojo Map Modal
  */
 function renderStageSelectModal(container, stages, gameState, onSelectStage) {
   if (!container) return;
@@ -6459,7 +6459,7 @@ function renderStageSelectModal(container, stages, gameState, onSelectStage) {
 
     return `
       <div class="${itemClass}" data-day="${s.day}">
-        <div class="day-label">Day ${s.day}</div>
+        <div class="day-label">Stage ${s.day}</div>
         <div style="font-size: 10px; color: var(--tn-comment); margin: 2px 0;">${escapeHtml(s.title)}</div>
         <div class="stars">${starIcons}</div>
       </div>
@@ -6512,7 +6512,7 @@ function renderVictoryModal(container, stage, evaluation, onNext, onReplay) {
   container.innerHTML = `
     <div class="modal-card" style="max-width: 480px; text-align: center;">
       <div class="modal-header" style="justify-content: center; background: transparent;">
-        <div class="modal-title" style="font-size: 20px;">🎉 Day ${stage.day} Mastered!</div>
+        <div class="modal-title" style="font-size: 20px;">🎉 Stage ${stage.day} Mastered!</div>
       </div>
       <div class="modal-body" style="padding: 10px 24px;">
         <div style="font-size: 38px; margin: 12px 0; letter-spacing: 4px;">${starsDisplay}</div>
@@ -6531,7 +6531,7 @@ function renderVictoryModal(container, stage, evaluation, onNext, onReplay) {
       </div>
         <div style="display: flex; gap: 8px; justify-content: center; width: 100%;">
           <button class="btn" id="victory-replay-btn">🔄 Replay (r)</button>
-          ${stage.day < 30 ? '<button class="btn btn-primary" id="victory-next-btn">Next Day ➔ (Enter)</button>' : '<button class="btn btn-primary" id="victory-next-btn">🏆 View Map (Enter)</button>'}
+          ${stage.day < 60 ? '<button class="btn btn-primary" id="victory-next-btn">Next Stage ➔ (Enter)</button>' : '<button class="btn btn-primary" id="victory-next-btn">🏆 View Map (Enter)</button>'}
         </div>
         <div style="font-size: 11px; color: var(--tn-fg-dark); margin-top: 8px; width: 100%;">
           Press <kbd style="background: var(--tn-bg-highlight); padding: 2px 5px; border-radius: 3px; color: var(--tn-fg);">Enter</kbd> to proceed, <kbd style="background: var(--tn-bg-highlight); padding: 2px 5px; border-radius: 3px; color: var(--tn-fg);">r</kbd> to replay, <kbd style="background: var(--tn-bg-highlight); padding: 2px 5px; border-radius: 3px; color: var(--tn-fg);">Esc</kbd> to close
@@ -7031,7 +7031,7 @@ class App {
   updateMissionUI() {
     const s = this.currentStage;
     if (this.dom.missionBadge) {
-      this.dom.missionBadge.textContent = s.day ? `Day ${s.day} • Week ${s.week}` : 'Sandbox';
+      this.dom.missionBadge.textContent = s.day ? `Stage ${s.day} • Week ${s.week}` : 'Sandbox';
     }
     if (this.dom.missionTitle) this.dom.missionTitle.textContent = s.title;
     if (this.dom.missionConcept) this.dom.missionConcept.textContent = `🎯 ${s.concept}`;
@@ -7046,16 +7046,16 @@ class App {
 
     const diffMini = document.getElementById('diff-mini-title');
     if (diffMini) {
-      diffMini.textContent = s.day ? `Day ${s.day}: ${s.title}` : s.title;
+      diffMini.textContent = s.day ? `Stage ${s.day}: ${s.title}` : s.title;
     }
 
     if (this.dom.tabFilename) {
-      this.dom.tabFilename.textContent = s.day ? `day_${s.day}_exercise.ts` : 'sandbox.ts';
+      this.dom.tabFilename.textContent = s.day ? `stage_${s.day}_exercise.ts` : 'sandbox.ts';
     }
 
     const navPillDay = document.getElementById('nav-pill-day');
     const navPillTitle = document.getElementById('nav-pill-title');
-    if (navPillDay) navPillDay.textContent = s.day ? `Day ${s.day}` : 'Sandbox';
+    if (navPillDay) navPillDay.textContent = s.day ? `Stage ${s.day}` : 'Sandbox';
     if (navPillTitle) navPillTitle.textContent = s.title || 'Practice Session';
     const missionChap = document.getElementById('mission-chapter');
     if (missionChap) {

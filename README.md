@@ -16,17 +16,17 @@ Once this language becomes muscle memory:
 
 ---
 
-## 🎮 Play the Interactive Web Game: The 30-Day Dojo
+## 🎮 Play the Interactive Web Game: The 60-Stage Dojo
 
 Master Vim by playing! This repository includes a complete browser-based, interactive modal game styled in **Tokyo Night** with simulated **Lualine**, **Flash.nvim teleportation**, **Which-Key popups**, and **Vim Golf Par scoring**.
 
 [![Play the Dojo](https://img.shields.io/badge/Play-Neovim%20Mastery%20Dojo-7aa2f7?style=for-the-badge&logo=neovim&logoColor=white)](./game/index.html)
-[![30 Stages](https://img.shields.io/badge/Stages-30%20Days%20Complete-9ece6a?style=for-the-badge)](./game/index.html)
+[![60 Stages](https://img.shields.io/badge/Stages-60%20Stages%20Complete-9ece6a?style=for-the-badge)](./game/index.html)
 [![Zero Dependency](https://img.shields.io/badge/Offline%20Ready-Zero%20Build%20Step-bb9af7?style=for-the-badge)](./game/index.html)
 
 ```
        ┌────────────────────────────────────────────────────────┐
-       │ 🥋 NEOVIM MASTERY: THE 30-DAY DOJO [Tokyo Night]       │
+       │ 🥋 NEOVIM MASTERY: 60-STAGE DOJO [Tokyo Night]         │
        ├──────────────────────────────┬─────────────────────────┤
        │ 1  const status = "FIX_ME";  │ 🎯 TARGET GOAL (DIFF)   │
        │ 2                            │ ✓ const status =        │
@@ -180,8 +180,8 @@ All chapters and labs are organized in this repository:
 | ├─ [`07-ui-notifications-and-plugin-maintenance.md`](06-plugin-mastery-and-ecosystem/07-ui-notifications-and-plugin-maintenance.md) | `noice.nvim` floating cmdline, `which-key`, lockfile `lazy-lock.json`, updates `:Lazy`, health checks. | Maintenance & UI |
 | └─ [`08-master-plugin-catalog-and-cheatsheet.md`](06-plugin-mastery-and-ecosystem/08-master-plugin-catalog-and-cheatsheet.md) | Definitive catalog of all 40+ plugins installed: repo links, purpose, keybindings, and tips. | Master Reference |
 | **[`game/`](game/)** | | |
-| ├─ [`index.html`](game/index.html) | Playable browser-based Vim dojo with 30 progressive daily stages and Tokyo Night UI. | Interactive Game |
-| └─ [`js/stages/curriculum.js`](game/js/stages/curriculum.js) | Full 30-Day curriculum definitions with Vim Golf Par scoring, hints, and checks. | Game Curriculum |
+| ├─ [`index.html`](game/index.html) | Playable browser-based Vim dojo with 60 progressive stages and Tokyo Night UI. | Interactive Game |
+| └─ [`js/stages/curriculum.js`](game/js/stages/curriculum.js) | Full 60-Stage curriculum definitions with Vim Golf Par scoring, hints, and checks. | Game Curriculum |
 | **[`practice/`](practice/)** | | |
 | ├─ [`practice_grammar.txt`](practice/practice_grammar.txt) | Hands-on code files to edit directly inside Neovim with built-in exercises. | Grammar Lab |
 | └─ [`practice_plugins_lab.md`](practice/practice_plugins_lab.md) | Hands-on drills for Flash teleportation, Grug-Far search/replace, Snacks tools, and Mini.ai. | Plugin Lab |

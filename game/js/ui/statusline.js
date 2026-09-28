@@ -26,7 +26,7 @@ export function renderStatusline(container, engine, stageInfo = {}) {
   }
 
   const stageLabel = stageInfo.day
-    ? `Day ${stageInfo.day}: ${stageInfo.title || 'Practice'}`
+    ? `Stage ${stageInfo.day}: ${stageInfo.title || 'Practice'}`
     : 'Neovim Mastery Sandbox';
 
   const splitMode = stageInfo.splitMode || 'vertical';

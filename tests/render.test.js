@@ -25,7 +25,7 @@ test('Statusline renderer formats mode and position correctly', () => {
   renderStatusline(mockStatusContainer, engine, { day: 1, title: 'Mental Model' });
 
   assert.ok(mockStatusContainer.innerHTML.includes('status-mode NORMAL'));
-  assert.ok(mockStatusContainer.innerHTML.includes('Day 1: Mental Model'));
+  assert.ok(mockStatusContainer.innerHTML.includes('Stage 1: Mental Model'));
   assert.ok(mockStatusContainer.innerHTML.includes('1:1'));
 });
 

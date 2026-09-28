@@ -1,6 +1,6 @@
 # I Wanted to Learn Vim So Bad, So I Built a Game for It
 
-*How rage-quitting `:wq!` and mouse fatigue inspired a 2D retro RPG and an interactive 30-Day Neovim Dojo.*
+*How rage-quitting `:wq!` and mouse fatigue inspired a 2D retro RPG and an interactive 60-Stage Neovim Dojo.*
 
 ---
 
@@ -53,9 +53,9 @@ You wake up on a beach with amnesia. You only know `h, j, k, l`. Every other Vim
 - **Chapter 5 (Tower of Vertical Ascents):** A 20-story fortress. Unlock `gg` to soar to the battlement in one frame, and `G` to plunge back down.
 - **Chapter 7 (Crypt of Brackets):** Step onto `{` and press `%` to teleport across bottomless chasms.
 
-#### 2. The 30-Day Neovim Dojo (`game/`)
+#### 2. The 60-Stage Neovim Dojo (`game/`)
 Once your spatial intuition clicks, you step into the Dojo—a real in-browser terminal buffer:
-- 30 daily 10-minute micro-lessons.
+- 60 progressive micro-lessons across 8 weeks of curriculum.
 - Real operator-pending grammar: verbs (`d`, `c`, `y`) + text objects (`iw`, `i"`, `a(`).
 - Par scoring & instant visual diffs against your target goal.
 

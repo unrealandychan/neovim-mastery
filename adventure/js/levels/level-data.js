@@ -1,18 +1,18 @@
 /**
  * Vim Adventures Level Definitions & Curriculum
- * 15 Grand Handcrafted Chapters mapped to the 30-Day Dojo Curriculum.
- * Users play both the 2D Adventure RPG and the 30-Day Buffer Dojo to achieve complete Neovim mastery!
+ * 15 Grand Handcrafted Chapters mapped to the 60-Stage Dojo Curriculum.
+ * Users play both the 2D Adventure RPG and the 60-Stage Buffer Dojo to achieve complete Neovim mastery!
  */
 
 export const LEVELS = [
   // =========================================================================
-  // CHAPTER 1: Shoreline of Motion [Dojo Days 1-2]
+  // CHAPTER 1: Shoreline of Motion [Dojo Stages 1-2]
   // Mechanics: h, j, k, l orthogonal navigation on character paths
   // =========================================================================
   {
     id: 1,
     name: "Chapter 1: Shoreline of Motion",
-    subtitle: "Master the Sacred Cardinal Motions: h, j, k, l [Dojo Days 1-2]",
+    subtitle: "Master the Sacred Cardinal Motions: h, j, k, l [Dojo Stages 1-2]",
     width: 28,
     height: 16,
     playerStart: { x: 3, y: 3 },
@@ -90,13 +90,13 @@ export const LEVELS = [
   },
 
   // =========================================================================
-  // CHAPTER 2: The Word Archipelago [Dojo Day 3]
+  // CHAPTER 2: The Word Archipelago [Dojo Stage 3]
   // Mechanics: w, b, e, ge jumping across water between word islands
   // =========================================================================
   {
     id: 2,
     name: "Chapter 2: The Word Archipelago",
-    subtitle: "Leap Across Chasms with w, b, e, ge [Dojo Day 3]",
+    subtitle: "Leap Across Chasms with w, b, e, ge [Dojo Stage 3]",
     width: 32,
     height: 18,
     playerStart: { x: 2, y: 2 },
@@ -184,13 +184,13 @@ export const LEVELS = [
   },
 
   // =========================================================================
-  // CHAPTER 3: The Line Canyon [Dojo Day 3]
+  // CHAPTER 3: The Line Canyon [Dojo Stage 3]
   // Mechanics: 0, $, ^ instant line boundary jumps across canyon ledges
   // =========================================================================
   {
     id: 3,
     name: "Chapter 3: The Line Canyon",
-    subtitle: "Command Line Boundaries with 0, $, and ^ [Dojo Day 3]",
+    subtitle: "Command Line Boundaries with 0, $, and ^ [Dojo Stage 3]",
     width: 36,
     height: 12,
     playerStart: { x: 2, y: 2 },
@@ -252,13 +252,13 @@ export const LEVELS = [
   },
 
   // =========================================================================
-  // CHAPTER 4: The Caverns of Till & Reverse Seek [Dojo Day 5]
+  // CHAPTER 4: The Caverns of Till & Reverse Seek [Dojo Stage 5]
   // Mechanics: Inline seeking with f, t, F, T, ;, and ,
   // =========================================================================
   {
     id: 4,
     name: "Chapter 4: Caverns of Till & Reverse Seek",
-    subtitle: "Precision Inline Seeking with f, t, F, T, ;, and , [Dojo Day 5]",
+    subtitle: "Precision Inline Seeking with f, t, F, T, ;, and , [Dojo Stage 5]",
     width: 34,
     height: 12,
     playerStart: { x: 2, y: 2 },
@@ -336,13 +336,13 @@ export const LEVELS = [
   },
 
   // =========================================================================
-  // CHAPTER 5: The Tower of Vertical Ascents [Dojo Day 6]
+  // CHAPTER 5: The Tower of Vertical Ascents [Dojo Stage 6]
   // Mechanics: gg (top of buffer), G (bottom of buffer), and line counts
   // =========================================================================
   {
     id: 5,
     name: "Chapter 5: Tower of Vertical Ascents",
-    subtitle: "Command Buffer Boundaries with gg, G, and Line Jumps [Dojo Day 6]",
+    subtitle: "Command Buffer Boundaries with gg, G, and Line Jumps [Dojo Stage 6]",
     width: 32,
     height: 20,
     playerStart: { x: 3, y: 17 },
@@ -461,13 +461,13 @@ export const LEVELS = [
   },
 
   // =========================================================================
-  // CHAPTER 6: The Forest of Empty Paragraphs [Dojo Day 6]
+  // CHAPTER 6: The Forest of Empty Paragraphs [Dojo Stage 6]
   // Mechanics: { and } jumping across empty lines / forest clearings
   // =========================================================================
   {
     id: 6,
     name: "Chapter 6: Forest of Empty Paragraphs",
-    subtitle: "Leap Across Forest Glades with { and } [Dojo Day 6]",
+    subtitle: "Leap Across Forest Glades with { and } [Dojo Stage 6]",
     width: 34,
     height: 20,
     playerStart: { x: 2, y: 2 },
@@ -536,13 +536,13 @@ export const LEVELS = [
   },
 
   // =========================================================================
-  // CHAPTER 7: Crypt of Matching Brackets [Dojo Day 10]
+  // CHAPTER 7: Crypt of Matching Brackets [Dojo Stage 10]
   // Mechanics: % bracket matching jumps between (, ), [, ], {, }
   // =========================================================================
   {
     id: 7,
     name: "Chapter 7: Crypt of Matching Brackets",
-    subtitle: "Warp Between Code Chasms with % [Dojo Day 10]",
+    subtitle: "Warp Between Code Chasms with % [Dojo Stage 10]",
     width: 32,
     height: 18,
     playerStart: { x: 3, y: 3 },
@@ -617,13 +617,13 @@ export const LEVELS = [
   },
 
   // =========================================================================
-  // CHAPTER 8: The Labyrinth of Precision Counts [Dojo Day 2]
+  // CHAPTER 8: The Labyrinth of Precision Counts [Dojo Stage 2]
   // Mechanics: Count grammar (3w, 5j, 18h, 4j, 10h) across water bridges
   // =========================================================================
   {
     id: 8,
     name: "Chapter 8: Labyrinth of Precision Counts",
-    subtitle: "Precision Leaps with Counts: 3w, 5j, 18h [Dojo Day 2]",
+    subtitle: "Precision Leaps with Counts: 3w, 5j, 18h [Dojo Stage 2]",
     width: 34,
     height: 13,
     playerStart: { x: 2, y: 1 },
@@ -686,13 +686,13 @@ export const LEVELS = [
   },
 
   // =========================================================================
-  // CHAPTER 9: The Pruning Grounds of 'x' [Dojo Days 2 & 4]
+  // CHAPTER 9: The Pruning Grounds of 'x' [Dojo Stages 2 & 4]
   // Mechanics: Character deletion / weed clearing with x and counts (3x)
   // =========================================================================
   {
     id: 9,
     name: "Chapter 9: The Pruning Grounds of 'x'",
-    subtitle: "Slice Glitches, Bugs, and Weeds with x and 3x [Dojo Days 2 & 4]",
+    subtitle: "Slice Glitches, Bugs, and Weeds with x and 3x [Dojo Stages 2 & 4]",
     width: 32,
     height: 14,
     playerStart: { x: 2, y: 2 },
@@ -762,13 +762,13 @@ export const LEVELS = [
   },
 
   // =========================================================================
-  // CHAPTER 10: The Masons of Replacement ('r') [Dojo Days 4 & 14]
+  // CHAPTER 10: The Masons of Replacement ('r') [Dojo Stages 4 & 14]
   // Mechanics: Character replacement with r{char} to repair bridge tiles
   // =========================================================================
   {
     id: 10,
     name: "Chapter 10: Masons of Replacement ('r')",
-    subtitle: "Restore Broken Bridges with r= [Dojo Days 4 & 14]",
+    subtitle: "Restore Broken Bridges with r= [Dojo Stages 4 & 14]",
     width: 34,
     height: 12,
     playerStart: { x: 2, y: 2 },
@@ -830,13 +830,13 @@ export const LEVELS = [
   },
 
   // =========================================================================
-  // CHAPTER 11: The Halls of Undo & Reversal ('u') [Dojo Day 12]
+  // CHAPTER 11: The Halls of Undo & Reversal ('u') [Dojo Stage 12]
   // Mechanics: Undo tree, rewinding moves and state with 'u'
   // =========================================================================
   {
     id: 11,
     name: "Chapter 11: Halls of Undo & Reversal",
-    subtitle: "Manipulate Time and Reverse Traps with u [Dojo Day 12]",
+    subtitle: "Manipulate Time and Reverse Traps with u [Dojo Stage 12]",
     width: 32,
     height: 15,
     playerStart: { x: 2, y: 2 },
@@ -901,13 +901,13 @@ export const LEVELS = [
   },
 
   // =========================================================================
-  // CHAPTER 12: Chamber of Case Inversion ('~') [Dojo Days 13 & 27]
+  // CHAPTER 12: Chamber of Case Inversion ('~') [Dojo Stages 13 & 27]
   // Mechanics: Toggle switch polarity with ~ (invert lower to UPPER)
   // =========================================================================
   {
     id: 12,
     name: "Chapter 12: Chamber of Case Inversion ('~')",
-    subtitle: "Toggle Binary Switches and Gates with ~ [Dojo Days 13 & 27]",
+    subtitle: "Toggle Binary Switches and Gates with ~ [Dojo Stages 13 & 27]",
     width: 34,
     height: 14,
     playerStart: { x: 2, y: 2 },
@@ -973,13 +973,13 @@ export const LEVELS = [
   },
 
   // =========================================================================
-  // CHAPTER 13: Valley of Golden Beacons ('*') [Dojo Days 18 & 23]
+  // CHAPTER 13: Valley of Golden Beacons ('*') [Dojo Stages 18 & 23]
   // Mechanics: Search word under cursor with * to warp across beacons
   // =========================================================================
   {
     id: 13,
     name: "Chapter 13: Valley of Golden Beacons ('*')",
-    subtitle: "Search and Warp to Matching Tokens with * [Dojo Days 18 & 23]",
+    subtitle: "Search and Warp to Matching Tokens with * [Dojo Stages 18 & 23]",
     width: 34,
     height: 17,
     playerStart: { x: 2, y: 1 },
@@ -1046,13 +1046,13 @@ export const LEVELS = [
   },
 
   // =========================================================================
-  // CHAPTER 14: The Line Demolition Vaults ('D') [Dojo Day 4]
+  // CHAPTER 14: The Line Demolition Vaults ('D') [Dojo Stage 4]
   // Mechanics: Delete to line end (D / d$) clearing barrier rows
   // =========================================================================
   {
     id: 14,
     name: "Chapter 14: Line Demolition Vaults ('D')",
-    subtitle: "Obliterate Barriers to Line End with D [Dojo Day 4]",
+    subtitle: "Obliterate Barriers to Line End with D [Dojo Stage 4]",
     width: 34,
     height: 15,
     playerStart: { x: 2, y: 2 },
@@ -1121,13 +1121,13 @@ export const LEVELS = [
   },
 
   // =========================================================================
-  // CHAPTER 15: Grand Citadel of the Neovim Grandmaster [Dojo Days 29-30]
+  // CHAPTER 15: Grand Citadel of the Neovim Grandmaster [Dojo Stages 50-60]
   // Mechanics: Climax synthesizing ALL motions, objects, operators, and Bram
   // =========================================================================
   {
     id: 15,
     name: "Chapter 15: Grand Citadel of the Neovim Grandmaster",
-    subtitle: "The Ultimate Modal Trial - Bram Moolenaar's Blessing [Dojo Days 29-30]",
+    subtitle: "The Ultimate Modal Trial - Bram Moolenaar's Blessing [Dojo Stages 50-60]",
     width: 34,
     height: 22,
     playerStart: { x: 31, y: 20 },
